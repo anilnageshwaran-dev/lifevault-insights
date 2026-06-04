@@ -219,6 +219,8 @@ export function LifeVaultApp() {
         </div>
       </nav>
 
+      {tab !== "settings" && <QuickAddFab />}
+
       <InstallBanner />
 
       <style>{`
