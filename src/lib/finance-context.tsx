@@ -3,6 +3,14 @@ import { uid } from "./finance-utils";
 import { decryptWithKey, encryptWithKey } from "./crypto";
 import { useLock } from "./lock-context";
 import { fetchFxRates, type FxCache, convert } from "./currency";
+import { useDrive } from "./drive-context";
+import {
+  createAppFile,
+  downloadAppFile,
+  findAppFile,
+  updateAppFile,
+} from "./drive-sync";
+import { toast } from "sonner";
 
 export type AssetCategory =
   | "cash"
@@ -247,12 +255,15 @@ const FinanceContext = React.createContext<Ctx | null>(null);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const { key } = useLock();
+  const drive = useDrive();
   const [state, setState] = React.useState<FinanceState>(initialState);
   const [hydrated, setHydrated] = React.useState(false);
   const [syncStatus, setSyncStatus] = React.useState<"idle" | "saving" | "synced" | "error">(
     "idle",
   );
   const [fx, setFx] = React.useState<FxCache | null>(null);
+  const driveFileIdRef = React.useRef<string | null>(null);
+  const driveLoadedRef = React.useRef<boolean>(false);
 
   // Load FX on mount
   React.useEffect(() => {
@@ -267,6 +278,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (r) setFx(r);
   }, []);
 
+  // 1) Local hydration
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -298,6 +310,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
       } catch {}
+      // Restore Drive fileId
+      try {
+        const fid = localStorage.getItem("lifevault_drive_fileid");
+        if (fid) driveFileIdRef.current = fid;
+      } catch {}
       if (!cancelled) setHydrated(true);
     })();
     return () => {
@@ -305,24 +322,90 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     };
   }, [key]);
 
+  // 2) Drive: pull-on-connect (once per session)
+  React.useEffect(() => {
+    if (!hydrated || !key || !drive.connected || driveLoadedRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await drive.ensureToken();
+        if (!token) return;
+        const file = await findAppFile();
+        if (!file) {
+          driveLoadedRef.current = true;
+          return;
+        }
+        driveFileIdRef.current = file.id;
+        try {
+          localStorage.setItem("lifevault_drive_fileid", file.id);
+        } catch {}
+        const blob = await downloadAppFile(file.id);
+        try {
+          const parsed = await decryptWithKey<FinanceState>(blob, key);
+          if (!cancelled) {
+            setState({ ...initialState, ...parsed });
+            setSyncStatus("synced");
+          }
+        } catch {
+          // PIN-encrypted blob from a different PIN — ignore, keep local
+        }
+        driveLoadedRef.current = true;
+      } catch (e) {
+        const msg = (e as Error).message || "";
+        if (msg.includes("403")) {
+          toast.error("Drive access denied — check permissions");
+        }
+        setSyncStatus("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, key, drive.connected, drive]);
+
+  // 3) Save (debounced) — local always; Drive if connected
   React.useEffect(() => {
     if (!hydrated) return;
     setSyncStatus("saving");
     const t = setTimeout(async () => {
+      let enc: string | null = null;
       try {
         if (key) {
-          const enc = await encryptWithKey(state, key);
+          enc = await encryptWithKey(state, key);
           localStorage.setItem(STORAGE_KEY_ENC, enc);
         } else {
           localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(state));
         }
-        setSyncStatus("synced");
       } catch {
         setSyncStatus("error");
+        return;
+      }
+      // Drive write (best-effort, never blocks app)
+      if (drive.connected && enc) {
+        try {
+          const token = await drive.ensureToken();
+          if (!token) throw new Error("no token");
+          if (driveFileIdRef.current) {
+            await updateAppFile(driveFileIdRef.current, enc);
+          } else {
+            const id = await createAppFile(enc);
+            driveFileIdRef.current = id;
+            try {
+              localStorage.setItem("lifevault_drive_fileid", id);
+            } catch {}
+          }
+          setSyncStatus("synced");
+        } catch (e) {
+          const msg = (e as Error).message || "";
+          if (msg.includes("403")) toast.error("Drive access denied — check permissions");
+          setSyncStatus("error");
+        }
+      } else {
+        setSyncStatus("synced");
       }
     }, 800);
     return () => clearTimeout(t);
-  }, [state, hydrated, key]);
+  }, [state, hydrated, key, drive.connected, drive]);
 
   const update = React.useCallback(
     <K extends keyof FinanceState>(key: K, value: FinanceState[K]) => {

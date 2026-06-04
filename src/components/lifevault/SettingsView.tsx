@@ -6,6 +6,7 @@ import {
 import { useFinance, accountBalance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
 import { useTheme } from "@/lib/theme-context";
+import { useDrive } from "@/lib/drive-context";
 import { PinKeypad } from "./PinKeypad";
 import { CurrencySelect } from "./CurrencySelect";
 import { convert } from "@/lib/currency";
@@ -290,19 +291,9 @@ function DataTab() {
 
   return (
     <div className="space-y-5">
-      <Card>
-        <h3 className="font-display text-xl mb-2 flex items-center gap-2">
-          <Cloud className="h-5 w-5" /> Cloud Sync
-        </h3>
-        <p className="text-sm text-muted-foreground mb-3">
-          Your data is encrypted on this device with your PIN. For full Google Drive
-          per-user sync to <code>appDataFolder</code>, the host needs to register a
-          Google OAuth client; the app currently uses local encrypted storage.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Use Export JSON below to back up. Import on any device to restore.
-        </p>
-      </Card>
+      <DriveSyncCard />
+
+
 
       <Card>
         <h3 className="font-display text-xl mb-2">Export Data</h3>
@@ -349,6 +340,83 @@ function DataTab() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function DriveSyncCard() {
+  const drive = useDrive();
+  const { syncStatus } = useFinance();
+  const [busy, setBusy] = React.useState(false);
+
+  const statusLabel = !drive.connected
+    ? "Not connected"
+    : syncStatus === "saving"
+      ? "Saving…"
+      : syncStatus === "error"
+        ? "Offline — working from cache"
+        : "Synced";
+  const statusDot = !drive.connected
+    ? "bg-foreground/30"
+    : syncStatus === "saving"
+      ? "bg-warning animate-pulse"
+      : syncStatus === "error"
+        ? "bg-danger"
+        : "bg-positive";
+
+  return (
+    <Card>
+      <h3 className="font-display text-xl mb-2 flex items-center gap-2">
+        <Cloud className="h-5 w-5" /> Google Drive Sync
+      </h3>
+      <p className="text-sm text-muted-foreground mb-3">
+        Your encrypted vault is synced to your private Google Drive
+        <code className="mx-1">appDataFolder</code>. Data stays end-to-end
+        encrypted with your PIN — Google cannot read it.
+      </p>
+      <div className="flex items-center gap-2 mb-4 text-sm">
+        <span className={`h-2 w-2 rounded-full ${statusDot}`} />
+        <span className="text-muted-foreground">{statusLabel}</span>
+        {drive.connected && drive.user?.email && (
+          <span className="text-muted-foreground">· {drive.user.email}</span>
+        )}
+      </div>
+      {!drive.connected ? (
+        <button
+          disabled={busy || drive.connecting}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await drive.connect();
+              toast.success("Connected to Google Drive");
+            } catch (e) {
+              toast.error((e as Error).message || "Sign-in cancelled");
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
+        >
+          {busy || drive.connecting ? "Connecting…" : "Connect Google Drive"}
+        </button>
+      ) : (
+        <button
+          disabled={busy}
+          onClick={async () => {
+            if (!confirm("Disconnect Google Drive? Your local data stays on this device.")) return;
+            setBusy(true);
+            try {
+              await drive.disconnect();
+              toast.success("Disconnected");
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent disabled:opacity-50"
+        >
+          Disconnect
+        </button>
+      )}
+    </Card>
   );
 }
 
