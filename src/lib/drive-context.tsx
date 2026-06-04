@@ -181,11 +181,11 @@ export function DriveProvider({ children }: { children: React.ReactNode }) {
   const ensureToken = React.useCallback(async (): Promise<string | null> => {
     if (!pref.connected) return null;
     try {
-      return await getValidToken();
+      return await getValidToken(pref.email);
     } catch {
       return null;
     }
-  }, [pref.connected]);
+  }, [pref.connected, pref.email]);
 
   return (
     <Ctx.Provider

@@ -65,11 +65,47 @@ function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl md:rounded-2xl border border-border bg-card p-4 md:p-5">{children}</div>;
 }
 
+function CountList({
+  title,
+  counts,
+  fallback,
+}: {
+  title: string;
+  counts?: {
+    accounts: number;
+    transactions: number;
+    assets: number;
+    liabilities: number;
+    goals: number;
+    bills: number;
+    vaultItems: number;
+  };
+  fallback?: string;
+}) {
+  return (
+    <div className="rounded-lg bg-card/60 p-2">
+      <div className="mb-1 font-medium text-foreground">{title}</div>
+      {counts ? (
+        <div className="space-y-0.5">
+          <div>Accounts: {counts.accounts}</div>
+          <div>Transactions: {counts.transactions}</div>
+          <div>Assets: {counts.assets}</div>
+          <div>Goals: {counts.goals}</div>
+          <div>Bills: {counts.bills}</div>
+          <div>Vault: {counts.vaultItems}</div>
+        </div>
+      ) : (
+        <div className="capitalize">{fallback ?? "Not checked"}</div>
+      )}
+    </div>
+  );
+}
+
 function AccountTab() {
   const { meta, updateMeta, resetAll } = useLock();
   const { user, signOut } = useAuth();
   const drive = useDrive();
-  const { syncStatus, lastSyncedAt, syncNow } = useFinance();
+  const { syncStatus, lastSyncedAt, syncNow, syncDiagnostics, inspectDrive, pullFromDrive, pushToDrive } = useFinance();
   const [name, setName] = React.useState(meta.displayName);
   const [busy, setBusy] = React.useState(false);
   const [syncing, setSyncing] = React.useState(false);
@@ -90,6 +126,10 @@ function AccountTab() {
     ? "Not connected"
     : syncStatus === "saving" || syncing
       ? "Saving…"
+      : syncDiagnostics.remote.status === "locked"
+        ? "PIN mismatch"
+      : syncDiagnostics.remote.status === "missing"
+        ? "No Drive file"
       : syncStatus === "error"
         ? "Offline — working from cache"
         : "Synced";
@@ -101,6 +141,9 @@ function AccountTab() {
         ? "bg-danger"
         : "bg-positive";
   const lastLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : null;
+  const remoteLabel = syncDiagnostics.remote.status === "available" && syncDiagnostics.remote.modifiedTime
+    ? new Date(syncDiagnostics.remote.modifiedTime).toLocaleString()
+    : null;
 
   return (
     <Card>
@@ -155,6 +198,45 @@ function AccountTab() {
                   {syncing ? "Syncing…" : "Sync now"}
                 </button>
                 <button
+                  disabled={syncing || syncStatus === "saving"}
+                  onClick={async () => {
+                    setSyncing(true);
+                    try { await inspectDrive(); toast.success("Drive checked"); }
+                    catch (e) { toast.error((e as Error).message || "Drive check failed"); }
+                    finally { setSyncing(false); }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
+                >
+                  Check Drive
+                </button>
+                <button
+                  disabled={syncing || syncStatus === "saving"}
+                  onClick={async () => {
+                    setSyncing(true);
+                    try {
+                      const pulled = await pullFromDrive();
+                      toast.success(pulled ? "Pulled latest Drive data" : "No newer Drive data found");
+                    } catch (e) { toast.error((e as Error).message || "Pull failed"); }
+                    finally { setSyncing(false); }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
+                >
+                  Pull from Drive
+                </button>
+                <button
+                  disabled={syncing || syncStatus === "saving" || syncDiagnostics.remote.status === "locked"}
+                  onClick={async () => {
+                    if (!confirm("Upload this device's current data to Google Drive? This can overwrite the Drive copy.")) return;
+                    setSyncing(true);
+                    try { await pushToDrive(); toast.success("Uploaded this device to Drive"); }
+                    catch (e) { toast.error((e as Error).message || "Upload failed"); }
+                    finally { setSyncing(false); }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-warning/50 text-warning text-xs hover:bg-warning/10 disabled:opacity-50"
+                >
+                  Push this device
+                </button>
+                <button
                   disabled={busy}
                   onClick={async () => {
                     if (!confirm("Disconnect Google Drive? Your local data stays on this device.")) return;
@@ -187,6 +269,27 @@ function AccountTab() {
             <code className="mx-1">appDataFolder</code>. Data stays end-to-end
             encrypted with your PIN — Google cannot read it.
           </p>
+          {drive.connected && (
+            <div className="mt-3 rounded-lg border border-border bg-background/50 p-3 text-xs text-muted-foreground space-y-2">
+              <div className="font-medium text-foreground">Sync diagnostics</div>
+              <div className="grid grid-cols-2 gap-2">
+                <CountList title="This device" counts={syncDiagnostics.local} />
+                <CountList
+                  title="Google Drive"
+                  counts={syncDiagnostics.remote.counts}
+                  fallback={
+                    syncDiagnostics.remote.status === "checking"
+                      ? "Checking…"
+                      : syncDiagnostics.remote.message || syncDiagnostics.remote.status.replaceAll("_", " ")
+                  }
+                />
+              </div>
+              <div>
+                Drive file: {remoteLabel ?? "not verified yet"}
+                {syncDiagnostics.checkedAt && <> · checked {new Date(syncDiagnostics.checkedAt).toLocaleTimeString()}</>}
+              </div>
+            </div>
+          )}
         </div>
       )}
       <div>
