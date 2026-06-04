@@ -793,6 +793,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     await writeAndPush(true);
   }, [pullIfRemoteNewer, writeAndPush]);
 
+  const pullFromDrive = React.useCallback(async () => {
+    return pullIfRemoteNewer(true);
+  }, [pullIfRemoteNewer]);
+
+  const pushToDrive = React.useCallback(async () => {
+    await writeAndPush(true);
+    await inspectDrive();
+  }, [inspectDrive, writeAndPush]);
+
   const update = React.useCallback(
     <K extends keyof FinanceState>(key: K, value: FinanceState[K]) => {
       setState((s) => ({ ...s, [key]: value }));
@@ -833,7 +842,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         importData,
         syncStatus,
         lastSyncedAt,
+        syncDiagnostics,
         syncNow,
+        inspectDrive,
+        pullFromDrive,
+        pushToDrive,
         fx,
         refreshFx,
       }}
