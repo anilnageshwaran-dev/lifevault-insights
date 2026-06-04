@@ -65,33 +65,137 @@ function Card({ children }: { children: React.ReactNode }) {
 
 function AccountTab() {
   const { meta, updateMeta, resetAll } = useLock();
+  const { user, signOut } = useAuth();
+  const drive = useDrive();
+  const { syncStatus, lastSyncedAt, syncNow } = useFinance();
   const [name, setName] = React.useState(meta.displayName);
+  const [busy, setBusy] = React.useState(false);
+  const [syncing, setSyncing] = React.useState(false);
+
+  const accountName =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email ||
+    "Signed in";
+
+  const statusLabel = !drive.connected
+    ? "Not connected"
+    : syncStatus === "saving" || syncing
+      ? "Saving…"
+      : syncStatus === "error"
+        ? "Offline — working from cache"
+        : "Synced";
+  const statusDot = !drive.connected
+    ? "bg-foreground/30"
+    : syncStatus === "saving" || syncing
+      ? "bg-warning animate-pulse"
+      : syncStatus === "error"
+        ? "bg-danger"
+        : "bg-positive";
+  const lastLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : null;
+
   return (
     <Card>
-      <h3 className="font-display text-xl mb-4">Account</h3>
-      <div className="space-y-4">
-        <div>
-          <label className="text-xs uppercase tracking-wider text-muted-foreground">Display Name</label>
-          <div className="flex gap-2 mt-1">
-            <input value={name} onChange={(e) => setName(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary" />
-            <button onClick={() => { updateMeta({ displayName: name }); toast.success("Saved"); }}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Save</button>
+      <h3 className="font-display text-xl mb-4 flex items-center gap-2">
+        <User className="h-5 w-5" /> Account
+      </h3>
+      {user && (
+        <div className="mb-4 pb-4 border-b border-border">
+          <div className="text-sm font-medium">{accountName}</div>
+          {user.email && accountName !== user.email && (
+            <div className="text-xs text-muted-foreground">{user.email}</div>
+          )}
+          <div className="flex items-center gap-2 mt-2 text-xs">
+            <Cloud className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className={`h-2 w-2 rounded-full ${statusDot}`} />
+            <span className="text-muted-foreground">
+              Drive · {statusLabel}
+              {lastLabel && drive.connected && <> · last {lastLabel}</>}
+            </span>
           </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            {!drive.connected ? (
+              <button
+                disabled={busy || drive.connecting}
+                onClick={async () => {
+                  setBusy(true);
+                  try { await drive.connect(); toast.success("Connected to Google Drive"); }
+                  catch (e) { toast.error((e as Error).message || "Sign-in cancelled"); }
+                  finally { setBusy(false); }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
+              >
+                {busy || drive.connecting ? "Connecting…" : "Connect Drive"}
+              </button>
+            ) : (
+              <>
+                <button
+                  disabled={syncing || syncStatus === "saving"}
+                  onClick={async () => {
+                    setSyncing(true);
+                    try {
+                      if (!drive.user) await drive.connect();
+                      await syncNow();
+                      toast.success("Synced to Google Drive");
+                    } catch (e) { toast.error((e as Error).message || "Sync failed"); }
+                    finally { setSyncing(false); }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
+                >
+                  {syncing ? "Syncing…" : "Sync now"}
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!confirm("Disconnect Google Drive? Your local data stays on this device.")) return;
+                    setBusy(true);
+                    try { await drive.disconnect(); toast.success("Disconnected"); }
+                    finally { setBusy(false); }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
+                >
+                  Disconnect Drive
+                </button>
+              </>
+            )}
+            <button
+              disabled={busy}
+              onClick={async () => {
+                if (!confirm("Sign out of LifeVault on this device?")) return;
+                setBusy(true);
+                try { await signOut(); toast.success("Signed out"); }
+                finally { setBusy(false); }
+              }}
+              className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-accent flex items-center gap-1 disabled:opacity-50"
+            >
+              <LogOut className="h-3.5 w-3.5" /> Sign out
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Your encrypted vault syncs to your private Google Drive
+            <code className="mx-1">appDataFolder</code>. Data stays end-to-end
+            encrypted with your PIN — Google cannot read it.
+          </p>
         </div>
-        <div>
-          <label className="text-xs uppercase tracking-wider text-muted-foreground">Status</label>
-          <div className="text-sm mt-1 text-foreground">Local vault · zero-knowledge encrypted</div>
+      )}
+      <div>
+        <label className="text-xs uppercase tracking-wider text-muted-foreground">Display Name</label>
+        <div className="flex gap-2 mt-1">
+          <input value={name} onChange={(e) => setName(e.target.value)}
+            className="flex-1 px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary" />
+          <button onClick={() => { updateMeta({ displayName: name }); toast.success("Saved"); }}
+            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Save</button>
         </div>
+      </div>
+      <div className="mt-4">
         <button onClick={() => {
-            if (confirm("Sign out and lock your vault? This will reset your PIN.")) {
-              if (!confirm("Final confirmation: all data will be wiped from this device. Continue?")) return;
-              resetAll();
-              toast.success("Signed out");
-            }
+            if (!confirm("Reset device PIN and wipe local cache? You'll need to set a new PIN.")) return;
+            if (!confirm("Final confirmation: local data will be wiped from this device. Continue?")) return;
+            resetAll();
+            toast.success("Device reset");
           }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-danger text-white text-sm">
-          <LogOut className="h-4 w-4" /> Sign Out & Reset
+          className="px-4 py-2 rounded-lg border border-danger/40 text-danger text-sm hover:bg-danger/10">
+          Reset Device & PIN
         </button>
       </div>
     </Card>
@@ -295,8 +399,7 @@ function DataTab() {
 
   return (
     <div className="space-y-5">
-      <AccountCard />
-      <DriveSyncCard />
+
 
 
 
@@ -350,154 +453,6 @@ function DataTab() {
   );
 }
 
-function AccountCard() {
-  const { user, signOut } = useAuth();
-  const [busy, setBusy] = React.useState(false);
-  if (!user) return null;
-  const name =
-    (user.user_metadata?.name as string | undefined) ||
-    (user.user_metadata?.full_name as string | undefined) ||
-    user.email ||
-    "Signed in";
-  return (
-    <Card>
-      <h3 className="font-display text-xl mb-2 flex items-center gap-2">
-        <User className="h-5 w-5" /> Account
-      </h3>
-      <div className="text-sm mb-1">{name}</div>
-      {user.email && name !== user.email && (
-        <div className="text-xs text-muted-foreground mb-3">{user.email}</div>
-      )}
-      <button
-        disabled={busy}
-        onClick={async () => {
-          if (!confirm("Sign out of LifeVault on this device?")) return;
-          setBusy(true);
-          try {
-            await signOut();
-            toast.success("Signed out");
-          } finally {
-            setBusy(false);
-          }
-        }}
-        className="mt-2 px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent flex items-center gap-2 disabled:opacity-50"
-      >
-        <LogOut className="h-4 w-4" /> Sign out
-      </button>
-    </Card>
-  );
-}
-
-function DriveSyncCard() {
-  const drive = useDrive();
-  const { syncStatus, lastSyncedAt, syncNow } = useFinance();
-  const [busy, setBusy] = React.useState(false);
-  const [syncing, setSyncing] = React.useState(false);
-
-  const statusLabel = !drive.connected
-    ? "Not connected"
-    : syncStatus === "saving" || syncing
-      ? "Saving…"
-      : syncStatus === "error"
-        ? "Offline — working from cache"
-        : "Synced";
-  const statusDot = !drive.connected
-    ? "bg-foreground/30"
-    : syncStatus === "saving" || syncing
-      ? "bg-warning animate-pulse"
-      : syncStatus === "error"
-        ? "bg-danger"
-        : "bg-positive";
-
-  const lastLabel = lastSyncedAt
-    ? new Date(lastSyncedAt).toLocaleString()
-    : null;
-
-  return (
-    <Card>
-      <h3 className="font-display text-xl mb-2 flex items-center gap-2">
-        <Cloud className="h-5 w-5" /> Google Drive Sync
-      </h3>
-      <p className="text-sm text-muted-foreground mb-3">
-        Your encrypted vault is synced to your private Google Drive
-        <code className="mx-1">appDataFolder</code>. Data stays end-to-end
-        encrypted with your PIN — Google cannot read it.
-      </p>
-      <div className="flex items-center gap-2 mb-1 text-sm">
-        <span className={`h-2 w-2 rounded-full ${statusDot}`} />
-        <span className="text-muted-foreground">{statusLabel}</span>
-        {drive.connected && drive.user?.email && (
-          <span className="text-muted-foreground">· {drive.user.email}</span>
-        )}
-      </div>
-      {lastLabel && drive.connected && (
-        <div className="text-xs text-muted-foreground mb-4">
-          Last synced {lastLabel}
-        </div>
-      )}
-      {!lastLabel && <div className="mb-4" />}
-      {!drive.connected ? (
-        <button
-          disabled={busy || drive.connecting}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              await drive.connect();
-              toast.success("Connected to Google Drive");
-            } catch (e) {
-              toast.error((e as Error).message || "Sign-in cancelled");
-            } finally {
-              setBusy(false);
-            }
-          }}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
-        >
-          {busy || drive.connecting ? "Connecting…" : "Connect Google Drive"}
-        </button>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          <button
-            disabled={syncing || syncStatus === "saving"}
-            onClick={async () => {
-              setSyncing(true);
-              try {
-                if (!drive.user) {
-                  // Silent reconnect lost the session — prompt the user.
-                  await drive.connect();
-                }
-                await syncNow();
-                toast.success("Synced to Google Drive");
-              } catch (e) {
-                toast.error((e as Error).message || "Sync failed");
-              } finally {
-                setSyncing(false);
-              }
-            }}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
-          >
-            {syncing ? "Syncing…" : "Sync now"}
-          </button>
-          <button
-            disabled={busy}
-            onClick={async () => {
-              if (!confirm("Disconnect Google Drive? Your local data stays on this device.")) return;
-              setBusy(true);
-              try {
-                await drive.disconnect();
-                toast.success("Disconnected");
-              } finally {
-                setBusy(false);
-              }
-            }}
-            className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent disabled:opacity-50"
-          >
-            Disconnect
-          </button>
-        </div>
-      )}
-    </Card>
-  );
-}
 
 function GeneralTab() {
   const { mode, setMode } = useTheme();
