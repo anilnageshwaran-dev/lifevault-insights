@@ -499,6 +499,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     };
   }, [hydrated, key, drive.connected, drive]);
 
+  const persistLocal = React.useCallback(async (): Promise<void> => {
+    const k = keyRef.current;
+    const s = stateRef.current;
+    try {
+      if (k) {
+        const enc = await encryptWithKey(s, k);
+        localStorage.setItem(STORAGE_KEY_ENC, enc);
+      } else {
+        localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(s));
+      }
+    } catch {
+      setSyncStatus("error");
+    }
+  }, []);
+
   // Core writer — persists locally and pushes to Drive when connected.
   const writeAndPush = React.useCallback(async (force = false): Promise<void> => {
     const k = keyRef.current;
@@ -596,7 +611,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
     if (drive.connected && !driveReady) {
       skippedInitialAutoSaveRef.current = true;
-      return;
+      const t = setTimeout(() => {
+        void persistLocal();
+      }, 800);
+      return () => clearTimeout(t);
     }
     if (suppressNextSaveRef.current) {
       suppressNextSaveRef.current = false;
@@ -610,7 +628,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       void writeAndPush(false);
     }, 800);
     return () => clearTimeout(t);
-  }, [state, hydrated, key, drive.connected, driveReady, writeAndPush]);
+  }, [state, hydrated, key, drive.connected, driveReady, persistLocal, writeAndPush]);
 
   // 3b) Live auto-pull from Drive: every 20s, on tab focus, and on reconnect.
   React.useEffect(() => {
