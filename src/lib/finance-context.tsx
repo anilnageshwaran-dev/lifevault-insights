@@ -1,5 +1,7 @@
 import * as React from "react";
 import { uid } from "./finance-utils";
+import { decryptWithKey, encryptWithKey } from "./crypto";
+import { useLock } from "./lock-context";
 
 export type AssetCategory =
   | "cash"
@@ -121,6 +123,36 @@ export interface FinanceState {
 
   // Goals
   goals: Goal[];
+
+  // Vault (encrypted credentials store)
+  vault: Record<string, VaultRecord[]>;
+
+  // Cash flow extras
+  accounts: Account[];
+}
+
+export interface VaultRecord {
+  id: string;
+  title: string;
+  subtitle?: string;
+  fields: Record<string, string>;
+  updatedAt: number;
+}
+
+export interface Account {
+  id: string;
+  type: "bank" | "credit" | "cash" | "wallet" | "other";
+  name: string;
+  bank?: string;
+  last4?: string;
+  openingBalance: number;
+  currency: string;
+  asOf: string;
+  color: string;
+  icon: string;
+  emergencyFund: boolean;
+  creditLimit?: number;
+  issuer?: string;
 }
 
 const initialState: FinanceState = {
@@ -147,9 +179,12 @@ const initialState: FinanceState = {
   budgets: {},
   recurring: [],
   goals: [],
+  vault: {},
+  accounts: [],
 };
 
-const STORAGE_KEY = "lifevault_data";
+const STORAGE_KEY_PLAIN = "lifevault_data";
+const STORAGE_KEY_ENC = "lifevault_cache";
 
 type Ctx = {
   state: FinanceState;
