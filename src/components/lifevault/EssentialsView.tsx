@@ -363,12 +363,8 @@ export function EssentialsView() {
               />
             </div>
             <div>
-              <FieldLabel>Age</FieldLabel>
-              <NumberInput value={state.age} onChange={(n) => update("age", n)} placeholder="30" />
-            </div>
-            <div>
-              <FieldLabel>Dependents (this region)</FieldLabel>
-              <NumberInput value={region.dependents} onChange={(n) => updateRegion(region.id, { dependents: n })} />
+              <FieldLabel>Monthly Income ({ccy})</FieldLabel>
+              <MoneyInput value={region.monthlyIncome} onChange={(n) => updateRegion(region.id, { monthlyIncome: n })} />
             </div>
             <div>
               <FieldLabel>Monthly Income ({ccy})</FieldLabel>
