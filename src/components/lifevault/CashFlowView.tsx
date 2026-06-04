@@ -928,3 +928,350 @@ function QuickAddFab() {
     </Dialog>
   );
 }
+
+// ────────────────────────────────────────────── BILLS
+
+function addToDate(iso: string, freq: BillFrequency): string {
+  const d = new Date(iso);
+  switch (freq) {
+    case "weekly": d.setDate(d.getDate() + 7); break;
+    case "monthly": d.setMonth(d.getMonth() + 1); break;
+    case "quarterly": d.setMonth(d.getMonth() + 3); break;
+    case "halfYearly": d.setMonth(d.getMonth() + 6); break;
+    case "yearly": d.setFullYear(d.getFullYear() + 1); break;
+    case "onetime": return iso;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+const FREQ_LABEL: Record<BillFrequency, string> = {
+  weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly",
+  halfYearly: "Half-yearly", yearly: "Yearly", onetime: "One-time",
+};
+
+function daysUntil(iso: string): number {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(iso); d.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - today.getTime()) / 86400000);
+}
+
+function BillsTab() {
+  const { state, setState } = useFinance();
+  const base = state.baseCurrency || "INR";
+  const [open, setOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<Bill | null>(null);
+  const [view, setView] = React.useState<"upcoming" | "overdue" | "recurring" | "paid">("upcoming");
+
+  const accById = React.useMemo(
+    () => Object.fromEntries(state.accounts.map((a) => [a.id, a])),
+    [state.accounts],
+  );
+
+  const bills = state.bills;
+  const overdue = bills.filter((b) => daysUntil(b.nextDue) < 0);
+  const upcoming = bills.filter((b) => {
+    const d = daysUntil(b.nextDue);
+    return d >= 0 && d <= 30;
+  }).sort((a, b) => a.nextDue.localeCompare(b.nextDue));
+  const recurring = bills.filter((b) => b.frequency !== "onetime");
+  const paidHistory = bills.flatMap((b) =>
+    b.history.map((h) => ({ bill: b, payment: h }))
+  ).sort((a, b) => b.payment.date.localeCompare(a.payment.date));
+
+  const markPaid = (bill: Bill, when?: string) => {
+    const paidDate = when || new Date().toISOString().slice(0, 10);
+    const acc = bill.accountId ? accById[bill.accountId] : null;
+    const ccy = bill.currency || acc?.currency || base;
+    const tx: Transaction = {
+      id: uid(),
+      date: paidDate,
+      type: "expense",
+      category: bill.category || "Utilities",
+      description: bill.name,
+      amount: bill.amount,
+      accountId: bill.accountId,
+      currency: ccy,
+    };
+    setState((s) => {
+      const updated = s.bills.map((x) => {
+        if (x.id !== bill.id) return x;
+        const next: Bill = {
+          ...x,
+          history: [...x.history, { date: paidDate, amount: x.amount, txId: tx.id }],
+          nextDue: x.frequency === "onetime" ? x.nextDue : addToDate(x.nextDue, x.frequency),
+        };
+        return next;
+      });
+      return { ...s, bills: updated, transactions: [...s.transactions, tx] };
+    });
+    toast.success(`${bill.name} marked paid · transaction logged`);
+  };
+
+  const startNew = () => { setEditing(null); setOpen(true); };
+
+  return (
+    <div className="space-y-4">
+      <GlassCard>
+        <SectionTitle
+          title="Bills"
+          subtitle="Recurring debits — track upcoming, overdue, and history"
+          right={
+            <Button onClick={startNew} className="gap-1">
+              <Plus className="h-4 w-4" /> Add Bill
+            </Button>
+          }
+        />
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+          {([
+            { id: "upcoming", label: "Upcoming", count: upcoming.length, icon: CalendarClock, color: "var(--color-warning)" },
+            { id: "overdue", label: "Overdue", count: overdue.length, icon: AlertTriangle, color: "var(--color-danger)" },
+            { id: "recurring", label: "Recurring", count: recurring.length, icon: Repeat, color: "var(--color-primary)" },
+            { id: "paid", label: "Paid", count: paidHistory.length, icon: CheckCircle2, color: "var(--color-positive)" },
+          ] as const).map((v) => {
+            const Icon = v.icon;
+            const active = view === v.id;
+            return (
+              <button key={v.id} onClick={() => setView(v.id)}
+                className={`rounded-xl border p-3 text-left transition-all ${
+                  active ? "border-primary/40 bg-primary/10" : "border-white/5 bg-white/[0.02] hover:bg-white/[0.04]"
+                }`}>
+                <div className="flex items-center justify-between">
+                  <Icon className="h-4 w-4" style={{ color: v.color }} />
+                  <span className="font-display text-xl tabular">{v.count}</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-1">{v.label}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {bills.length === 0 ? (
+          <EmptyState icon={CalendarClock} title="No bills yet"
+            description="Add bills like rent, EMIs, subscriptions or utilities to track upcoming debits."
+            cta={<Button onClick={startNew} className="gap-1"><Plus className="h-4 w-4" /> Add your first bill</Button>} />
+        ) : view === "paid" ? (
+          paidHistory.length === 0 ? (
+            <EmptyState icon={CheckCircle2} title="No payments recorded" description="Mark a bill as paid to see history here." />
+          ) : (
+            <div className="space-y-1.5">
+              {paidHistory.slice(0, 50).map(({ bill, payment }, i) => {
+                const acc = bill.accountId ? accById[bill.accountId] : null;
+                const ccy = bill.currency || acc?.currency || base;
+                return (
+                  <div key={`${bill.id}-${payment.date}-${i}`}
+                    className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 border border-white/5 bg-white/[0.02]">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm truncate">{bill.name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Paid {new Date(payment.date).toLocaleDateString("en-IN")}
+                        {acc && <> · {acc.name}</>}
+                      </div>
+                    </div>
+                    <div className="tabular text-sm" style={{ color: "var(--color-positive)" }}>
+                      {formatMoney(payment.amount, ccy)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          (() => {
+            const list = view === "upcoming" ? upcoming : view === "overdue" ? overdue : recurring;
+            if (list.length === 0) {
+              const msg = view === "upcoming" ? "Nothing due in the next 30 days."
+                : view === "overdue" ? "No overdue bills — great work!"
+                : "No recurring bills set up.";
+              return <EmptyState icon={CheckCircle2} title="All clear" description={msg} />;
+            }
+            return (
+              <div className="space-y-2">
+                {list.map((b) => {
+                  const d = daysUntil(b.nextDue);
+                  const acc = b.accountId ? accById[b.accountId] : null;
+                  const ccy = b.currency || acc?.currency || base;
+                  const dueColor = d < 0 ? "var(--color-danger)" : d <= 3 ? "var(--color-warning)" : "var(--color-muted-foreground)";
+                  const dueText = d < 0 ? `${Math.abs(d)}d overdue`
+                    : d === 0 ? "Due today" : d === 1 ? "Due tomorrow" : `In ${d}d`;
+                  return (
+                    <div key={b.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium truncate">{b.name}</span>
+                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/[0.04] text-muted-foreground">
+                            {FREQ_LABEL[b.frequency]}
+                          </span>
+                          {b.autopay && (
+                            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300">
+                              Autopay
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap gap-1.5 items-center">
+                          <span>{new Date(b.nextDue).toLocaleDateString("en-IN")}</span>
+                          <span>·</span>
+                          <span style={{ color: dueColor }}>{dueText}</span>
+                          {acc && (<><span>·</span>
+                            <span className="inline-flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: acc.color }} />
+                              {acc.name}
+                            </span></>)}
+                          <span>·</span><span>{b.category}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="tabular font-display text-lg">{formatMoney(b.amount, ccy)}</div>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Button size="sm" variant="secondary" onClick={() => markPaid(b)}>
+                          Mark paid
+                        </Button>
+                        <button onClick={() => { setEditing(b); setOpen(true); }}
+                          className="p-2 rounded-lg hover:bg-accent text-muted-foreground text-xs">Edit</button>
+                        <button onClick={() => {
+                          if (!confirm("Delete this bill? Past payments stay in transactions.")) return;
+                          setState((s) => ({ ...s, bills: s.bills.filter((x) => x.id !== b.id) }));
+                          toast.success("Deleted");
+                        }} className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-rose-400">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()
+        )}
+      </GlassCard>
+
+      {open && <BillFormDialog bill={editing} onClose={() => { setOpen(false); setEditing(null); }} base={base} />}
+    </div>
+  );
+}
+
+function BillFormDialog({ bill, onClose, base }:
+  { bill: Bill | null; onClose: () => void; base: string }) {
+  const { state, setState } = useFinance();
+  const isNew = !bill;
+  const defaultAccount = state.accounts[0];
+  const [form, setForm] = React.useState<Bill>(
+    bill ?? {
+      id: uid(),
+      name: "",
+      amount: 0,
+      currency: defaultAccount?.currency || base,
+      category: "Utilities",
+      accountId: defaultAccount?.id,
+      frequency: "monthly",
+      nextDue: new Date().toISOString().slice(0, 10),
+      autopay: false,
+      notes: "",
+      history: [],
+    },
+  );
+
+  const selectedAccount = state.accounts.find((a) => a.id === form.accountId);
+  const ccy = selectedAccount?.currency || form.currency || base;
+
+  const save = () => {
+    if (!form.name) { toast.error("Bill name is required"); return; }
+    if (!form.amount) { toast.error("Amount is required"); return; }
+    setState((s) => ({
+      ...s,
+      bills: isNew ? [...s.bills, form] : s.bills.map((b) => b.id === form.id ? form : b),
+    }));
+    toast.success(isNew ? "Bill added" : "Bill updated");
+    onClose();
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">
+            {isNew ? "Add Bill" : "Edit Bill"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <div>
+            <FieldLabel>Name *</FieldLabel>
+            <input className="underline-input" placeholder="e.g. Rent, Electricity, Netflix"
+              value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>Amount ({getCurrency(ccy).symbol}) *</FieldLabel>
+              <MoneyInput value={form.amount} onChange={(n) => setForm({ ...form, amount: n })} />
+            </div>
+            <div>
+              <FieldLabel>Frequency</FieldLabel>
+              <Select value={form.frequency}
+                onValueChange={(v) => setForm({ ...form, frequency: v as BillFrequency })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(FREQ_LABEL) as BillFrequency[]).map((f) =>
+                    <SelectItem key={f} value={f}>{FREQ_LABEL[f]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <FieldLabel>Next due date *</FieldLabel>
+              <input type="date" className="underline-input" value={form.nextDue}
+                onChange={(e) => setForm({ ...form, nextDue: e.target.value })} />
+            </div>
+            <div>
+              <FieldLabel>Category</FieldLabel>
+              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Debit account</FieldLabel>
+            {state.accounts.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">
+                Add an account first so paid bills create the right transaction.
+              </p>
+            ) : (
+              <Select value={form.accountId || ""}
+                onValueChange={(v) => setForm({ ...form, accountId: v, currency: state.accounts.find((a) => a.id === v)?.currency })}>
+                <SelectTrigger><SelectValue placeholder="Pick an account" /></SelectTrigger>
+                <SelectContent>
+                  {state.accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: a.color }} />
+                        {a.name} <span className="text-[10px] text-muted-foreground">· {a.currency}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={!!form.autopay} className="mt-0.5"
+              onChange={(e) => setForm({ ...form, autopay: e.target.checked })} />
+            <span>Autopay enabled
+              <span className="block text-[11px] text-muted-foreground">Marks bill so you know it'll auto-debit</span>
+            </span>
+          </label>
+          <div>
+            <FieldLabel>Notes</FieldLabel>
+            <textarea rows={2} className="underline-input"
+              value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </div>
+          <Button className="w-full" onClick={save} disabled={!form.name || !form.amount}>
+            {isNew ? "Save Bill" : "Update Bill"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
