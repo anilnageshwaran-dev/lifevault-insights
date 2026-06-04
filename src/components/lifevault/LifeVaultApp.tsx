@@ -53,9 +53,6 @@ export function LifeVaultApp() {
   const activeLabel =
     tab === "settings" ? "Settings" : TABS.find((t) => t.id === tab)!.label;
 
-  const toggleTheme = () => {
-    setMode(resolved === "dark" ? "light" : "dark");
-  };
 
   return (
     <div className="min-h-dvh flex bg-background overflow-x-hidden">
