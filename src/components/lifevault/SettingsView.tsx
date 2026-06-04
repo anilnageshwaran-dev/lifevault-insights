@@ -78,6 +78,12 @@ function AccountTab() {
     user?.email ||
     "Signed in";
 
+  const provider =
+    (user?.app_metadata as { provider?: string } | undefined)?.provider ??
+    user?.identities?.[0]?.provider;
+  const isGoogleSignIn = provider === "google";
+
+
   const statusLabel = !drive.connected
     ? "Not connected"
     : syncStatus === "saving" || syncing
