@@ -650,7 +650,7 @@ function BudgetTab() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthSpend: Record<string, number> = {};
   state.transactions
-    .filter((t) => t.type === "expense" && new Date(t.date) >= monthStart)
+    .filter((t) => t.type === "expense" && !t.transferId && new Date(t.date) >= monthStart)
     .forEach((t) => {
       monthSpend[t.category] = (monthSpend[t.category] || 0) + t.amount;
     });
