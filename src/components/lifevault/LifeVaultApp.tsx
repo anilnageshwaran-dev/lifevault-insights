@@ -67,10 +67,10 @@ export function LifeVaultApp() {
         }`}
       >
         <button
-          onClick={() => setTabAnimated("settings")}
+          onClick={() => setProfileOpen(true)}
           className={`flex items-center gap-2 px-2 py-2 mb-6 rounded-xl hover:bg-accent transition-colors text-left ${collapsed ? "justify-center" : ""}`}
-          title="Open Settings"
-          aria-label="Open Settings"
+          title="Open profile"
+          aria-label="Open profile"
         >
           <LifeVaultIcon className="h-9 w-9" />
           {!collapsed && (
