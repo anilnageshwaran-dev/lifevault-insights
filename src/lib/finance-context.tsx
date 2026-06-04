@@ -355,13 +355,13 @@ type SyncDiagnostics = {
 
 function countFinanceState(s: FinanceState): FinanceCounts {
   return {
-    accounts: s.accounts.length,
-    transactions: s.transactions.length,
-    assets: s.assets.length,
-    liabilities: s.liabilities.length,
-    goals: s.goals.length,
-    bills: s.bills.length,
-    vaultItems: Object.values(s.vault).reduce((total, items) => total + items.length, 0),
+    accounts: s.accounts?.length ?? 0,
+    transactions: s.transactions?.length ?? 0,
+    assets: s.assets?.length ?? 0,
+    liabilities: s.liabilities?.length ?? 0,
+    goals: s.goals?.length ?? 0,
+    bills: s.bills?.length ?? 0,
+    vaultItems: Object.values(s.vault ?? {}).reduce((total, items) => total + items.length, 0),
   };
 }
 
@@ -394,6 +394,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     "idle",
   );
   const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(null);
+  const [syncDiagnostics, setSyncDiagnostics] = React.useState<SyncDiagnostics>({
+    checkedAt: null,
+    local: countFinanceState(initialState),
+    remote: { status: "not_connected" },
+  });
   const [fx, setFx] = React.useState<FxCache | null>(null);
   const [driveReady, setDriveReady] = React.useState(false);
   const driveFileIdRef = React.useRef<string | null>(null);
@@ -411,6 +416,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const driveRef = React.useRef(drive);
   React.useEffect(() => {
     stateRef.current = state;
+    setSyncDiagnostics((d) => ({ ...d, local: countFinanceState(state) }));
   }, [state]);
   React.useEffect(() => {
     keyRef.current = key;
@@ -425,6 +431,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       driveModifiedRef.current = null;
       driveWriteBlockedRef.current = false;
       setDriveReady(false);
+      setSyncDiagnostics((d) => ({ ...d, remote: { status: "not_connected" } }));
     }
   }, [drive.connected]);
 
