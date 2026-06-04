@@ -107,7 +107,30 @@ export function NetWorthView() {
   const [openAdd, setOpenAdd] = React.useState<{ kind: "asset" | "liability"; category: string } | null>(null);
   const [scheduleFor, setScheduleFor] = React.useState<LiabilityItem | null>(null);
   const [refreshingPrices, setRefreshingPrices] = React.useState(false);
+  const [hideValues, setHideValues] = React.useState(false);
+  const [showByCurrency, setShowByCurrency] = React.useState(false);
   const refreshPricesFn = useServerFn(refreshInvestmentPrices);
+
+  // Per-currency breakdown (native amounts, no FX conversion)
+  const byCurrency = React.useMemo(() => {
+    const m = new Map<string, { assets: number; liabs: number }>();
+    const bump = (ccy: string, kind: "assets" | "liabs", amt: number) => {
+      if (!amt) return;
+      const cur = m.get(ccy) || { assets: 0, liabs: 0 };
+      cur[kind] += amt;
+      m.set(ccy, cur);
+    };
+    state.assets.forEach((a) => bump(a.currency || base, "assets", a.value || 0));
+    state.accounts.forEach((a) => {
+      const bal = accountBalance(state, a.id);
+      if (a.type === "credit") bump(a.currency || base, "liabs", bal);
+      else bump(a.currency || base, "assets", bal);
+    });
+    state.liabilities.forEach((l) => bump(l.currency || base, "liabs", l.principal || 0));
+    return Array.from(m.entries())
+      .map(([ccy, v]) => ({ ccy, ...v, net: v.assets - v.liabs }))
+      .sort((a, b) => b.assets - a.assets);
+  }, [state, base]);
 
   const takeSnapshot = () => {
     const snap: NetWorthSnapshot = {
