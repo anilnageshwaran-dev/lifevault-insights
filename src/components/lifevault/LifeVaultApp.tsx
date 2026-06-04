@@ -64,7 +64,12 @@ export function LifeVaultApp() {
           collapsed ? "w-16" : "w-60 lg:w-64"
         }`}
       >
-        <div className={`flex items-center gap-2 px-2 py-2 mb-6 ${collapsed ? "justify-center" : ""}`}>
+        <button
+          onClick={() => setTabAnimated("settings")}
+          className={`flex items-center gap-2 px-2 py-2 mb-6 rounded-xl hover:bg-accent transition-colors text-left ${collapsed ? "justify-center" : ""}`}
+          title="Open Settings"
+          aria-label="Open Settings"
+        >
           <LifeVaultIcon className="h-9 w-9" />
           {!collapsed && (
             <div>
@@ -74,7 +79,7 @@ export function LifeVaultApp() {
               </div>
             </div>
           )}
-        </div>
+        </button>
 
         <nav className="flex-1 space-y-1">
           {TABS.map((t) => {
