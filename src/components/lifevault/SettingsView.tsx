@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import JSZip from "jszip";
 import { useServerFn } from "@tanstack/react-start";
 import { submitFeedback } from "@/lib/feedback.functions";
+import { APP_VERSION } from "@/lib/changelog";
 
 type Tab = "account" | "family" | "preferences" | "security" | "data" | "general";
 
