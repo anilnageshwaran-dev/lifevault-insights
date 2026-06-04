@@ -157,13 +157,6 @@ export function GoalsView() {
         )}
       </GlassCard>
 
-      {/* Floating Calculator Button */}
-      <button onClick={() => setCalcOpen(true)}
-        className="fixed bottom-24 md:bottom-24 right-6 h-12 px-4 rounded-full bg-card border border-border shadow-xl flex items-center gap-2 hover:bg-accent transition-colors z-20"
-        aria-label="Inflation calculator">
-        <Calculator className="h-4 w-4" /> <span className="text-sm">Inflation</span>
-      </button>
-
       {calcOpen && <InflationPanel onClose={() => setCalcOpen(false)} />}
 
       <Dialog open={open} onOpenChange={setOpen}>
