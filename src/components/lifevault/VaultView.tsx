@@ -33,64 +33,7 @@ interface Category {
 }
 
 const CATS: Category[] = [
-  {
-    id: "bank", name: "Bank Accounts", emoji: "🏦", titleField: "nickname", subtitleField: "bank",
-    fields: [
-      { key: "nickname", label: "Nickname" }, { key: "bank", label: "Bank Name" },
-      { key: "type", label: "Account Type" }, { key: "number", label: "Account Number", secret: true },
-      { key: "ifsc", label: "IFSC / Sort Code" }, { key: "branch", label: "Branch" },
-      { key: "username", label: "Net Banking Username" },
-      { key: "password", label: "Net Banking Password", secret: true },
-      { key: "phone", label: "Linked Phone" }, { key: "nominee", label: "Nominee" },
-      { key: "notes", label: "Notes", multiline: true },
-    ],
-  },
-  {
-    id: "cards", name: "Cards", emoji: "💳", titleField: "nickname", subtitleField: "issuer",
-    fields: [
-      { key: "nickname", label: "Nickname" }, { key: "issuer", label: "Bank / Issuer" },
-      { key: "type", label: "Card Type" }, { key: "last4", label: "Last 4 Digits" },
-      { key: "expiry", label: "Expiry MM/YY" }, { key: "cvv", label: "CVV", secret: true },
-      { key: "limit", label: "Credit Limit" }, { key: "billing", label: "Billing Date" },
-      { key: "due", label: "Payment Due Date" },
-      { key: "pin", label: "Card PIN hint", secret: true },
-      { key: "rewards", label: "Reward Points" }, { key: "notes", label: "Notes", multiline: true },
-    ],
-  },
-  {
-    id: "investments", name: "Investments", emoji: "📈", titleField: "platform", subtitleField: "type",
-    fields: [
-      { key: "type", label: "Investment Type" }, { key: "platform", label: "Platform / Broker" },
-      { key: "folio", label: "Folio / Account Number" }, { key: "username", label: "Login Username" },
-      { key: "password", label: "Login Password", secret: true },
-      { key: "current", label: "Current Value ₹" }, { key: "invested", label: "Amount Invested ₹" },
-      { key: "nominee", label: "Nominee" }, { key: "maturity", label: "Maturity Date" },
-      { key: "notes", label: "Notes", multiline: true },
-    ],
-  },
-  {
-    id: "insurance", name: "Insurance", emoji: "🛡️", titleField: "insurer", subtitleField: "type",
-    fields: [
-      { key: "type", label: "Type" }, { key: "insurer", label: "Insurer" },
-      { key: "policy", label: "Policy Number" }, { key: "assured", label: "Sum Assured ₹" },
-      { key: "premium", label: "Premium ₹" }, { key: "freq", label: "Premium Frequency" },
-      { key: "due", label: "Next Due" }, { key: "nominee", label: "Nominee" },
-      { key: "agent", label: "Agent Name" }, { key: "agentPhone", label: "Agent Phone" },
-      { key: "username", label: "Login Username" },
-      { key: "password", label: "Login Password", secret: true },
-      { key: "notes", label: "Notes", multiline: true },
-    ],
-  },
-  {
-    id: "loans", name: "Loans", emoji: "🏠", titleField: "lender", subtitleField: "type",
-    fields: [
-      { key: "lender", label: "Lender" }, { key: "type", label: "Loan Type" },
-      { key: "ref", label: "Account / Ref Number" }, { key: "outstanding", label: "Outstanding ₹" },
-      { key: "emi", label: "EMI ₹" }, { key: "emiDue", label: "EMI Due Date" },
-      { key: "tenure", label: "Tenure Remaining (months)" }, { key: "rate", label: "Interest Rate %" },
-      { key: "autoDebit", label: "Auto-debit Bank" }, { key: "notes", label: "Notes", multiline: true },
-    ],
-  },
+
   {
     id: "passwords", name: "Passwords", emoji: "🔑", titleField: "site", subtitleField: "username",
     fields: [
