@@ -475,7 +475,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             setLastSyncedAt(Date.now());
           }
         } catch {
-          // PIN-encrypted blob from a different PIN — ignore, keep local
+          // PIN-encrypted blob from a different PIN — do not overwrite the Drive copy.
+          setSyncStatus("error");
+          toast.error("Drive data could not be unlocked. Use the same PIN on this device.");
+          driveLoadedRef.current = true;
+          return;
         }
         driveLoadedRef.current = true;
         setDriveReady(true);
