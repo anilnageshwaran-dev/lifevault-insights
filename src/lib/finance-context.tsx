@@ -504,6 +504,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         if (!file) {
           driveLoadedRef.current = true;
           setDriveReady(true);
+          setSyncDiagnostics((diag) => ({
+            ...diag,
+            checkedAt: Date.now(),
+            remote: { status: "missing", message: "No LifeVault data file found in this Google Drive account." },
+          }));
           return;
         }
         driveFileIdRef.current = file.id;
@@ -515,10 +520,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         try {
           const parsed = await decryptWithKey<FinanceState>(blob, key);
           if (!cancelled) {
+            const remoteState = ensureRegions({ ...initialState, ...parsed });
             suppressNextSaveRef.current = true;
-            setState(ensureRegions({ ...initialState, ...parsed }));
+            setState(remoteState);
             setSyncStatus("synced");
             setLastSyncedAt(Date.now());
+            setSyncDiagnostics((diag) => ({
+              ...diag,
+              checkedAt: Date.now(),
+              local: countFinanceState(remoteState),
+              remote: { status: "available", modifiedTime: file.modifiedTime, counts: countFinanceState(remoteState) },
+            }));
           }
         } catch {
           // PIN-encrypted blob from a different PIN — do not overwrite the Drive copy.
@@ -526,6 +538,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           toast.error("Drive data could not be unlocked. Use the same PIN on this device.");
           driveWriteBlockedRef.current = true;
           driveLoadedRef.current = true;
+          setSyncDiagnostics((diag) => ({
+            ...diag,
+            checkedAt: Date.now(),
+            remote: {
+              status: "locked",
+              modifiedTime: file.modifiedTime,
+              message: "A Drive file exists, but this PIN cannot decrypt it.",
+            },
+          }));
           return;
         }
         driveLoadedRef.current = true;
