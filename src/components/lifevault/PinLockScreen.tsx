@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Lock } from "lucide-react";
 import { PinKeypad } from "./PinKeypad";
 import { useLock } from "@/lib/lock-context";
+import { LifeVaultIcon } from "./LifeVaultIcon";
 
 export function PinLockScreen() {
   const { unlock, lockoutUntil } = useLock();
@@ -41,9 +41,7 @@ export function PinLockScreen() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center mb-4">
-            <Lock className="h-7 w-7 text-primary" />
-          </div>
+          <LifeVaultIcon className="mx-auto h-14 w-14 mb-4" />
           <h1 className="font-display text-2xl text-foreground">Enter your PIN</h1>
           <p className="text-sm text-muted-foreground mt-2">
             Unlock LifeVault to continue
