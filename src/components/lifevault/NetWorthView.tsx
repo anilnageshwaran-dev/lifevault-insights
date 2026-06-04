@@ -50,6 +50,10 @@ import {
   Trash2,
   Camera,
   LineChart as LineChartIcon,
+  Calendar,
+  RefreshCw,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import {
   PieChart,
@@ -64,6 +68,9 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
+import { amortize } from "@/lib/loan-utils";
+import { useServerFn } from "@tanstack/react-start";
+import { refreshInvestmentPrices } from "@/lib/investment-prices.functions";
 
 const ASSET_CATS: AssetCategory[] = ["cash", "equity", "debt", "gold", "realestate", "crypto"];
 const LIAB_CATS: LiabilityCategory[] = ["home", "vehicle", "personal", "credit", "other"];
