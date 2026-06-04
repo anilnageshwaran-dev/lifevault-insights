@@ -1,5 +1,12 @@
 import * as React from "react";
-import { deriveKey, pinHash, randomSalt } from "./crypto";
+import {
+  decryptWithKey,
+  deriveKey,
+  encryptWithKey,
+  pinHash,
+  randomSalt,
+  type VaultEnvelope,
+} from "./crypto";
 
 interface MetaState {
   salt: string | null;
@@ -36,6 +43,8 @@ interface LockCtx {
   unlock: (pin: string) => Promise<boolean>;
   lock: () => void;
   changePin: (current: string, next: string) => Promise<boolean>;
+  encryptSyncData: (data: unknown) => Promise<string>;
+  decryptSyncData: <T = unknown>(blob: string) => Promise<T>;
   resetAll: () => void;
   completeOnboarding: () => void;
 }
@@ -61,6 +70,8 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
   const [failedAttempts, setFailed] = React.useState(0);
   const [lockoutUntil, setLockoutUntil] = React.useState<number | null>(null);
   const [hydrated, setHydrated] = React.useState(false);
+  const pinRef = React.useRef<string | null>(null);
+  const keyRef = React.useRef<CryptoKey | null>(null);
 
   React.useEffect(() => {
     setMeta(loadMeta());
@@ -70,6 +81,10 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (hydrated) saveMeta(meta);
   }, [meta, hydrated]);
+
+  React.useEffect(() => {
+    keyRef.current = key;
+  }, [key]);
 
   // Auto-lock on visibility change
   React.useEffect(() => {
@@ -95,6 +110,7 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
     const salt = randomSalt();
     const ph = await pinHash(pin, salt);
     const k = await deriveKey(pin, salt);
+    pinRef.current = pin;
     setKey(k);
     setMeta((m) => ({ ...m, salt, pinHash: ph, lastLogin: Date.now() }));
   }, []);
@@ -114,6 +130,7 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
       const k = await deriveKey(pin, meta.salt);
+      pinRef.current = pin;
       setKey(k);
       setFailed(0);
       setLockoutUntil(null);
@@ -123,7 +140,10 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
     [meta.salt, meta.pinHash, failedAttempts, lockoutUntil],
   );
 
-  const lock = React.useCallback(() => setKey(null), []);
+  const lock = React.useCallback(() => {
+    pinRef.current = null;
+    setKey(null);
+  }, []);
 
   const changePin = React.useCallback(
     async (current: string, next: string): Promise<boolean> => {
@@ -138,12 +158,52 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
       try {
         localStorage.removeItem("lifevault_cache");
       } catch {}
+      pinRef.current = next;
       setKey(k);
       setMeta((m) => ({ ...m, salt, pinHash: ph }));
       return true;
     },
     [meta.salt, meta.pinHash],
   );
+
+  const encryptSyncData = React.useCallback(async (data: unknown): Promise<string> => {
+    const pin = pinRef.current;
+    if (!pin) throw new Error("Unlock LifeVault before syncing Drive data");
+    const salt = randomSalt();
+    const syncKey = await deriveKey(pin, salt);
+    const envelope: VaultEnvelope = {
+      v: 1,
+      salt,
+      pinHash: await pinHash(pin, salt),
+      data: await encryptWithKey(data, syncKey),
+    };
+    return JSON.stringify(envelope);
+  }, []);
+
+  const decryptSyncData = React.useCallback(async <T = unknown,>(blob: string): Promise<T> => {
+    const pin = pinRef.current;
+    const trimmed = blob.trim();
+    try {
+      const parsed = JSON.parse(trimmed) as Partial<VaultEnvelope>;
+      if (parsed?.v === 1 && parsed.salt && parsed.data && parsed.pinHash) {
+        if (!pin) throw new Error("Unlock LifeVault before syncing Drive data");
+        const expected = await pinHash(pin, parsed.salt);
+        if (expected !== parsed.pinHash) throw new Error("PIN mismatch");
+        const syncKey = await deriveKey(pin, parsed.salt);
+        return decryptWithKey<T>(parsed.data, syncKey);
+      }
+    } catch (error) {
+      if ((error as Error).message === "PIN mismatch") throw error;
+    }
+
+    const localKey = keyRef.current;
+    if (!localKey) throw new Error("Unlock LifeVault before syncing Drive data");
+    try {
+      return await decryptWithKey<T>(trimmed, localKey);
+    } catch {
+      throw new Error("This older Drive sync file was encrypted by another device. Open that device after publishing, then tap Sync now once.");
+    }
+  }, []);
 
   const completeOnboarding = React.useCallback(() => {
     setMeta((m) => ({ ...m, onboardingComplete: true }));
@@ -154,6 +214,7 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("lifevault_cache");
       localStorage.removeItem("lifevault_data");
     } catch {}
+    pinRef.current = null;
     setKey(null);
     setMeta({ ...DEFAULT_META, onboardingComplete: true });
   }, []);
@@ -171,6 +232,8 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
         unlock,
         lock,
         changePin,
+        encryptSyncData,
+        decryptSyncData,
         resetAll,
         completeOnboarding,
       }}
