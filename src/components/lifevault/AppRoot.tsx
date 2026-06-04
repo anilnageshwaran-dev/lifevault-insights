@@ -2,6 +2,7 @@ import * as React from "react";
 import { FinanceProvider } from "@/lib/finance-context";
 import { LockProvider, useLock } from "@/lib/lock-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import { DriveProvider } from "@/lib/drive-context";
 import { LifeVaultApp } from "./LifeVaultApp";
 import { OnboardingScreen } from "./OnboardingScreen";
 import { PinSetupScreen } from "./PinSetupScreen";
@@ -25,7 +26,9 @@ export function AppRoot() {
   return (
     <ThemeProvider>
       <LockProvider>
-        <Gate />
+        <DriveProvider>
+          <Gate />
+        </DriveProvider>
       </LockProvider>
     </ThemeProvider>
   );
