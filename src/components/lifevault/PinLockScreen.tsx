@@ -49,6 +49,20 @@ export function PinLockScreen() {
 
   const tryBiometric = React.useCallback(async () => {
     setErr(null);
+    // WebAuthn requires the page to have user focus. If a parent window
+    // owns focus, calling get() throws "The operation is not allowed at
+    // this time because the page does not have focus." Wait for focus
+    // before prompting instead of surfacing that as an error.
+    if (typeof document !== "undefined" && !document.hasFocus()) {
+      try { window.focus(); } catch {}
+      if (!document.hasFocus()) {
+        await new Promise<void>((resolve) => {
+          const onFocus = () => { window.removeEventListener("focus", onFocus); resolve(); };
+          window.addEventListener("focus", onFocus, { once: true });
+          setTimeout(() => { window.removeEventListener("focus", onFocus); resolve(); }, 8000);
+        });
+      }
+    }
     setBioBusy(true);
     try {
       const pin = await unlockWithBiometric();
@@ -56,13 +70,17 @@ export function PinLockScreen() {
       if (!ok) setErr("Saved PIN no longer matches. Use your PIN.");
     } catch (e) {
       const msg = (e as Error).message || "";
-      if (!/cancel/i.test(msg)) setErr(msg || "Biometric unlock failed");
+      if (/does not have focus/i.test(msg)) {
+        // Silent — user can tap the button again once focused.
+      } else if (!/cancel/i.test(msg)) {
+        setErr(msg || "Biometric unlock failed");
+      }
     } finally {
       setBioBusy(false);
     }
   }, [unlock]);
 
-  // Detect biometric availability + auto-prompt on mount
+  // Detect biometric availability + auto-prompt on mount (only if focused)
   React.useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -75,7 +93,7 @@ export function PinLockScreen() {
         return;
       }
       setBioAvail(true);
-      if (!triedAutoRef.current && !locked) {
+      if (!triedAutoRef.current && !locked && document.hasFocus()) {
         triedAutoRef.current = true;
         void tryBiometric();
       }
