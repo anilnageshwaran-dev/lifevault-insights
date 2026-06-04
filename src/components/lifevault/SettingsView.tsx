@@ -291,19 +291,9 @@ function DataTab() {
 
   return (
     <div className="space-y-5">
-      <Card>
-        <h3 className="font-display text-xl mb-2 flex items-center gap-2">
-          <Cloud className="h-5 w-5" /> Cloud Sync
-        </h3>
-        <p className="text-sm text-muted-foreground mb-3">
-          Your data is encrypted on this device with your PIN. For full Google Drive
-          per-user sync to <code>appDataFolder</code>, the host needs to register a
-          Google OAuth client; the app currently uses local encrypted storage.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Use Export JSON below to back up. Import on any device to restore.
-        </p>
-      </Card>
+      <DriveSyncCard />
+
+
 
       <Card>
         <h3 className="font-display text-xl mb-2">Export Data</h3>
