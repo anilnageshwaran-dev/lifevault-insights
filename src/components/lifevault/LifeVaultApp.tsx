@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock, Vault,
+  ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock,
   Sun, Moon, Settings as SettingsIcon, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
@@ -13,6 +13,7 @@ import { GoalsView } from "./GoalsView";
 import { VaultView } from "./VaultView";
 import { SettingsView } from "./SettingsView";
 import { InstallBanner } from "./InstallBanner";
+import { LifeVaultIcon } from "./LifeVaultIcon";
 
 type TabId = "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
 
@@ -56,7 +57,7 @@ export function LifeVaultApp() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-dvh flex bg-background overflow-x-hidden">
       {/* Desktop sidebar */}
       <aside
         className={`hidden md:flex flex-col shrink-0 border-r border-border bg-sidebar p-3 sticky top-0 h-screen transition-all ${
@@ -64,9 +65,7 @@ export function LifeVaultApp() {
         }`}
       >
         <div className={`flex items-center gap-2 px-2 py-2 mb-6 ${collapsed ? "justify-center" : ""}`}>
-          <div className="h-9 w-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-            <Vault className="h-5 w-5 text-primary" />
-          </div>
+          <LifeVaultIcon className="h-9 w-9" />
           {!collapsed && (
             <div>
               <div className="font-display text-lg leading-none">LifeVault</div>
@@ -128,11 +127,9 @@ export function LifeVaultApp() {
       {/* Main content */}
       <main className="flex-1 min-w-0">
         {/* Mobile top bar */}
-        <header className="md:hidden sticky top-0 z-20 bg-background/85 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
+        <header className="md:hidden sticky top-0 z-20 bg-background/85 backdrop-blur-md border-b border-border px-3 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
-              <Vault className="h-4 w-4 text-primary" />
-            </div>
+            <LifeVaultIcon className="h-8 w-8" />
             <div>
               <div className="font-display text-base leading-none">LifeVault</div>
               <div className="text-[10px] text-muted-foreground mt-0.5">{activeLabel}</div>
@@ -180,7 +177,7 @@ export function LifeVaultApp() {
 
         <div
           key={animKey}
-          className="px-4 md:px-8 py-5 pb-28 md:pb-12 animate-[fadeUp_200ms_ease-out]"
+          className="px-3 sm:px-4 md:px-8 py-4 md:py-5 pb-28 md:pb-12 animate-[fadeUp_200ms_ease-out]"
         >
           {tab === "essentials" && <EssentialsView />}
           {tab === "networth" && <NetWorthView />}

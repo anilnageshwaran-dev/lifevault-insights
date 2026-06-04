@@ -358,11 +358,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   );
   const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(null);
   const [fx, setFx] = React.useState<FxCache | null>(null);
+  const [driveReady, setDriveReady] = React.useState(false);
   const driveFileIdRef = React.useRef<string | null>(null);
   const driveModifiedRef = React.useRef<string | null>(null);
   const driveLoadedRef = React.useRef<boolean>(false);
   const syncStatusRef = React.useRef<"idle" | "saving" | "synced" | "error">("idle");
   const suppressNextSaveRef = React.useRef<boolean>(false);
+  const skippedInitialAutoSaveRef = React.useRef<boolean>(false);
+  const driveWriteBlockedRef = React.useRef<boolean>(false);
   React.useEffect(() => {
     syncStatusRef.current = syncStatus;
   }, [syncStatus]);
@@ -378,6 +381,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     driveRef.current = drive;
   }, [drive]);
+
+  React.useEffect(() => {
+    if (!drive.connected) {
+      driveLoadedRef.current = false;
+      driveModifiedRef.current = null;
+      driveWriteBlockedRef.current = false;
+      setDriveReady(false);
+    }
+  }, [drive.connected]);
 
   // Load FX on mount
   React.useEffect(() => {
@@ -447,6 +459,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const file = await findAppFile();
         if (!file) {
           driveLoadedRef.current = true;
+          setDriveReady(true);
           return;
         }
         driveFileIdRef.current = file.id;
@@ -464,9 +477,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             setLastSyncedAt(Date.now());
           }
         } catch {
-          // PIN-encrypted blob from a different PIN — ignore, keep local
+          // PIN-encrypted blob from a different PIN — do not overwrite the Drive copy.
+          setSyncStatus("error");
+          toast.error("Drive data could not be unlocked. Use the same PIN on this device.");
+          driveWriteBlockedRef.current = true;
+          driveLoadedRef.current = true;
+          return;
         }
         driveLoadedRef.current = true;
+        setDriveReady(true);
       } catch (e) {
         const msg = (e as Error).message || "";
         if (msg.includes("403")) {
@@ -479,6 +498,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [hydrated, key, drive.connected, drive]);
+
+  const persistLocal = React.useCallback(async (): Promise<void> => {
+    const k = keyRef.current;
+    const s = stateRef.current;
+    try {
+      if (k) {
+        const enc = await encryptWithKey(s, k);
+        localStorage.setItem(STORAGE_KEY_ENC, enc);
+      } else {
+        localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(s));
+      }
+    } catch {
+      setSyncStatus("error");
+    }
+  }, []);
 
   // Core writer — persists locally and pushes to Drive when connected.
   const writeAndPush = React.useCallback(async (force = false): Promise<void> => {
@@ -499,6 +533,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (d.connected && enc) {
+      if (driveWriteBlockedRef.current) {
+        setSyncStatus("error");
+        return;
+      }
       try {
         const token = await d.ensureToken();
         if (!token) throw new Error("no token");
@@ -531,18 +569,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Pull latest from Drive if remote file changed. Skips while a save is in-flight.
-  const pullIfRemoteNewer = React.useCallback(async (): Promise<void> => {
+  const pullIfRemoteNewer = React.useCallback(async (): Promise<boolean> => {
     const k = keyRef.current;
     const d = driveRef.current;
-    if (!k || !d.connected) return;
-    if (syncStatusRef.current === "saving") return;
+    if (!k || !d.connected) return false;
+    if (syncStatusRef.current === "saving") return false;
     try {
       const token = await d.ensureToken();
-      if (!token) return;
+      if (!token) return false;
       const file = await findAppFile();
-      if (!file) return;
+      if (!file) return false;
       const remoteMod = file.modifiedTime ?? null;
-      if (remoteMod && remoteMod === driveModifiedRef.current) return;
+      if (remoteMod && remoteMod === driveModifiedRef.current) return false;
       driveFileIdRef.current = file.id;
       try {
         localStorage.setItem("lifevault_drive_fileid", file.id);
@@ -551,31 +589,46 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       try {
         const parsed = await decryptWithKey<FinanceState>(blob, k);
         driveModifiedRef.current = remoteMod;
+        driveWriteBlockedRef.current = false;
         suppressNextSaveRef.current = true;
         setState(ensureRegions({ ...initialState, ...parsed }));
         setSyncStatus("synced");
         setLastSyncedAt(Date.now());
+        return true;
       } catch {
-        // Different PIN on the other device — can't decrypt, keep local.
+        // Different PIN on the other device — can't decrypt, keep local and never overwrite it.
+        driveWriteBlockedRef.current = true;
+        setSyncStatus("error");
       }
     } catch {
       // Network/Drive blip — try again next tick.
     }
+    return false;
   }, []);
 
   // 3) Debounced auto-save on every state change (skip if we just applied a remote pull)
   React.useEffect(() => {
     if (!hydrated) return;
+    if (drive.connected && !driveReady) {
+      skippedInitialAutoSaveRef.current = true;
+      const t = setTimeout(() => {
+        void persistLocal();
+      }, 800);
+      return () => clearTimeout(t);
+    }
     if (suppressNextSaveRef.current) {
       suppressNextSaveRef.current = false;
       return;
+    }
+    if (skippedInitialAutoSaveRef.current) {
+      skippedInitialAutoSaveRef.current = false;
     }
     setSyncStatus("saving");
     const t = setTimeout(() => {
       void writeAndPush(false);
     }, 800);
     return () => clearTimeout(t);
-  }, [state, hydrated, key, drive.connected, writeAndPush]);
+  }, [state, hydrated, key, drive.connected, driveReady, persistLocal, writeAndPush]);
 
   // 3b) Live auto-pull from Drive: every 20s, on tab focus, and on reconnect.
   React.useEffect(() => {
@@ -629,8 +682,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [hydrated, writeAndPush, syncStatus]);
 
   const syncNow = React.useCallback(async () => {
+    const pulled = await pullIfRemoteNewer();
+    if (pulled) return;
     await writeAndPush(true);
-  }, [writeAndPush]);
+  }, [pullIfRemoteNewer, writeAndPush]);
 
   const update = React.useCallback(
     <K extends keyof FinanceState>(key: K, value: FinanceState[K]) => {

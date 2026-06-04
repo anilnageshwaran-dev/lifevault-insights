@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Lock, X } from "lucide-react";
+import { X } from "lucide-react";
+import { LifeVaultIcon } from "./LifeVaultIcon";
 
 const KEY = "lifevault_install_dismissed";
 
@@ -27,9 +28,7 @@ export function InstallBanner() {
 
   return (
     <div className="fixed bottom-20 md:bottom-6 inset-x-4 md:inset-x-auto md:right-6 md:w-96 z-30 rounded-2xl border border-border bg-card shadow-2xl p-4 flex items-start gap-3 animate-[fadeUp_300ms_ease-out]">
-      <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-        <Lock className="h-5 w-5 text-primary" />
-      </div>
+      <LifeVaultIcon className="h-10 w-10" />
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium">Install LifeVault</div>
         <div className="text-xs text-muted-foreground mt-0.5">

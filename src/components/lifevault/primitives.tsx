@@ -58,7 +58,7 @@ export function NumberInput({
 
 export function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+    <label className="text-[11px] sm:text-xs uppercase tracking-wider text-muted-foreground font-medium">
       {children}
     </label>
   );
@@ -74,7 +74,7 @@ export function GlassCard({
   return (
     <div
       className={cn(
-        "glass rounded-2xl p-5 shadow-lg shadow-black/20",
+        "glass rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-lg shadow-black/20",
         className,
       )}
     >
@@ -95,7 +95,7 @@ export function SectionTitle({
   return (
     <div className="flex items-end justify-between gap-4 mb-3">
       <div>
-        <h3 className="font-display text-xl text-foreground">{title}</h3>
+        <h3 className="font-display text-lg sm:text-xl text-foreground">{title}</h3>
         {subtitle && (
           <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
         )}

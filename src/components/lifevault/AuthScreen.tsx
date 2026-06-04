@@ -4,6 +4,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { LifeVaultIcon } from "./LifeVaultIcon";
 
 const schema = z.object({
   email: z.string().trim().email("Enter a valid email").max(255),
@@ -70,6 +71,7 @@ export function AuthScreen() {
     <div className="min-h-screen flex items-center justify-center px-6 bg-background">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
+          <LifeVaultIcon className="mx-auto h-16 w-16 mb-4" />
           <h1 className="font-display text-3xl mb-2">
             {mode === "signin" ? "Sign in to LifeVault" : "Create your LifeVault account"}
           </h1>

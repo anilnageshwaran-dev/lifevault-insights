@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Lock, Cloud, LayoutGrid } from "lucide-react";
 import { useLock } from "@/lib/lock-context";
+import { LifeVaultIcon } from "./LifeVaultIcon";
 
 const SLIDES = [
   {
@@ -37,11 +38,15 @@ export function OnboardingScreen() {
   const Icon = S.icon;
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-background">
+    <div className="min-h-dvh flex items-center justify-center px-5 py-8 bg-background overflow-x-hidden">
       <div className="w-full max-w-md text-center">
-        <div className={`mx-auto h-24 w-24 rounded-3xl ${S.bg} flex items-center justify-center mb-8`}>
-          <Icon className={`h-12 w-12 ${S.color}`} />
-        </div>
+        {i === 0 ? (
+          <LifeVaultIcon className="mx-auto h-24 w-24 mb-8 shadow-2xl shadow-primary/20" />
+        ) : (
+          <div className={`mx-auto h-24 w-24 rounded-3xl ${S.bg} flex items-center justify-center mb-8`}>
+            <Icon className={`h-12 w-12 ${S.color}`} />
+          </div>
+        )}
         <h1 className="font-display text-3xl text-foreground">{S.title}</h1>
         <p className="text-base text-muted-foreground mt-4 leading-relaxed">{S.body}</p>
 

@@ -31,7 +31,7 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: st
 export function SettingsView() {
   const [tab, setTab] = React.useState<Tab>("account");
   return (
-    <div className="grid md:grid-cols-[200px_1fr] gap-6">
+    <div className="grid md:grid-cols-[200px_1fr] gap-4 md:gap-6">
       <nav className="space-y-1 md:sticky md:top-24 self-start">
         <div className="flex md:flex-col gap-1 overflow-x-auto">
           {TABS.map((t) => {
@@ -49,7 +49,7 @@ export function SettingsView() {
           })}
         </div>
       </nav>
-      <div className="max-w-2xl space-y-5">
+      <div className="max-w-2xl space-y-4 md:space-y-5 min-w-0">
         {tab === "account" && <AccountTab />}
         {tab === "family" && <HouseholdTab />}
         {tab === "preferences" && <PreferencesTab />}
@@ -62,7 +62,7 @@ export function SettingsView() {
 }
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-2xl border border-border bg-card p-5">{children}</div>;
+  return <div className="rounded-xl md:rounded-2xl border border-border bg-card p-4 md:p-5">{children}</div>;
 }
 
 function AccountTab() {
