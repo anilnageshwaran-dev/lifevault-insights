@@ -62,7 +62,7 @@ export function SettingsView() {
 }
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-xl md:rounded-2xl border border-border bg-card p-4 md:p-5">{children}</div>;
+  return <div className="min-w-0 rounded-xl md:rounded-2xl border border-border bg-card p-4 md:p-5">{children}</div>;
 }
 
 function CountList({
@@ -296,7 +296,7 @@ function AccountTab() {
         <label className="text-xs uppercase tracking-wider text-muted-foreground">Display Name</label>
         <div className="flex gap-2 mt-1">
           <input value={name} onChange={(e) => setName(e.target.value)}
-            className="flex-1 px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary" />
+            className="min-w-0 flex-1 px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary" />
           <button onClick={() => { updateMeta({ displayName: name }); toast.success("Saved"); }}
             className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Save</button>
         </div>
