@@ -578,16 +578,23 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   // 3) Debounced auto-save on every state change (skip if we just applied a remote pull)
   React.useEffect(() => {
     if (!hydrated) return;
+    if (drive.connected && !driveReady) {
+      skippedInitialAutoSaveRef.current = true;
+      return;
+    }
     if (suppressNextSaveRef.current) {
       suppressNextSaveRef.current = false;
       return;
+    }
+    if (skippedInitialAutoSaveRef.current) {
+      skippedInitialAutoSaveRef.current = false;
     }
     setSyncStatus("saving");
     const t = setTimeout(() => {
       void writeAndPush(false);
     }, 800);
     return () => clearTimeout(t);
-  }, [state, hydrated, key, drive.connected, writeAndPush]);
+  }, [state, hydrated, key, drive.connected, driveReady, writeAndPush]);
 
   // 3b) Live auto-pull from Drive: every 20s, on tab focus, and on reconnect.
   React.useEffect(() => {
