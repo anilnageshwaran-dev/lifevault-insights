@@ -298,7 +298,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <FinanceContext.Provider
-      value={{ state, setState, update, reset, exportData, importData }}
+      value={{ state, setState, update, reset, exportData, importData, syncStatus }}
     >
       {children}
     </FinanceContext.Provider>
