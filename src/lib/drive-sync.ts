@@ -108,10 +108,10 @@ export async function requestToken(opts: { silent: boolean; hint?: string }): Pr
   });
 }
 
-export async function getValidToken(): Promise<string> {
+export async function getValidToken(hint?: string): Promise<string> {
   const t = getAccessTokenInMemory();
   if (t) return t;
-  return requestToken({ silent: true });
+  return requestToken({ silent: true, hint });
 }
 
 export async function revokeToken(): Promise<void> {
