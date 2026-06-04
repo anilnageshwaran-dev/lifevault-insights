@@ -347,6 +347,44 @@ function DataTab() {
   );
 }
 
+function AccountCard() {
+  const { user, signOut } = useAuth();
+  const [busy, setBusy] = React.useState(false);
+  if (!user) return null;
+  const name =
+    (user.user_metadata?.name as string | undefined) ||
+    (user.user_metadata?.full_name as string | undefined) ||
+    user.email ||
+    "Signed in";
+  return (
+    <Card>
+      <h3 className="font-display text-xl mb-2 flex items-center gap-2">
+        <User className="h-5 w-5" /> Account
+      </h3>
+      <div className="text-sm mb-1">{name}</div>
+      {user.email && name !== user.email && (
+        <div className="text-xs text-muted-foreground mb-3">{user.email}</div>
+      )}
+      <button
+        disabled={busy}
+        onClick={async () => {
+          if (!confirm("Sign out of LifeVault on this device?")) return;
+          setBusy(true);
+          try {
+            await signOut();
+            toast.success("Signed out");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="mt-2 px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent flex items-center gap-2 disabled:opacity-50"
+      >
+        <LogOut className="h-4 w-4" /> Sign out
+      </button>
+    </Card>
+  );
+}
+
 function DriveSyncCard() {
   const drive = useDrive();
   const { syncStatus, lastSyncedAt, syncNow } = useFinance();
