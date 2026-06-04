@@ -42,7 +42,7 @@ export async function deriveKey(pin: string, saltHex: string): Promise<CryptoKey
     ["deriveKey"],
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: fromHex(saltHex), iterations: ITER, hash: "SHA-256" },
+    { name: "PBKDF2", salt: fromHex(saltHex) as BufferSource, iterations: ITER, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -59,7 +59,7 @@ export async function pinHash(pin: string, saltHex: string): Promise<string> {
     ["deriveBits"],
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt: fromHex(saltHex), iterations: ITER, hash: "SHA-256" },
+    { name: "PBKDF2", salt: fromHex(saltHex) as BufferSource, iterations: ITER, hash: "SHA-256" },
     material,
     256,
   );
