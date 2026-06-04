@@ -421,9 +421,42 @@ function SecurityTab() {
 }
 
 function DataTab() {
-  const { state, exportData, importData, fx } = useFinance();
+  const { state, setState, exportData, importData, fx } = useFinance();
   const { resetAll } = useLock();
+  const lock = useLock();
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const encRef = React.useRef<HTMLInputElement>(null);
+
+  const exportEncrypted = async () => {
+    try {
+      const blob = await lock.encryptSyncData(state);
+      const file = new Blob([blob], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `lifevault_backup_${new Date().toISOString().slice(0, 10)}.lvault`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Encrypted backup downloaded");
+    } catch (e) {
+      toast.error((e as Error).message || "Backup failed");
+    }
+  };
+
+  const importEncrypted = async (file: File) => {
+    try {
+      const text = await file.text();
+      const restored = await lock.decryptSyncData<typeof state>(text);
+      if (!confirm("Replace current device data with the restored backup? This cannot be undone.")) return;
+      setState(restored);
+      toast.success("Vault restored");
+    } catch (e) {
+      const msg = (e as Error).message || "";
+      if (msg.includes("PIN mismatch")) toast.error("This backup was encrypted with a different PIN");
+      else toast.error("Could not decrypt — wrong file or PIN");
+    }
+  };
+
 
   const exportCsvZip = async () => {
     const base = state.baseCurrency || "INR";
