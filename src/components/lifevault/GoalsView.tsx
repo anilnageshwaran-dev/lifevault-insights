@@ -79,6 +79,9 @@ export function GoalsView() {
         <SectionTitle title="Your Goals" subtitle="Future-priced and tracked monthly"
           right={
             <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setCalcOpen(true)} className="gap-1">
+                <Calculator className="h-4 w-4" /> <span className="hidden sm:inline">Inflation</span>
+              </Button>
               <Button onClick={startNew} className="gap-1"><Plus className="h-4 w-4" /> Add Goal</Button>
             </div>
           } />
@@ -153,13 +156,6 @@ export function GoalsView() {
           </div>
         )}
       </GlassCard>
-
-      {/* Floating Calculator Button */}
-      <button onClick={() => setCalcOpen(true)}
-        className="fixed bottom-24 md:bottom-24 right-6 h-12 px-4 rounded-full bg-card border border-border shadow-xl flex items-center gap-2 hover:bg-accent transition-colors z-20"
-        aria-label="Inflation calculator">
-        <Calculator className="h-4 w-4" /> <span className="text-sm">Inflation</span>
-      </button>
 
       {calcOpen && <InflationPanel onClose={() => setCalcOpen(false)} />}
 
