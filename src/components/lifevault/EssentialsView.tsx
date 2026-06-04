@@ -235,6 +235,19 @@ export function EssentialsView() {
               <span>0m</span><span>3m</span><span>6m</span><span>12m+</span>
             </div>
           </div>
+          <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs text-muted-foreground flex items-start gap-2">
+            <Lightbulb className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p><strong className="text-foreground">Aim for 6 months of expenses</strong> in liquid form — sweep-FD, liquid funds, or a high-yield savings account.</p>
+              <p>Keep it separate from your daily spending account so you don't dip into it.</p>
+              <p>Replenish first before any other goal if you use it.</p>
+            </div>
+          </div>
+          <Button size="sm" variant="secondary" className="mt-3 gap-1.5"
+            onClick={linkEmergencyGoal} disabled={state.monthlyExpenses <= 0}>
+            <Target className="h-3.5 w-3.5" />
+            {state.goals.some((g) => g.type === "Emergency Fund") ? "Sync with Goals" : "Track as Goal"}
+          </Button>
         </GlassCard>
 
         <GlassCard>
