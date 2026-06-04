@@ -69,7 +69,7 @@ function AccountTab() {
   const { meta, updateMeta, resetAll } = useLock();
   const { user, signOut } = useAuth();
   const drive = useDrive();
-  const { syncStatus, lastSyncedAt, syncNow } = useFinance();
+  const { syncStatus, lastSyncedAt, syncNow, syncDiagnostics, inspectDrive, pullFromDrive, pushToDrive } = useFinance();
   const [name, setName] = React.useState(meta.displayName);
   const [busy, setBusy] = React.useState(false);
   const [syncing, setSyncing] = React.useState(false);
@@ -90,6 +90,10 @@ function AccountTab() {
     ? "Not connected"
     : syncStatus === "saving" || syncing
       ? "Saving…"
+      : syncDiagnostics.remote.status === "locked"
+        ? "PIN mismatch"
+      : syncDiagnostics.remote.status === "missing"
+        ? "No Drive file"
       : syncStatus === "error"
         ? "Offline — working from cache"
         : "Synced";
@@ -101,6 +105,9 @@ function AccountTab() {
         ? "bg-danger"
         : "bg-positive";
   const lastLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : null;
+  const remoteLabel = syncDiagnostics.remote.status === "available" && syncDiagnostics.remote.modifiedTime
+    ? new Date(syncDiagnostics.remote.modifiedTime).toLocaleString()
+    : null;
 
   return (
     <Card>
