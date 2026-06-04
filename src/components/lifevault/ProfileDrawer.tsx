@@ -240,7 +240,17 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
               </button>
             </div>
           </Section>
+
+          <button
+            onClick={() => setWhatsNewOpen(true)}
+            className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            What's new · v{APP_VERSION}
+          </button>
         </div>
+
+        <WhatsNewDialog open={whatsNewOpen} onOpenChange={setWhatsNewOpen} />
 
         <div className="border-t border-border p-3 grid grid-cols-2 gap-2">
           <button
