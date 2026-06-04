@@ -500,6 +500,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         exportData,
         importData,
         syncStatus,
+        lastSyncedAt,
+        syncNow,
         fx,
         refreshFx,
       }}
