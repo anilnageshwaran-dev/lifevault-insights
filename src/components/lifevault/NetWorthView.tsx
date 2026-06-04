@@ -366,6 +366,12 @@ export function NetWorthView() {
                             <div className="tabular text-sm" style={{ color: "var(--color-danger)" }}>
                               {formatMoney(item.principal, item.currency || base)}
                             </div>
+                            <button
+                              className="text-muted-foreground hover:text-foreground"
+                              title="View EMI schedule"
+                              onClick={() => setScheduleFor(item)}>
+                              <Calendar className="h-4 w-4" />
+                            </button>
                             <button className="text-muted-foreground hover:text-rose-400"
                               onClick={() => {
                                 if (!confirm("Delete this liability?")) return;
