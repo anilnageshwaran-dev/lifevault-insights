@@ -456,6 +456,43 @@ function AccountFormDialog({ account, onClose, base }:
               onChange={(e) => setForm({ ...form, asOf: e.target.value })} />
           </div>
 
+          {(isBank || isCC) && (
+            <details className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+              <summary className="text-sm font-medium cursor-pointer">
+                {isCC ? "Card login (net banking)" : "Internet banking login"}
+                <span className="text-[10px] text-muted-foreground ml-2">— encrypted with your PIN</span>
+              </summary>
+              <div className="space-y-3 pt-3">
+                <div>
+                  <FieldLabel>Login URL</FieldLabel>
+                  <input className="underline-input" placeholder="https://..."
+                    value={form.loginUrl || ""}
+                    onChange={(e) => setForm({ ...form, loginUrl: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <FieldLabel>User ID / Customer ID</FieldLabel>
+                    <input className="underline-input" autoComplete="off"
+                      value={form.loginUsername || ""}
+                      onChange={(e) => setForm({ ...form, loginUsername: e.target.value })} />
+                  </div>
+                  <div>
+                    <FieldLabel>Password</FieldLabel>
+                    <input type="password" className="underline-input" autoComplete="new-password"
+                      value={form.loginPassword || ""}
+                      onChange={(e) => setForm({ ...form, loginPassword: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <FieldLabel>Notes (transaction password, profile password, hints)</FieldLabel>
+                  <textarea rows={2} className="underline-input"
+                    value={form.loginNotes || ""}
+                    onChange={(e) => setForm({ ...form, loginNotes: e.target.value })} />
+                </div>
+              </div>
+            </details>
+          )}
+
           <div>
             <FieldLabel>Colour</FieldLabel>
             <div className="flex gap-2 mt-1">
