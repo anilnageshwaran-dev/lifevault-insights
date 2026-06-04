@@ -893,9 +893,10 @@ function InsightsTab() {
 // ────────────────────────────────────────────── QUICK ADD FAB
 
 function QuickAddFab() {
-  const { state, setState } = useFinance();
+  const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
   const [open, setOpen] = React.useState(false);
+  const [mode, setMode] = React.useState<"tx" | "transfer">("tx");
 
   const defaultAccountId = state.lastUsedAccountId || state.accounts[0]?.id;
   const defaultAccount = state.accounts.find((a) => a.id === defaultAccountId);
@@ -912,8 +913,25 @@ function QuickAddFab() {
 
   const [tx, setTx] = React.useState<Omit<Transaction, "id">>(blank());
 
+  // Transfer state
+  const [fromAcc, setFromAcc] = React.useState<string | undefined>(defaultAccountId);
+  const [toAcc, setToAcc] = React.useState<string | undefined>(
+    state.accounts.find((a) => a.id !== defaultAccountId)?.id,
+  );
+  const [tDate, setTDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [tAmt, setTAmt] = React.useState(0);
+  const [tDesc, setTDesc] = React.useState("");
+
   React.useEffect(() => {
-    if (open) setTx(blank());
+    if (open) {
+      setTx(blank());
+      setMode("tx");
+      setFromAcc(defaultAccountId);
+      setToAcc(state.accounts.find((a) => a.id !== defaultAccountId)?.id);
+      setTDate(new Date().toISOString().slice(0, 10));
+      setTAmt(0);
+      setTDesc("");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -922,7 +940,6 @@ function QuickAddFab() {
   const cats = categoriesForType(tx.type);
 
   React.useEffect(() => {
-    // Reset category when type changes
     if (!cats.includes(tx.category)) {
       setTx((t) => ({ ...t, category: cats[0] }));
     }
@@ -940,6 +957,29 @@ function QuickAddFab() {
     setOpen(false);
   };
 
+  const saveTransfer = () => {
+    if (!fromAcc || !toAcc) { toast.error("Pick both accounts"); return; }
+    if (fromAcc === toAcc) { toast.error("From and To must differ"); return; }
+    if (!tAmt) { toast.error("Enter an amount"); return; }
+    const from = state.accounts.find((a) => a.id === fromAcc)!;
+    const to = state.accounts.find((a) => a.id === toAcc)!;
+    const transferId = uid();
+    // Convert amount to destination currency if different
+    const toAmt = from.currency === to.currency ? tAmt : convert(tAmt, from.currency, to.currency, fx);
+    const note = tDesc.trim() || `Transfer ${from.name} → ${to.name}`;
+    const outTx: Transaction = {
+      id: uid(), date: tDate, type: "expense", category: "Transfer Out",
+      description: note, amount: tAmt, accountId: from.id, currency: from.currency, transferId,
+    };
+    const inTx: Transaction = {
+      id: uid(), date: tDate, type: "income", category: "Transfer In",
+      description: note, amount: toAmt, accountId: to.id, currency: to.currency, transferId,
+    };
+    setState((s) => ({ ...s, transactions: [...s.transactions, outTx, inTx] }));
+    toast.success("Transfer recorded");
+    setOpen(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <button onClick={() => setOpen(true)}
@@ -949,81 +989,169 @@ function QuickAddFab() {
       </button>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">Quick Add Transaction</DialogTitle>
+          <DialogTitle className="font-display text-2xl">
+            {mode === "transfer" ? "Transfer Between Accounts" : "Quick Add Transaction"}
+          </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 pt-2">
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-white/[0.04]">
-            {(["income", "expense", "investment"] as const).map((t) => (
-              <button key={t} onClick={() => setTx({ ...tx, type: t })}
-                className={`py-2 text-xs capitalize rounded-md transition-colors ${
-                  tx.type === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                }`}>{t}</button>
-            ))}
-          </div>
 
-          <div>
-            <FieldLabel>Date</FieldLabel>
-            <input type="date" className="underline-input" value={tx.date}
-              onChange={(e) => setTx({ ...tx, date: e.target.value })} />
-          </div>
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-white/[0.04] mb-3">
+          <button onClick={() => setMode("tx")}
+            className={`py-2 text-xs rounded-md ${mode === "tx" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+            Transaction
+          </button>
+          <button onClick={() => setMode("transfer")}
+            className={`py-2 text-xs rounded-md ${mode === "transfer" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+            Transfer
+          </button>
+        </div>
 
-          <div>
-            <FieldLabel>Account</FieldLabel>
-            {state.accounts.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">
-                No accounts yet. Add one in Cash Flow → Accounts to organise your transactions.
-              </p>
-            ) : (
-              <Select value={tx.accountId || ""}
-                onValueChange={(v) => setTx({ ...tx, accountId: v, currency: state.accounts.find((a) => a.id === v)?.currency })}>
-                <SelectTrigger><SelectValue placeholder="Pick an account" /></SelectTrigger>
-                <SelectContent>
-                  {state.accounts.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: a.color }} />
-                        {a.name} <span className="text-[10px] text-muted-foreground">· {a.currency}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
+        {mode === "tx" ? (
+          <div className="space-y-4 pt-2">
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-white/[0.04]">
+              {(["income", "expense", "investment"] as const).map((t) => (
+                <button key={t} onClick={() => setTx({ ...tx, type: t })}
+                  className={`py-2 text-xs capitalize rounded-md transition-colors ${
+                    tx.type === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                  }`}>{t}</button>
+              ))}
+            </div>
+
+            <div>
+              <FieldLabel>Date</FieldLabel>
+              <input type="date" className="underline-input" value={tx.date}
+                onChange={(e) => setTx({ ...tx, date: e.target.value })} />
+            </div>
+
+            <div>
+              <FieldLabel>Account</FieldLabel>
+              {state.accounts.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">
+                  No accounts yet. Add one in Cash Flow → Accounts to organise your transactions.
+                </p>
+              ) : (
+                <Select value={tx.accountId || ""}
+                  onValueChange={(v) => setTx({ ...tx, accountId: v, currency: state.accounts.find((a) => a.id === v)?.currency })}>
+                  <SelectTrigger><SelectValue placeholder="Pick an account" /></SelectTrigger>
+                  <SelectContent>
+                    {state.accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: a.color }} />
+                          {a.name} <span className="text-[10px] text-muted-foreground">· {a.currency}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {!selectedAccount && (
+              <div>
+                <FieldLabel>Currency</FieldLabel>
+                <CurrencySelect value={tx.currency || base}
+                  onChange={(c) => setTx({ ...tx, currency: c })} />
+              </div>
+            )}
+
+            <div>
+              <FieldLabel>Category</FieldLabel>
+              <Select value={tx.category} onValueChange={(v) => setTx({ ...tx, category: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {cats.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <FieldLabel>Description</FieldLabel>
+              <input className="underline-input" placeholder="e.g. Coffee with friends"
+                value={tx.description} onChange={(e) => setTx({ ...tx, description: e.target.value })} />
+            </div>
+
+            <div>
+              <FieldLabel>Amount ({getCurrency(txCurrency).symbol})</FieldLabel>
+              <MoneyInput value={tx.amount} onChange={(n) => setTx({ ...tx, amount: n })} />
+            </div>
+
+            <Button className="w-full" onClick={save} disabled={!tx.amount}>
+              Save Transaction
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4 pt-2">
+            {state.accounts.length < 2 ? (
+              <p className="text-sm text-muted-foreground">
+                You need at least 2 accounts to record a transfer. Add another account in Cash Flow → Accounts.
+              </p>
+            ) : (
+              <>
+                <div>
+                  <FieldLabel>Date</FieldLabel>
+                  <input type="date" className="underline-input" value={tDate}
+                    onChange={(e) => setTDate(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <FieldLabel>From</FieldLabel>
+                    <Select value={fromAcc || ""} onValueChange={setFromAcc}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {state.accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name} <span className="text-[10px] text-muted-foreground">· {a.currency}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <FieldLabel>To</FieldLabel>
+                    <Select value={toAcc || ""} onValueChange={setToAcc}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {state.accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name} <span className="text-[10px] text-muted-foreground">· {a.currency}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <FieldLabel>
+                    Amount ({getCurrency(state.accounts.find((a) => a.id === fromAcc)?.currency || base).symbol})
+                  </FieldLabel>
+                  <MoneyInput value={tAmt} onChange={setTAmt} />
+                  {fromAcc && toAcc && (() => {
+                    const f = state.accounts.find((a) => a.id === fromAcc);
+                    const t = state.accounts.find((a) => a.id === toAcc);
+                    if (!f || !t || f.currency === t.currency || !tAmt) return null;
+                    const dest = convert(tAmt, f.currency, t.currency, fx);
+                    return (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        ≈ {formatMoney(dest, t.currency)} credited to {t.name}
+                      </p>
+                    );
+                  })()}
+                </div>
+                <div>
+                  <FieldLabel>Note (optional)</FieldLabel>
+                  <input className="underline-input" placeholder="e.g. Card payment"
+                    value={tDesc} onChange={(e) => setTDesc(e.target.value)} />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Creates two linked entries (Transfer Out / Transfer In). Excluded from income & expense totals.
+                </p>
+                <Button className="w-full" onClick={saveTransfer} disabled={!tAmt || !fromAcc || !toAcc || fromAcc === toAcc}>
+                  Save Transfer
+                </Button>
+              </>
             )}
           </div>
-
-          {!selectedAccount && (
-            <div>
-              <FieldLabel>Currency</FieldLabel>
-              <CurrencySelect value={tx.currency || base}
-                onChange={(c) => setTx({ ...tx, currency: c })} />
-            </div>
-          )}
-
-          <div>
-            <FieldLabel>Category</FieldLabel>
-            <Select value={tx.category} onValueChange={(v) => setTx({ ...tx, category: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent className="max-h-72">
-                {cats.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <FieldLabel>Description</FieldLabel>
-            <input className="underline-input" placeholder="e.g. Coffee with friends"
-              value={tx.description} onChange={(e) => setTx({ ...tx, description: e.target.value })} />
-          </div>
-
-          <div>
-            <FieldLabel>Amount ({getCurrency(txCurrency).symbol})</FieldLabel>
-            <MoneyInput value={tx.amount} onChange={(n) => setTx({ ...tx, amount: n })} />
-          </div>
-
-          <Button className="w-full" onClick={save} disabled={!tx.amount}>
-            Save Transaction
-          </Button>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
