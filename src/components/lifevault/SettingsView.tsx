@@ -115,18 +115,37 @@ function AccountTab() {
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
             {!drive.connected ? (
-              <button
-                disabled={busy || drive.connecting}
-                onClick={async () => {
-                  setBusy(true);
-                  try { await drive.connect(); toast.success("Connected to Google Drive"); }
-                  catch (e) { toast.error((e as Error).message || "Sign-in cancelled"); }
-                  finally { setBusy(false); }
-                }}
-                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
-              >
-                {busy || drive.connecting ? "Connecting…" : "Connect Drive"}
-              </button>
+              isGoogleSignIn ? (
+                <span className="text-xs text-muted-foreground italic">
+                  {drive.connecting ? "Linking Drive…" : "Drive will auto-link from your Google account"}
+                  {!drive.connecting && (
+                    <button
+                      onClick={async () => {
+                        setBusy(true);
+                        try { await drive.connect(); toast.success("Connected to Google Drive"); }
+                        catch (e) { toast.error((e as Error).message || "Sign-in cancelled"); }
+                        finally { setBusy(false); }
+                      }}
+                      className="ml-2 underline hover:text-foreground"
+                    >
+                      Retry
+                    </button>
+                  )}
+                </span>
+              ) : (
+                <button
+                  disabled={busy || drive.connecting}
+                  onClick={async () => {
+                    setBusy(true);
+                    try { await drive.connect(); toast.success("Connected to Google Drive"); }
+                    catch (e) { toast.error((e as Error).message || "Sign-in cancelled"); }
+                    finally { setBusy(false); }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
+                >
+                  {busy || drive.connecting ? "Connecting…" : "Connect Drive"}
+                </button>
+              )
             ) : (
               <>
                 <button
@@ -158,6 +177,7 @@ function AccountTab() {
                 </button>
               </>
             )}
+
             <button
               disabled={busy}
               onClick={async () => {
