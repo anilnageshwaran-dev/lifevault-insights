@@ -89,9 +89,11 @@ function flagFor(currency: string): string {
 }
 
 export function EssentialsView() {
-  const { state, setState, update, fx } = useFinance();
+  const { state, setState, update, fx, refreshFx } = useFinance();
   const base = state.baseCurrency || "INR";
   const score = computeHealthScore(state, fx);
+  const [refreshingFx, setRefreshingFx] = React.useState(false);
+
 
   // Active region tab
   const [activeId, setActiveId] = React.useState<string | null>(null);
