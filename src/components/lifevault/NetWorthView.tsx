@@ -8,11 +8,15 @@ import {
   assetsByCategory,
   newAsset,
   newLiability,
+  accountBalance,
   type AssetCategory,
   type LiabilityCategory,
+  type AssetItem,
+  type LiabilityItem,
   type NetWorthSnapshot,
 } from "@/lib/finance-context";
-import { formatINR, pct, uid, clamp } from "@/lib/finance-utils";
+import { formatMoney, convert } from "@/lib/currency";
+import { pct, uid, clamp } from "@/lib/finance-utils";
 import {
   GlassCard,
   MoneyInput,
@@ -29,10 +33,22 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Plus,
   Trash2,
   Camera,
-  Upload,
   LineChart as LineChartIcon,
 } from "lucide-react";
 import {
@@ -47,22 +63,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { toast } from "sonner";
+import { CurrencySelect } from "./CurrencySelect";
 
-const ASSET_CATS: AssetCategory[] = [
-  "cash",
-  "equity",
-  "debt",
-  "gold",
-  "realestate",
-  "crypto",
-];
-const LIAB_CATS: LiabilityCategory[] = [
-  "home",
-  "vehicle",
-  "personal",
-  "credit",
-  "other",
-];
+const ASSET_CATS: AssetCategory[] = ["cash", "equity", "debt", "gold", "realestate", "crypto"];
+const LIAB_CATS: LiabilityCategory[] = ["home", "vehicle", "personal", "credit", "other"];
 
 const CAT_COLORS: Record<AssetCategory, string> = {
   cash: "#10B981",
@@ -73,12 +77,24 @@ const CAT_COLORS: Record<AssetCategory, string> = {
   crypto: "#F43F5E",
 };
 
+const SUBTYPES: Record<AssetCategory, string[]> = {
+  cash: ["Fixed Deposit", "Recurring Deposit", "Liquid Fund", "Treasury Bill", "Other"],
+  equity: ["Direct Stock", "Equity Mutual Fund", "ETF", "ESOP", "Other"],
+  debt: ["Bond", "Debt Mutual Fund", "Government Security", "Corporate FD", "Other"],
+  gold: ["Physical Gold", "Gold ETF", "Sovereign Gold Bond", "Digital Gold", "Other"],
+  realestate: ["Primary Home", "Investment Property", "Land", "Commercial", "Other"],
+  crypto: ["Bitcoin", "Ethereum", "Altcoin", "Stablecoin", "Other"],
+};
+
 export function NetWorthView() {
-  const { state, setState } = useFinance();
-  const totalAssets = sumAssets(state);
-  const totalLiabs = sumLiabilities(state);
+  const { state, setState, fx } = useFinance();
+  const base = state.baseCurrency || "INR";
+  const totalAssets = sumAssets(state, fx, base);
+  const totalLiabs = sumLiabilities(state, fx, base);
   const netWorth = totalAssets - totalLiabs;
-  const byCat = assetsByCategory(state);
+  const byCat = assetsByCategory(state, fx, base);
+
+  const [openAdd, setOpenAdd] = React.useState<{ kind: "asset" | "liability"; category: string } | null>(null);
 
   const takeSnapshot = () => {
     const snap: NetWorthSnapshot = {
@@ -95,42 +111,23 @@ export function NetWorthView() {
 
   return (
     <div className="space-y-6">
-      {/* Hero */}
       <GlassCard className="relative overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
           <div>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">
-              Total Assets
-            </div>
-            <div className="font-display text-3xl tabular mt-1">
-              {formatINR(totalAssets)}
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">Total Assets</div>
+            <div className="font-display text-3xl tabular mt-1">{formatMoney(totalAssets, base)}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">Total Liabilities</div>
+            <div className="font-display text-3xl tabular mt-1" style={{ color: "var(--color-danger)" }}>
+              {formatMoney(totalLiabs, base)}
             </div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">
-              Total Liabilities
-            </div>
-            <div
-              className="font-display text-3xl tabular mt-1"
-              style={{ color: "var(--color-danger)" }}
-            >
-              {formatINR(totalLiabs)}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">
-              Net Worth
-            </div>
-            <div
-              className="font-display text-4xl md:text-5xl tabular mt-1"
-              style={{
-                color:
-                  netWorth >= 0
-                    ? "var(--color-positive)"
-                    : "var(--color-danger)",
-              }}
-            >
-              {formatINR(netWorth)}
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">Net Worth</div>
+            <div className="font-display text-4xl md:text-5xl tabular mt-1"
+              style={{ color: netWorth >= 0 ? "var(--color-positive)" : "var(--color-danger)" }}>
+              {formatMoney(netWorth, base)}
             </div>
           </div>
         </div>
@@ -146,110 +143,87 @@ export function NetWorthView() {
           <SectionTitle title="Asset Ledger" subtitle="Group your holdings by class" />
           <Accordion type="multiple" className="space-y-1">
             {ASSET_CATS.map((cat) => {
-              const items = state.assets.filter((a) => a.category === cat);
-              const total = items.reduce((s, a) => s + a.value, 0);
+              const manualItems = state.assets.filter((a) => a.category === cat);
+              const accountItems =
+                cat === "cash"
+                  ? state.accounts.filter((a) => a.type !== "credit").map((a) => ({
+                      isAccount: true as const,
+                      id: a.id,
+                      name: `${a.name}${a.last4 ? ` ····${a.last4}` : ""}`,
+                      value: accountBalance(state, a.id),
+                      currency: a.currency,
+                    }))
+                  : [];
+              const total =
+                manualItems.reduce((s, a) => s + convert(a.value, a.currency || base, base, fx), 0) +
+                accountItems.reduce((s, a) => s + convert(a.value, a.currency, base, fx), 0);
               return (
-                <AccordionItem
-                  key={cat}
-                  value={cat}
-                  className="border border-white/5 rounded-xl px-3 bg-white/[0.02]"
-                >
+                <AccordionItem key={cat} value={cat}
+                  className="border border-white/5 rounded-xl px-3 bg-white/[0.02]">
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex flex-1 items-center justify-between pr-3">
                       <div className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: CAT_COLORS[cat] }}
-                        />
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CAT_COLORS[cat] }} />
                         <span className="text-sm">{ASSET_LABELS[cat]}</span>
                       </div>
-                      <div className="tabular text-sm">{formatINR(total)}</div>
+                      <div className="tabular text-sm">{formatMoney(total, base)}</div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="space-y-2">
-                    {items.length === 0 && (
-                      <p className="text-xs text-muted-foreground py-1">
-                        No entries yet.
-                      </p>
-                    )}
-                    {items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="grid grid-cols-12 gap-2 items-center"
-                      >
-                        <input
-                          className="underline-input col-span-5"
-                          placeholder="Name"
-                          value={item.name}
-                          onChange={(e) =>
-                            setState((s) => ({
-                              ...s,
-                              assets: s.assets.map((a) =>
-                                a.id === item.id
-                                  ? { ...a, name: e.target.value }
-                                  : a,
-                              ),
-                            }))
-                          }
-                        />
-                        <div className="col-span-4">
-                          <MoneyInput
-                            value={item.value}
-                            onChange={(n) =>
-                              setState((s) => ({
-                                ...s,
-                                assets: s.assets.map((a) =>
-                                  a.id === item.id ? { ...a, value: n } : a,
-                                ),
-                              }))
-                            }
-                          />
+                    {accountItems.map((a) => (
+                      <div key={a.id}
+                        className="flex items-center justify-between text-sm rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
+                        <div>
+                          <div>{a.name}</div>
+                          <div className="text-[11px] text-muted-foreground">From Cash Flow → Accounts</div>
                         </div>
-                        <div className="col-span-2 text-xs text-muted-foreground tabular text-right">
-                          {totalAssets > 0
-                            ? pct((item.value / totalAssets) * 100, 1)
-                            : "0%"}
+                        <div className="tabular text-sm">
+                          {formatMoney(a.value, a.currency)}
+                          {a.currency !== base && (
+                            <span className="text-[11px] text-muted-foreground ml-1">
+                              · {formatMoney(convert(a.value, a.currency, base, fx), base)}
+                            </span>
+                          )}
                         </div>
-                        <button
-                          className="col-span-1 text-muted-foreground hover:text-rose-400 transition-colors flex justify-end"
-                          onClick={() =>
-                            setState((s) => ({
-                              ...s,
-                              assets: s.assets.filter((a) => a.id !== item.id),
-                            }))
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
                       </div>
                     ))}
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1"
-                        onClick={() =>
-                          setState((s) => ({
-                            ...s,
-                            assets: [...s.assets, newAsset(cat)],
-                          }))
-                        }
-                      >
-                        <Plus className="h-3.5 w-3.5" /> Add row
-                      </Button>
-                      {cat === "equity" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1"
-                          onClick={() =>
-                            toast.info("CSV import coming soon")
-                          }
-                        >
-                          <Upload className="h-3.5 w-3.5" /> Import from Zerodha CSV
-                        </Button>
-                      )}
-                    </div>
+                    {manualItems.length === 0 && accountItems.length === 0 && (
+                      <p className="text-xs text-muted-foreground py-1">No entries yet.</p>
+                    )}
+                    {manualItems.map((item) => (
+                      <div key={item.id}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="text-sm truncate">{item.name || "(unnamed)"}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {item.subtype || ASSET_LABELS[cat]}
+                            {item.invested ? ` · Invested ${formatMoney(item.invested, item.currency || base)}` : ""}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="tabular text-sm text-right">
+                            {formatMoney(item.value, item.currency || base)}
+                            {(item.currency || base) !== base && (
+                              <div className="text-[11px] text-muted-foreground">
+                                · {formatMoney(convert(item.value, item.currency || base, base, fx), base)}
+                              </div>
+                            )}
+                          </div>
+                          <button className="text-muted-foreground hover:text-rose-400"
+                            onClick={() => {
+                              if (!confirm("Delete this asset?")) return;
+                              setState((s) => ({ ...s, assets: s.assets.filter((a) => a.id !== item.id) }));
+                              toast.success("Deleted");
+                            }}>
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <Button variant="ghost" size="sm" className="gap-1"
+                      onClick={() => setOpenAdd({ kind: "asset", category: cat })}>
+                      <Plus className="h-3.5 w-3.5" /> Add asset
+                    </Button>
                   </AccordionContent>
                 </AccordionItem>
               );
@@ -261,166 +235,97 @@ export function NetWorthView() {
           <SectionTitle title="Liabilities Ledger" subtitle="Loans & outstanding dues" />
           <Accordion type="multiple" className="space-y-1">
             {LIAB_CATS.map((cat) => {
-              const items = state.liabilities.filter((l) => l.category === cat);
-              const total = items.reduce((s, l) => s + l.principal, 0);
+              const manualItems = state.liabilities.filter((l) => l.category === cat);
+              const cardItems = cat === "credit"
+                ? state.accounts.filter((a) => a.type === "credit").map((a) => ({
+                    isAccount: true as const,
+                    id: a.id,
+                    name: `${a.name}${a.last4 ? ` ····${a.last4}` : ""}`,
+                    outstanding: accountBalance(state, a.id),
+                    limit: a.creditLimit || 0,
+                    currency: a.currency,
+                  }))
+                : [];
+              const total =
+                manualItems.reduce((s, l) => s + convert(l.principal || 0, l.currency || base, base, fx), 0) +
+                cardItems.reduce((s, c) => s + convert(c.outstanding, c.currency, base, fx), 0);
               return (
-                <AccordionItem
-                  key={cat}
-                  value={cat}
-                  className="border border-white/5 rounded-xl px-3 bg-white/[0.02]"
-                >
+                <AccordionItem key={cat} value={cat}
+                  className="border border-white/5 rounded-xl px-3 bg-white/[0.02]">
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex flex-1 items-center justify-between pr-3">
                       <span className="text-sm">{LIABILITY_LABELS[cat]}</span>
-                      <div
-                        className="tabular text-sm"
-                        style={{ color: "var(--color-danger)" }}
-                      >
-                        {formatINR(total)}
+                      <div className="tabular text-sm" style={{ color: "var(--color-danger)" }}>
+                        {formatMoney(total, base)}
                       </div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="space-y-3">
-                    {items.length === 0 && (
-                      <p className="text-xs text-muted-foreground py-1">
-                        No loans logged here.
-                      </p>
-                    )}
-                    {items.map((item) => {
-                      // Simplified amortization split
-                      const months =
-                        item.emi > 0 && item.principal > 0
-                          ? Math.ceil(item.principal / item.emi)
-                          : 0;
-                      const totalPaid = item.emi * months;
-                      const totalInterest = Math.max(0, totalPaid - item.principal);
-                      const sum = item.principal + totalInterest;
-                      const principalPct =
-                        sum > 0 ? (item.principal / sum) * 100 : 0;
+                    {cardItems.map((c) => {
+                      const util = c.limit > 0 ? clamp((c.outstanding / c.limit) * 100) : 0;
                       return (
-                        <div
-                          key={item.id}
-                          className="rounded-lg bg-white/[0.02] border border-white/5 p-3 space-y-2"
-                        >
-                          <div className="grid grid-cols-12 gap-2 items-center">
-                            <input
-                              className="underline-input col-span-11"
-                              placeholder="Loan name"
-                              value={item.name}
-                              onChange={(e) =>
-                                setState((s) => ({
-                                  ...s,
-                                  liabilities: s.liabilities.map((l) =>
-                                    l.id === item.id
-                                      ? { ...l, name: e.target.value }
-                                      : l,
-                                  ),
-                                }))
-                              }
-                            />
-                            <button
-                              className="col-span-1 text-muted-foreground hover:text-rose-400 flex justify-end"
-                              onClick={() =>
-                                setState((s) => ({
-                                  ...s,
-                                  liabilities: s.liabilities.filter(
-                                    (l) => l.id !== item.id,
-                                  ),
-                                }))
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                        <div key={c.id} className="rounded-lg bg-white/[0.02] border border-white/5 p-3 space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <div>
+                              <div>{c.name}</div>
+                              <div className="text-[11px] text-muted-foreground">From Cash Flow → Accounts</div>
+                            </div>
+                            <div className="tabular">{formatMoney(c.outstanding, c.currency)}</div>
                           </div>
-                          <div className="grid grid-cols-3 gap-3">
-                            <div>
-                              <FieldLabel>Principal</FieldLabel>
-                              <MoneyInput
-                                value={item.principal}
-                                onChange={(n) =>
-                                  setState((s) => ({
-                                    ...s,
-                                    liabilities: s.liabilities.map((l) =>
-                                      l.id === item.id
-                                        ? { ...l, principal: n }
-                                        : l,
-                                    ),
-                                  }))
-                                }
-                              />
-                            </div>
-                            <div>
-                              <FieldLabel>Rate %</FieldLabel>
-                              <NumberInput
-                                value={item.rate}
-                                onChange={(n) =>
-                                  setState((s) => ({
-                                    ...s,
-                                    liabilities: s.liabilities.map((l) =>
-                                      l.id === item.id ? { ...l, rate: n } : l,
-                                    ),
-                                  }))
-                                }
-                              />
-                            </div>
-                            <div>
-                              <FieldLabel>EMI</FieldLabel>
-                              <MoneyInput
-                                value={item.emi}
-                                onChange={(n) =>
-                                  setState((s) => ({
-                                    ...s,
-                                    liabilities: s.liabilities.map((l) =>
-                                      l.id === item.id ? { ...l, emi: n } : l,
-                                    ),
-                                  }))
-                                }
-                              />
-                            </div>
-                          </div>
-                          {item.emi > 0 && item.principal > 0 && (
-                            <div className="space-y-1 pt-1">
-                              <div className="flex justify-between text-[11px] text-muted-foreground">
-                                <span>Principal {formatINR(item.principal)}</span>
-                                <span>Interest {formatINR(totalInterest)}</span>
+                          {c.limit > 0 && (
+                            <div className="space-y-1">
+                              <div className="text-[11px] text-muted-foreground flex justify-between">
+                                <span>Utilisation</span>
+                                <span>{util.toFixed(0)}% of {formatMoney(c.limit, c.currency)}</span>
                               </div>
-                              <div className="h-2 rounded-full overflow-hidden flex">
-                                <div
-                                  className="h-full transition-all duration-700"
-                                  style={{
-                                    width: `${principalPct}%`,
-                                    backgroundColor: "var(--color-primary)",
-                                  }}
-                                />
-                                <div
-                                  className="h-full transition-all duration-700"
-                                  style={{
-                                    width: `${100 - principalPct}%`,
-                                    backgroundColor: "var(--color-danger)",
-                                  }}
-                                />
-                              </div>
-                              <div className="text-[11px] text-muted-foreground">
-                                ~{months} months remaining
+                              <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                                <div className="h-full rounded-full transition-all"
+                                  style={{ width: `${util}%`, backgroundColor: util > 70 ? "var(--color-danger)" : "var(--color-warning)" }} />
                               </div>
                             </div>
                           )}
                         </div>
                       );
                     })}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1"
-                      onClick={() =>
-                        setState((s) => ({
-                          ...s,
-                          liabilities: [...s.liabilities, newLiability(cat)],
-                        }))
-                      }
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Add loan
-                    </Button>
+                    {manualItems.length === 0 && cardItems.length === 0 && (
+                      <p className="text-xs text-muted-foreground py-1">No loans logged here.</p>
+                    )}
+                    {manualItems.map((item) => (
+                      <div key={item.id} className="rounded-lg bg-white/[0.02] border border-white/5 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm">{item.name || "(unnamed)"}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {item.rate}% · EMI {formatMoney(item.emi, item.currency || base)}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="tabular text-sm" style={{ color: "var(--color-danger)" }}>
+                              {formatMoney(item.principal, item.currency || base)}
+                            </div>
+                            <button className="text-muted-foreground hover:text-rose-400"
+                              onClick={() => {
+                                if (!confirm("Delete this liability?")) return;
+                                setState((s) => ({ ...s, liabilities: s.liabilities.filter((l) => l.id !== item.id) }));
+                                toast.success("Deleted");
+                              }}>
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {cat !== "credit" && (
+                      <Button variant="ghost" size="sm" className="gap-1"
+                        onClick={() => setOpenAdd({ kind: "liability", category: cat })}>
+                        <Plus className="h-3.5 w-3.5" /> Add loan
+                      </Button>
+                    )}
+                    {cat === "credit" && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Credit card outstandings come from accounts in Cash Flow → Accounts.
+                      </p>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               );
@@ -430,76 +335,254 @@ export function NetWorthView() {
       </div>
 
       <AllocationEngine />
-
       <SnapshotHistory />
+
+      {openAdd?.kind === "asset" && (
+        <AddAssetDialog
+          category={openAdd.category as AssetCategory}
+          onClose={() => setOpenAdd(null)}
+        />
+      )}
+      {openAdd?.kind === "liability" && (
+        <AddLiabilityDialog
+          category={openAdd.category as LiabilityCategory}
+          onClose={() => setOpenAdd(null)}
+        />
+      )}
     </div>
   );
 }
 
-function AllocationEngine() {
+function AddAssetDialog({ category, onClose }: { category: AssetCategory; onClose: () => void }) {
   const { state, setState } = useFinance();
-  const byCat = assetsByCategory(state);
-  const total = sumAssets(state);
-  const targetSum = ASSET_CATS.reduce(
-    (s, c) => s + (state.targetAllocation[c] || 0),
-    0,
+  const base = state.baseCurrency || "INR";
+  const subs = SUBTYPES[category];
+  const [subtype, setSubtype] = React.useState(subs[0]);
+  const [form, setForm] = React.useState<AssetItem>({
+    ...newAsset(category),
+    subtype: subs[0],
+    currency: base,
+  });
+
+  const isStock = category === "equity" && subtype === "Direct Stock";
+  const isMF = category === "equity" && subtype === "Equity Mutual Fund";
+
+  React.useEffect(() => {
+    setForm((f) => ({ ...f, subtype }));
+  }, [subtype]);
+
+  // Auto invested for stocks/MF
+  React.useEffect(() => {
+    if ((isStock || isMF) && form.units && form.avgPrice) {
+      setForm((f) => ({ ...f, invested: (f.units || 0) * (f.avgPrice || 0) }));
+    }
+  }, [form.units, form.avgPrice, isStock, isMF]);
+
+  const save = () => {
+    if (!form.name || !form.value) {
+      toast.error("Name and current value are required");
+      return;
+    }
+    setState((s) => ({ ...s, assets: [...s.assets, { ...form, id: uid() }] }));
+    toast.success("Asset added");
+    onClose();
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">
+            Add {ASSET_LABELS[category]}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <div>
+            <FieldLabel>Subtype</FieldLabel>
+            <Select value={subtype} onValueChange={setSubtype}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {subs.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(isStock || isMF) && (
+            <>
+              <div>
+                <FieldLabel>{isStock ? "Search stock ticker" : "Search fund name"} <span className="text-[10px] text-muted-foreground ml-1">BETA</span></FieldLabel>
+                <input className="underline-input" placeholder={isStock ? "e.g. RELIANCE" : "e.g. Parag Parikh Flexi Cap"}
+                  value={form.ticker || ""} onChange={(e) => setForm({ ...form, ticker: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>{isStock ? "No. of Shares" : "Units Held"}</FieldLabel>
+                  <NumberInput value={form.units || 0} onChange={(n) => setForm({ ...form, units: n })} />
+                </div>
+                <div>
+                  <FieldLabel>{isStock ? "Avg. Purchase Price" : "Avg. NAV"}</FieldLabel>
+                  <MoneyInput value={form.avgPrice || 0} onChange={(n) => setForm({ ...form, avgPrice: n })} />
+                </div>
+              </div>
+            </>
+          )}
+
+          <div>
+            <FieldLabel>Name *</FieldLabel>
+            <input className="underline-input" placeholder="e.g. Reliance Industries"
+              value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>Current Value *</FieldLabel>
+              <MoneyInput value={form.value} onChange={(n) => setForm({ ...form, value: n })} />
+            </div>
+            <div>
+              <FieldLabel>Currency *</FieldLabel>
+              <CurrencySelect value={form.currency || base} onChange={(c) => setForm({ ...form, currency: c })} />
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Total Invested {isStock || isMF ? "(auto)" : ""}</FieldLabel>
+            <MoneyInput value={form.invested || 0} onChange={(n) => setForm({ ...form, invested: n })} />
+          </div>
+          <div>
+            <FieldLabel>Notes</FieldLabel>
+            <input className="underline-input" placeholder="Optional"
+              value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </div>
+
+          <Button className="w-full" onClick={save} disabled={!form.name || !form.value}>
+            Save Asset
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+function AddLiabilityDialog({ category, onClose }: { category: LiabilityCategory; onClose: () => void }) {
+  const { state, setState } = useFinance();
+  const base = state.baseCurrency || "INR";
+  const [form, setForm] = React.useState<LiabilityItem>({
+    ...newLiability(category),
+    currency: base,
+  });
+
+  const save = () => {
+    if (!form.name || !form.principal || !form.rate) {
+      toast.error("Name, outstanding, and rate are required");
+      return;
+    }
+    setState((s) => ({ ...s, liabilities: [...s.liabilities, { ...form, id: uid() }] }));
+    toast.success("Liability added");
+    onClose();
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">
+            Add {LIABILITY_LABELS[category]}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <div>
+            <FieldLabel>Name *</FieldLabel>
+            <input className="underline-input" placeholder="e.g. HDFC Home Loan"
+              value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>Outstanding *</FieldLabel>
+              <MoneyInput value={form.principal} onChange={(n) => setForm({ ...form, principal: n })} />
+            </div>
+            <div>
+              <FieldLabel>Currency *</FieldLabel>
+              <CurrencySelect value={form.currency || base} onChange={(c) => setForm({ ...form, currency: c })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>Interest Rate % *</FieldLabel>
+              <NumberInput value={form.rate} onChange={(n) => setForm({ ...form, rate: n })} />
+            </div>
+            <div>
+              <FieldLabel>Monthly EMI</FieldLabel>
+              <MoneyInput value={form.emi} onChange={(n) => setForm({ ...form, emi: n })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>Start Date</FieldLabel>
+              <input type="date" className="underline-input"
+                value={form.startDate || ""} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
+            </div>
+            <div>
+              <FieldLabel>Due Date</FieldLabel>
+              <input type="date" className="underline-input"
+                value={form.dueDate || ""} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Original Principal</FieldLabel>
+            <MoneyInput value={form.originalPrincipal || 0} onChange={(n) => setForm({ ...form, originalPrincipal: n })} />
+          </div>
+          <div>
+            <FieldLabel>Notes</FieldLabel>
+            <input className="underline-input" value={form.notes || ""}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </div>
+          <Button className="w-full" onClick={save}
+            disabled={!form.name || !form.principal || !form.rate}>
+            Save Liability
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AllocationEngine() {
+  const { state, setState, fx } = useFinance();
+  const base = state.baseCurrency || "INR";
+  const byCat = assetsByCategory(state, fx, base);
+  const total = sumAssets(state, fx, base);
+  const targetSum = ASSET_CATS.reduce((s, c) => s + (state.targetAllocation[c] || 0), 0);
 
   const targetData = ASSET_CATS.map((c) => ({
-    name: ASSET_LABELS[c],
-    value: state.targetAllocation[c] || 0,
-    fill: CAT_COLORS[c],
+    name: ASSET_LABELS[c], value: state.targetAllocation[c] || 0, fill: CAT_COLORS[c],
   }));
   const actualData = ASSET_CATS.map((c) => ({
-    name: ASSET_LABELS[c],
-    value: total > 0 ? (byCat[c] / total) * 100 : 0,
-    fill: CAT_COLORS[c],
+    name: ASSET_LABELS[c], value: total > 0 ? (byCat[c] / total) * 100 : 0, fill: CAT_COLORS[c],
   }));
 
   return (
     <GlassCard>
-      <SectionTitle
-        title="Target vs Actual Allocation"
+      <SectionTitle title="Target vs Actual Allocation"
         subtitle="Set your target mix and rebalance when reality drifts"
         right={
-          <div
-            className="text-xs tabular px-2 py-1 rounded-md border"
+          <div className="text-xs tabular px-2 py-1 rounded-md border"
             style={{
-              color:
-                targetSum === 100 ? "var(--color-positive)" : "var(--color-danger)",
-              borderColor:
-                targetSum === 100
-                  ? "rgba(16,185,129,0.3)"
-                  : "rgba(244,63,94,0.3)",
-            }}
-          >
+              color: targetSum === 100 ? "var(--color-positive)" : "var(--color-danger)",
+              borderColor: targetSum === 100 ? "rgba(16,185,129,0.3)" : "rgba(244,63,94,0.3)",
+            }}>
             Targets sum: {targetSum}%
           </div>
-        }
-      />
-
+        } />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-3">
           {ASSET_CATS.map((c) => (
             <div key={c} className="grid grid-cols-12 items-center gap-3">
               <div className="col-span-5 flex items-center gap-2 text-sm">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: CAT_COLORS[c] }}
-                />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CAT_COLORS[c] }} />
                 {ASSET_LABELS[c]}
               </div>
               <div className="col-span-4">
-                <NumberInput
-                  value={state.targetAllocation[c]}
-                  onChange={(n) =>
-                    setState((s) => ({
-                      ...s,
-                      targetAllocation: { ...s.targetAllocation, [c]: n },
-                    }))
-                  }
-                  placeholder="Target %"
-                />
+                <NumberInput value={state.targetAllocation[c]}
+                  onChange={(n) => setState((s) => ({ ...s, targetAllocation: { ...s.targetAllocation, [c]: n } }))}
+                  placeholder="Target %" />
               </div>
               <div className="col-span-3 text-right text-xs text-muted-foreground tabular">
                 actual {pct(actualData.find((d) => d.name === ASSET_LABELS[c])!.value, 1)}
@@ -507,124 +590,25 @@ function AllocationEngine() {
             </div>
           ))}
         </div>
-
         <div className="grid grid-cols-2 gap-2">
-          <div>
-            <div className="text-xs text-muted-foreground text-center mb-1">Target</div>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={targetData}
-                  innerRadius={42}
-                  outerRadius={70}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {targetData.map((d, i) => (
-                    <Cell key={i} fill={d.fill} />
-                  ))}
-                </Pie>
-                <RTooltip
-                  contentStyle={{
-                    background: "#0A0F1E",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 8,
-                  }}
-                  formatter={(v: number) => `${v.toFixed(1)}%`}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground text-center mb-1">Actual</div>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={actualData}
-                  innerRadius={42}
-                  outerRadius={70}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {actualData.map((d, i) => (
-                    <Cell key={i} fill={d.fill} />
-                  ))}
-                </Pie>
-                <RTooltip
-                  contentStyle={{
-                    background: "#0A0F1E",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 8,
-                  }}
-                  formatter={(v: number) => `${v.toFixed(1)}%`}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          {[
+            { label: "Target", data: targetData },
+            { label: "Actual", data: actualData },
+          ].map((g) => (
+            <div key={g.label}>
+              <div className="text-xs text-muted-foreground text-center mb-1">{g.label}</div>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie data={g.data} innerRadius={42} outerRadius={70} paddingAngle={2} dataKey="value">
+                    {g.data.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                  </Pie>
+                  <RTooltip contentStyle={{ background: "#0A0F1E", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }}
+                    formatter={(v: number) => `${v.toFixed(1)}%`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
         </div>
-      </div>
-
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-              <th className="py-2">Class</th>
-              <th className="py-2 text-right">Target</th>
-              <th className="py-2 text-right">Actual</th>
-              <th className="py-2 text-right">Deviation</th>
-              <th className="py-2 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ASSET_CATS.map((c) => {
-              const t = state.targetAllocation[c] || 0;
-              const a = total > 0 ? (byCat[c] / total) * 100 : 0;
-              const dev = a - t;
-              const targetAmt = (t / 100) * total;
-              const diff = targetAmt - byCat[c];
-              const cls =
-                Math.abs(dev) > 10
-                  ? "bg-rose-500/10"
-                  : Math.abs(dev) > 5
-                    ? "bg-amber-500/10"
-                    : "";
-              const action =
-                Math.abs(diff) < 1
-                  ? "Hold"
-                  : diff > 0
-                    ? `Add ${formatINR(diff)}`
-                    : `Reduce ${formatINR(-diff)}`;
-              return (
-                <tr key={c} className={`border-t border-white/5 ${cls}`}>
-                  <td className="py-2.5 flex items-center gap-2">
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: CAT_COLORS[c] }}
-                    />
-                    {ASSET_LABELS[c]}
-                  </td>
-                  <td className="py-2.5 text-right tabular">{pct(t, 1)}</td>
-                  <td className="py-2.5 text-right tabular">{pct(a, 1)}</td>
-                  <td
-                    className="py-2.5 text-right tabular"
-                    style={{
-                      color:
-                        dev > 0
-                          ? "var(--color-positive)"
-                          : dev < 0
-                            ? "var(--color-danger)"
-                            : undefined,
-                    }}
-                  >
-                    {dev > 0 ? "+" : ""}
-                    {pct(dev, 1)}
-                  </td>
-                  <td className="py-2.5 text-right tabular">{action}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
       </div>
     </GlassCard>
   );
@@ -632,117 +616,32 @@ function AllocationEngine() {
 
 function SnapshotHistory() {
   const { state } = useFinance();
-  const data = state.snapshots
-    .slice()
+  const base = state.baseCurrency || "INR";
+  const data = state.snapshots.slice()
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .map((s) => ({
-      date: new Date(s.date).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-      }),
+      date: new Date(s.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
       networth: s.netWorth,
     }));
-
-  const last = state.snapshots[state.snapshots.length - 1];
-  const prev = state.snapshots[state.snapshots.length - 2];
-  const delta = last && prev ? last.netWorth - prev.netWorth : 0;
-
-  // Per category changes
-  const deltas: { label: string; change: number }[] = [];
-  if (last && prev) {
-    (Object.keys(last.assetBreakdown) as AssetCategory[]).forEach((k) => {
-      const change = (last.assetBreakdown[k] || 0) - (prev.assetBreakdown[k] || 0);
-      if (Math.abs(change) > 0)
-        deltas.push({ label: ASSET_LABELS[k], change });
-    });
-    const liabChange = last.liabilities - prev.liabilities;
-    if (liabChange !== 0)
-      deltas.push({ label: "Liabilities", change: -liabChange });
-  }
 
   return (
     <GlassCard>
       <SectionTitle title="Net Worth History" subtitle="Track your trajectory over time" />
       {state.snapshots.length < 2 ? (
-        <EmptyState
-          icon={LineChartIcon}
-          title="No history yet"
-          description="Take your first snapshot to begin tracking. After two snapshots you'll see your delta."
-        />
+        <EmptyState icon={LineChartIcon} title="No history yet"
+          description="Take your first snapshot to begin tracking." />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2">
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={data}>
-                <XAxis
-                  dataKey="date"
-                  tick={{ fill: "#6B7280", fontSize: 11 }}
-                  stroke="#1F2937"
-                />
-                <YAxis
-                  tick={{ fill: "#6B7280", fontSize: 11 }}
-                  stroke="#1F2937"
-                  tickFormatter={(v) =>
-                    v >= 100000 ? `${(v / 100000).toFixed(1)}L` : `${v / 1000}k`
-                  }
-                />
-                <RTooltip
-                  contentStyle={{
-                    background: "#0A0F1E",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 8,
-                  }}
-                  formatter={(v: number) => formatINR(v)}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="networth"
-                  stroke="#10B981"
-                  strokeWidth={2.5}
-                  dot={{ fill: "#10B981", r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="rounded-xl border border-white/5 p-4 bg-white/[0.02]">
-            <div className="text-xs text-muted-foreground">Since last snapshot</div>
-            <div
-              className="font-display text-3xl tabular mt-1"
-              style={{
-                color: delta >= 0 ? "var(--color-positive)" : "var(--color-danger)",
-              }}
-            >
-              {delta >= 0 ? "+" : ""}
-              {formatINR(delta)}
-            </div>
-            <div className="mt-4 space-y-2">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                What Changed
-              </div>
-              {deltas.length === 0 && (
-                <div className="text-xs text-muted-foreground">No movement.</div>
-              )}
-              {deltas.map((d, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{d.label}</span>
-                  <span
-                    className="tabular"
-                    style={{
-                      color:
-                        d.change >= 0
-                          ? "var(--color-positive)"
-                          : "var(--color-danger)",
-                    }}
-                  >
-                    {d.change >= 0 ? "+" : ""}
-                    {formatINR(d.change)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart data={data}>
+            <XAxis dataKey="date" tick={{ fill: "#6B7280", fontSize: 11 }} stroke="#1F2937" />
+            <YAxis tick={{ fill: "#6B7280", fontSize: 11 }} stroke="#1F2937"
+              tickFormatter={(v) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : `${v / 1000}k`} />
+            <RTooltip contentStyle={{ background: "#0A0F1E", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }}
+              formatter={(v: number) => formatMoney(v, base)} />
+            <Line type="monotone" dataKey="networth" stroke="#10B981" strokeWidth={2.5}
+              dot={{ fill: "#10B981", r: 3 }} activeDot={{ r: 5 }} />
+          </LineChart>
+        </ResponsiveContainer>
       )}
     </GlassCard>
   );
