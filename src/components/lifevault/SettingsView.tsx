@@ -443,10 +443,21 @@ function DataTab() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
             <Download className="h-4 w-4" /> Export CSVs (zip)
           </button>
+          <button onClick={async () => {
+              try {
+                const { generateFinancialReport } = await import("@/lib/pdf-report");
+                generateFinancialReport(state, fx);
+                toast.success("Report downloaded");
+              } catch (e) { toast.error((e as Error).message || "PDF export failed"); }
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
+            <Download className="h-4 w-4" /> Export PDF Report
+          </button>
           <button onClick={() => fileRef.current?.click()}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent">
             <Upload className="h-4 w-4" /> Import JSON
           </button>
+
           <input ref={fileRef} type="file" accept="application/json" className="hidden"
             onChange={async (e) => {
               const f = e.target.files?.[0]; if (!f) return;
