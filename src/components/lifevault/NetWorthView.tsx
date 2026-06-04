@@ -54,6 +54,9 @@ import {
   RefreshCw,
   TrendingUp,
   TrendingDown,
+  Eye,
+  EyeOff,
+  Coins,
 } from "lucide-react";
 import {
   PieChart,
