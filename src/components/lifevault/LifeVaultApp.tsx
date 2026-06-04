@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock, Vault,
+  ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock,
   Sun, Moon, Settings as SettingsIcon, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
