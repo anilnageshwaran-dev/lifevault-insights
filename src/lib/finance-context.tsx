@@ -528,9 +528,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         } catch {}
         const blob = await downloadAppFile(file.id);
         try {
-          const parsed = await decryptWithKey<FinanceState>(blob, key);
+          const parsed = await decryptSyncData<FinanceState>(blob);
           if (!cancelled) {
             const remoteState = ensureRegions({ ...initialState, ...parsed });
+            if (!isSyncEnvelopeBlob(blob)) {
+              const migrated = await encryptSyncData(remoteState);
+              await updateAppFile(file.id, migrated);
+              try {
+                const fresh = await findAppFile();
+                driveModifiedRef.current = fresh?.modifiedTime ?? file.modifiedTime ?? null;
+              } catch {}
+            }
             suppressNextSaveRef.current = true;
             setState(remoteState);
             setSyncStatus("synced");
@@ -542,10 +550,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
               remote: { status: "available", modifiedTime: file.modifiedTime, counts: countFinanceState(remoteState) },
             }));
           }
-        } catch {
+        } catch (error) {
           // PIN-encrypted blob from a different PIN — do not overwrite the Drive copy.
           setSyncStatus("error");
-          toast.error("Drive data could not be unlocked. Use the same PIN on this device.");
+          toast.error((error as Error).message || "Drive data could not be unlocked. Use the same PIN on this device.");
           driveWriteBlockedRef.current = true;
           driveLoadedRef.current = true;
           setSyncDiagnostics((diag) => ({
@@ -554,7 +562,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             remote: {
               status: "locked",
               modifiedTime: file.modifiedTime,
-              message: "A Drive file exists, but this PIN cannot decrypt it.",
+              message: (error as Error).message || "A Drive file exists, but this PIN cannot decrypt it.",
             },
           }));
           return;
