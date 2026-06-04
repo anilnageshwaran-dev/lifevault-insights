@@ -79,7 +79,7 @@ export function CashFlowView() {
       {tab === "budget" && <BudgetTab />}
       {tab === "insights" && <InsightsTab />}
 
-      {tab !== "bills" && <QuickAddFab />}
+      {/* QuickAddFab is mounted globally in LifeVaultApp so it appears on every tab */}
     </div>
   );
 }
