@@ -136,9 +136,9 @@ export function LifeVaultApp() {
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-20 bg-background/85 backdrop-blur-md border-b border-border px-3 py-2.5 flex items-center justify-between">
           <button
-            onClick={() => setTabAnimated("settings")}
+            onClick={() => setProfileOpen(true)}
             className="flex items-center gap-2 rounded-lg hover:bg-accent p-1 -m-1 transition-colors text-left"
-            aria-label="Open Settings"
+            aria-label="Open profile"
           >
             <LifeVaultIcon className="h-8 w-8" />
             <div>
@@ -148,12 +148,6 @@ export function LifeVaultApp() {
           </button>
           <div className="flex items-center gap-1">
             <SyncDot status={syncStatus} compact />
-            <button onClick={toggleTheme} className="p-2 rounded-lg text-muted-foreground hover:bg-accent" aria-label="Toggle theme">
-              {resolved === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-            <button onClick={() => setTabAnimated("settings")} className="p-2 rounded-lg text-muted-foreground hover:bg-accent" aria-label="Settings">
-              <SettingsIcon className="h-4 w-4" />
-            </button>
             <button onClick={lock} className="p-2 rounded-lg text-muted-foreground hover:bg-accent" aria-label="Lock">
               <Lock className="h-4 w-4" />
             </button>
