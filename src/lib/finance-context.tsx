@@ -207,8 +207,24 @@ export function categoriesForType(type: TxType): readonly string[] {
   return EXPENSE_CATEGORIES;
 }
 
+export interface Region {
+  id: string;
+  name: string;          // "India", "UK", "USA"
+  currency: string;      // ISO code (e.g. "INR", "GBP")
+  flag?: string;         // emoji
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  intendedSavings: number;
+  emergencyFund: number;
+  termInsurance: number;
+  healthInsurance: number;
+  dependents: number;
+  notes?: string;
+}
+
 export interface FinanceState {
   age: number;
+  // Legacy single-region fields — preserved for backward compat. New UI uses `regions`.
   monthlyIncome: number;
   monthlyExpenses: number;
   intendedSavings: number;
@@ -216,6 +232,9 @@ export interface FinanceState {
   termInsurance: number;
   dependents: number;
   healthInsurance: number;
+
+  // Multi-region (per country / currency) financial baselines.
+  regions: Region[];
 
   assets: AssetItem[];
   liabilities: LiabilityItem[];
@@ -244,6 +263,7 @@ const initialState: FinanceState = {
   termInsurance: 0,
   dependents: 0,
   healthInsurance: 0,
+  regions: [],
   assets: [],
   liabilities: [],
   targetAllocation: {
@@ -264,6 +284,26 @@ const initialState: FinanceState = {
   bills: [],
   baseCurrency: "INR",
 };
+
+/** Ensure at least one region exists; migrates legacy top-level fields into a seeded region. */
+export function ensureRegions(s: FinanceState): FinanceState {
+  if (s.regions && s.regions.length > 0) return s;
+  const base = s.baseCurrency || "INR";
+  const seeded: Region = {
+    id: uid(),
+    name: base === "INR" ? "India" : base === "GBP" ? "UK" : "Primary",
+    currency: base,
+    flag: base === "INR" ? "🇮🇳" : base === "GBP" ? "🇬🇧" : "🌐",
+    monthlyIncome: s.monthlyIncome || 0,
+    monthlyExpenses: s.monthlyExpenses || 0,
+    intendedSavings: s.intendedSavings || 0,
+    emergencyFund: s.emergencyFund || 0,
+    termInsurance: s.termInsurance || 0,
+    healthInsurance: s.healthInsurance || 0,
+    dependents: s.dependents || 0,
+  };
+  return { ...s, regions: [seeded] };
+}
 
 const STORAGE_KEY_PLAIN = "lifevault_data";
 const STORAGE_KEY_ENC = "lifevault_cache";
@@ -334,7 +374,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             const enc = await encryptWithKey(parsed, key);
             localStorage.setItem(STORAGE_KEY_ENC, enc);
             localStorage.removeItem(STORAGE_KEY_PLAIN);
-            if (!cancelled) setState({ ...initialState, ...parsed });
+            if (!cancelled) setState(ensureRegions({ ...initialState, ...parsed }));
             setHydrated(true);
             return;
           } catch {}
@@ -343,14 +383,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         if (encRaw && key) {
           try {
             const parsed = await decryptWithKey<FinanceState>(encRaw, key);
-            if (!cancelled) setState({ ...initialState, ...parsed });
+            if (!cancelled) setState(ensureRegions({ ...initialState, ...parsed }));
           } catch {
             if (!cancelled) setState(initialState);
           }
         } else if (legacy && !key) {
           try {
             const parsed = JSON.parse(legacy);
-            if (!cancelled) setState({ ...initialState, ...parsed });
+            if (!cancelled) setState(ensureRegions({ ...initialState, ...parsed }));
           } catch {}
         }
       } catch {}
@@ -387,7 +427,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         try {
           const parsed = await decryptWithKey<FinanceState>(blob, key);
           if (!cancelled) {
-            setState({ ...initialState, ...parsed });
+            setState(ensureRegions({ ...initialState, ...parsed }));
             setSyncStatus("synced");
           }
         } catch {
@@ -516,7 +556,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const importData = React.useCallback(async (file: File) => {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    setState({ ...initialState, ...parsed });
+    setState(ensureRegions({ ...initialState, ...parsed }));
   }, []);
 
   return (
@@ -657,6 +697,12 @@ export function liquidEmergencyAssets(
     );
 }
 
+/** Per-region ideal health cover in that region's currency.
+ *  Currency-neutral: ~2× annual expenses per dependent (≈₹5L for ₹20k/mo). */
+export function idealHealthForRegion(r: Region): number {
+  return r.dependents * r.monthlyExpenses * 12 * 2;
+}
+
 export function computeHealthScore(
   state: FinanceState,
   fx: FxCache | null,
@@ -668,21 +714,45 @@ export function computeHealthScore(
   savings: number;
 } {
   const base = state.baseCurrency || "INR";
-  const liquid = liquidEmergencyAssets(state, fx, base) || state.emergencyFund;
-  const target = state.monthlyExpenses * 6;
-  const emergencyPct = target > 0 ? Math.min(1, liquid / target) : 0;
+  const regions: Region[] = state.regions && state.regions.length > 0
+    ? state.regions
+    : [{
+        id: "legacy", name: "Primary", currency: base,
+        monthlyIncome: state.monthlyIncome,
+        monthlyExpenses: state.monthlyExpenses,
+        intendedSavings: state.intendedSavings,
+        emergencyFund: state.emergencyFund,
+        termInsurance: state.termInsurance,
+        healthInsurance: state.healthInsurance,
+        dependents: state.dependents,
+      }];
+
+  const sum = (fn: (r: Region) => number) =>
+    regions.reduce((acc, r) => acc + convert(fn(r), r.currency, base, fx), 0);
+
+  const totalExpenses = sum((r) => r.monthlyExpenses);
+  const totalIncome = sum((r) => r.monthlyIncome);
+  const totalIntended = sum((r) => r.intendedSavings);
+  const totalEmergencyManual = sum((r) => r.emergencyFund);
+  const totalTerm = sum((r) => r.termInsurance);
+  const totalHealth = sum((r) => r.healthInsurance);
+  const totalIdealHealth = sum(idealHealthForRegion);
+
+  const liquid = liquidEmergencyAssets(state, fx, base) + totalEmergencyManual;
+  const targetEmergency = totalExpenses * 6;
+  const emergencyPct = targetEmergency > 0 ? Math.min(1, liquid / targetEmergency) : 0;
   const emergency = emergencyPct * 30;
 
-  const idealTerm = state.monthlyExpenses * 12 * 25;
-  const termPct = idealTerm > 0 ? Math.min(1, state.termInsurance / idealTerm) : 0;
+  const idealTerm = totalExpenses * 12 * 25;
+  const termPct = idealTerm > 0 ? Math.min(1, totalTerm / idealTerm) : 0;
   const insurance = termPct * 20;
 
-  const idealHealth = state.dependents * 500000;
-  const healthPct =
-    idealHealth > 0 ? Math.min(1, state.healthInsurance / idealHealth) : 0;
+  const healthPct = totalIdealHealth > 0
+    ? Math.min(1, totalHealth / totalIdealHealth)
+    : 0;
   const health = healthPct * 20;
 
-  const sr = state.monthlyIncome > 0 ? state.intendedSavings / state.monthlyIncome : 0;
+  const sr = totalIncome > 0 ? totalIntended / totalIncome : 0;
   const savings = Math.min(1, sr / 0.2) * 30;
 
   return {
