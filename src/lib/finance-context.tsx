@@ -359,7 +359,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(null);
   const [fx, setFx] = React.useState<FxCache | null>(null);
   const driveFileIdRef = React.useRef<string | null>(null);
+  const driveModifiedRef = React.useRef<string | null>(null);
   const driveLoadedRef = React.useRef<boolean>(false);
+  const syncStatusRef = React.useRef<"idle" | "saving" | "synced" | "error">("idle");
   const stateRef = React.useRef<FinanceState>(state);
   const keyRef = React.useRef<CryptoKey | null>(key);
   const driveRef = React.useRef(drive);
