@@ -1,11 +1,10 @@
 import * as React from "react";
 import {
   ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock,
-  Sun, Moon, Settings as SettingsIcon, ChevronLeft, ChevronRight,
+  Settings as SettingsIcon, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
-import { useTheme } from "@/lib/theme-context";
 import { EssentialsView } from "./EssentialsView";
 import { NetWorthView } from "./NetWorthView";
 import { CashFlowView, QuickAddFab } from "./CashFlowView";
@@ -14,6 +13,7 @@ import { VaultView } from "./VaultView";
 import { SettingsView } from "./SettingsView";
 import { InstallBanner } from "./InstallBanner";
 import { LifeVaultIcon } from "./LifeVaultIcon";
+import { ProfileDrawer } from "./ProfileDrawer";
 
 type TabId = "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
 
@@ -31,9 +31,10 @@ export function LifeVaultApp() {
   const [tab, setTab] = React.useState<TabId>("essentials");
   const [animKey, setAnimKey] = React.useState(0);
   const [collapsed, setCollapsed] = React.useState(false);
+  const [profileOpen, setProfileOpen] = React.useState(false);
   const { syncStatus } = useFinance();
   const { lock } = useLock();
-  const { resolved, setMode, mode } = useTheme();
+  
 
   React.useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
@@ -52,9 +53,6 @@ export function LifeVaultApp() {
   const activeLabel =
     tab === "settings" ? "Settings" : TABS.find((t) => t.id === tab)!.label;
 
-  const toggleTheme = () => {
-    setMode(resolved === "dark" ? "light" : "dark");
-  };
 
   return (
     <div className="min-h-dvh flex bg-background overflow-x-hidden">
@@ -65,10 +63,10 @@ export function LifeVaultApp() {
         }`}
       >
         <button
-          onClick={() => setTabAnimated("settings")}
+          onClick={() => setProfileOpen(true)}
           className={`flex items-center gap-2 px-2 py-2 mb-6 rounded-xl hover:bg-accent transition-colors text-left ${collapsed ? "justify-center" : ""}`}
-          title="Open Settings"
-          aria-label="Open Settings"
+          title="Open profile"
+          aria-label="Open profile"
         >
           <LifeVaultIcon className="h-9 w-9" />
           {!collapsed && (
@@ -134,9 +132,9 @@ export function LifeVaultApp() {
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-20 bg-background/85 backdrop-blur-md border-b border-border px-3 py-2.5 flex items-center justify-between">
           <button
-            onClick={() => setTabAnimated("settings")}
+            onClick={() => setProfileOpen(true)}
             className="flex items-center gap-2 rounded-lg hover:bg-accent p-1 -m-1 transition-colors text-left"
-            aria-label="Open Settings"
+            aria-label="Open profile"
           >
             <LifeVaultIcon className="h-8 w-8" />
             <div>
@@ -146,12 +144,6 @@ export function LifeVaultApp() {
           </button>
           <div className="flex items-center gap-1">
             <SyncDot status={syncStatus} compact />
-            <button onClick={toggleTheme} className="p-2 rounded-lg text-muted-foreground hover:bg-accent" aria-label="Toggle theme">
-              {resolved === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-            <button onClick={() => setTabAnimated("settings")} className="p-2 rounded-lg text-muted-foreground hover:bg-accent" aria-label="Settings">
-              <SettingsIcon className="h-4 w-4" />
-            </button>
             <button onClick={lock} className="p-2 rounded-lg text-muted-foreground hover:bg-accent" aria-label="Lock">
               <Lock className="h-4 w-4" />
             </button>
@@ -166,13 +158,6 @@ export function LifeVaultApp() {
           </div>
           <div className="flex items-center gap-2">
             <SyncDot status={syncStatus} />
-            <button
-              onClick={toggleTheme}
-              className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              aria-label="Toggle theme"
-            >
-              {resolved === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
             <button
               onClick={lock}
               className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -220,6 +205,12 @@ export function LifeVaultApp() {
       </nav>
 
       {tab !== "settings" && <QuickAddFab />}
+
+      <ProfileDrawer
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        onOpenSettings={() => setTabAnimated("settings")}
+      />
 
       <InstallBanner />
 
