@@ -8,7 +8,7 @@ import { useLock } from "@/lib/lock-context";
 import { useTheme } from "@/lib/theme-context";
 import { EssentialsView } from "./EssentialsView";
 import { NetWorthView } from "./NetWorthView";
-import { CashFlowView } from "./CashFlowView";
+import { CashFlowView, QuickAddFab } from "./CashFlowView";
 import { GoalsView } from "./GoalsView";
 import { VaultView } from "./VaultView";
 import { SettingsView } from "./SettingsView";
