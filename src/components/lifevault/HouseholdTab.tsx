@@ -400,3 +400,112 @@ function HouseholdDetail({
     </div>
   );
 }
+
+function FamilyOverview({ householdId, currentUserId }: { householdId: string; currentUserId: string }) {
+  const qc = useQueryClient();
+  const { state, fx } = useFinance();
+  const { user } = useAuth();
+  const list = useServerFn(listSharedSnapshots);
+  const upsert = useServerFn(upsertSharedSnapshot);
+  const [pushing, setPushing] = React.useState(false);
+
+  const snaps = useQuery({
+    queryKey: ["shared-snapshots", householdId],
+    queryFn: () => list({ data: { householdId } }),
+  });
+
+  const pushMine = React.useCallback(async () => {
+    setPushing(true);
+    try {
+      const s = buildSharedSummary(state, fx);
+      const displayName =
+        (user?.user_metadata?.name as string | undefined) ||
+        (user?.user_metadata?.full_name as string | undefined) ||
+        user?.email ||
+        "Me";
+      await upsert({ data: { householdId, displayName, ...s } });
+      qc.invalidateQueries({ queryKey: ["shared-snapshots", householdId] });
+      toast.success("Your snapshot is shared with the household");
+    } catch (e) {
+      toast.error((e as Error).message || "Couldn't share snapshot");
+    } finally {
+      setPushing(false);
+    }
+  }, [householdId, state, fx, user, upsert, qc]);
+
+  // Auto-push once per session per household so members always see fresh numbers.
+  const pushedRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (pushedRef.current === householdId) return;
+    pushedRef.current = householdId;
+    void pushMine();
+  }, [householdId, pushMine]);
+
+  const rows = snaps.data?.snapshots ?? [];
+
+  return (
+    <div className="space-y-3 pt-3 border-t border-border">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" /> Family Overview
+        </h4>
+        <button
+          onClick={pushMine}
+          disabled={pushing}
+          className="text-xs flex items-center gap-1 px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${pushing ? "animate-spin" : ""}`} /> {pushing ? "Sharing…" : "Share my numbers"}
+        </button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Only high-level totals are shared — net worth, income, expenses, emergency fund, goal & account counts, health score. No accounts, transactions, or passwords leave your device.
+      </p>
+
+      {snaps.isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">No family member has shared a snapshot yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r) => {
+            const isMe = r.user_id === currentUserId;
+            const ccy = r.base_currency || "INR";
+            const updated = new Date(r.updated_at).toLocaleString();
+            return (
+              <div key={r.id} className="rounded-lg border border-border p-3 space-y-2 bg-background/40">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">
+                    {r.display_name || "Member"} {isMe && <span className="text-xs text-muted-foreground">(you)</span>}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{ccy}</div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <Metric icon={Wallet} label="Net Worth" value={formatMoney(Number(r.net_worth), ccy)} />
+                  <Metric icon={TrendingUp} label="Income/mo" value={formatMoney(Number(r.monthly_income), ccy)} />
+                  <Metric icon={Wallet} label="Expenses/mo" value={formatMoney(Number(r.monthly_expenses), ccy)} />
+                  <Metric icon={ShieldCheck} label="Emergency" value={formatMoney(Number(r.emergency_fund), ccy)} />
+                  <Metric icon={Target} label="Goals" value={String(r.goal_count)} />
+                  <Metric icon={Wallet} label="Accounts" value={String(r.account_count)} />
+                  <Metric icon={ShieldCheck} label="Health Score" value={`${r.health_score}/100`} />
+                  <Metric icon={RefreshCw} label="Updated" value={updated} small />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Metric({ icon: Icon, label, value, small }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; small?: boolean }) {
+  return (
+    <div className="rounded-md bg-white/[0.02] border border-white/5 px-2 py-1.5">
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-3 w-3" /> {label}
+      </div>
+      <div className={`${small ? "text-[11px]" : "text-sm"} font-medium truncate`}>{value}</div>
+    </div>
+  );
+}
+
