@@ -41,14 +41,15 @@ export const createHousehold = createServerFn({ method: "POST" })
     z.object({ name: z.string().min(1).max(80) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: hh, error } = await supabase
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: hh, error } = await supabaseAdmin
       .from("households")
       .insert({ name: data.name, owner_id: userId })
       .select()
       .single();
     if (error) throw new Error(error.message);
-    const { error: mErr } = await supabase.from("household_members").insert({
+    const { error: mErr } = await supabaseAdmin.from("household_members").insert({
       household_id: hh.id,
       user_id: userId,
       role: "owner",
