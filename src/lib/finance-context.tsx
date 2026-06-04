@@ -802,3 +802,32 @@ export const newLiability = (category: LiabilityCategory): LiabilityItem => ({
   rate: 0,
   emi: 0,
 });
+
+/** Build the headline summary numbers shared with household members. */
+export function buildSharedSummary(state: FinanceState, fx: FxCache | null) {
+  const base = state.baseCurrency || "INR";
+  const assets = sumAssets(state, fx, base);
+  const liabilities = sumLiabilities(state, fx, base);
+  const score = computeHealthScore(state, fx);
+  const monthlyIncome = state.regions.reduce(
+    (s, r) => s + convert(r.monthlyIncome, r.currency, base, fx), 0,
+  );
+  const monthlyExpenses = state.regions.reduce(
+    (s, r) => s + convert(r.monthlyExpenses, r.currency, base, fx), 0,
+  );
+  const emergencyFund = liquidEmergencyAssets(state, fx, base) +
+    state.regions.reduce((s, r) => s + convert(r.emergencyFund, r.currency, base, fx), 0);
+  return {
+    baseCurrency: base,
+    netWorth: assets - liabilities,
+    totalAssets: assets,
+    totalLiabilities: liabilities,
+    monthlyIncome,
+    monthlyExpenses,
+    emergencyFund,
+    goalCount: state.goals.length,
+    accountCount: state.accounts.length,
+    healthScore: score.total,
+  };
+}
+
