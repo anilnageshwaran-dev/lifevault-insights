@@ -122,6 +122,33 @@ export interface Account {
   emergencyFund?: boolean;
   creditLimit?: number;
   issuer?: string;
+  // Login credentials (encrypted at rest with the rest of the vault)
+  loginUrl?: string;
+  loginUsername?: string;
+  loginPassword?: string;
+  loginNotes?: string;
+}
+
+export type BillFrequency = "weekly" | "monthly" | "quarterly" | "halfYearly" | "yearly" | "onetime";
+
+export interface BillPayment {
+  date: string;       // ISO date YYYY-MM-DD
+  amount: number;
+  txId?: string;
+}
+
+export interface Bill {
+  id: string;
+  name: string;
+  amount: number;
+  currency?: string;
+  category: string;       // expense category
+  accountId?: string;     // debit account
+  frequency: BillFrequency;
+  nextDue: string;        // ISO date YYYY-MM-DD
+  autopay?: boolean;
+  notes?: string;
+  history: BillPayment[];
 }
 
 export const EXPENSE_CATEGORIES = [
