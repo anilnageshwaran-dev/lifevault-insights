@@ -9,7 +9,7 @@ import {
   Settings as SettingsIcon,
   Sun,
   Moon,
-  Lock,
+  
   LogOut,
   RefreshCw,
   Wallet,
