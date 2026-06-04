@@ -8,6 +8,8 @@ import {
   type TxType,
   type Account,
   type AccountType,
+  type Bill,
+  type BillFrequency,
 } from "@/lib/finance-context";
 import { formatMoney, convert, CURRENCIES, getCurrency } from "@/lib/currency";
 import { pct, uid, clamp } from "@/lib/finance-utils";
@@ -23,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import {
   Plus, Trash2, Receipt, AlertTriangle, Wallet, CreditCard, Banknote,
-  ChevronLeft, ChevronRight, Search,
+  ChevronLeft, ChevronRight, Search, CalendarClock, CheckCircle2, Repeat,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
