@@ -79,6 +79,9 @@ export function GoalsView() {
         <SectionTitle title="Your Goals" subtitle="Future-priced and tracked monthly"
           right={
             <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setCalcOpen(true)} className="gap-1">
+                <Calculator className="h-4 w-4" /> <span className="hidden sm:inline">Inflation</span>
+              </Button>
               <Button onClick={startNew} className="gap-1"><Plus className="h-4 w-4" /> Add Goal</Button>
             </div>
           } />
