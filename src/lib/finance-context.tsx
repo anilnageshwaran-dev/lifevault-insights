@@ -737,15 +737,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       try {
         const parsed = await decryptSyncData<FinanceState>(blob);
         const remoteState = ensureRegions({ ...initialState, ...parsed });
+        let appliedRemoteMod = remoteMod;
         if (!isSyncEnvelopeBlob(blob)) {
           const migrated = await encryptSyncData(remoteState);
           await updateAppFile(file.id, migrated);
           try {
             const fresh = await findAppFile();
-            driveModifiedRef.current = fresh?.modifiedTime ?? remoteMod;
+            appliedRemoteMod = fresh?.modifiedTime ?? remoteMod;
           } catch {}
         }
-        driveModifiedRef.current = remoteMod;
+        driveModifiedRef.current = appliedRemoteMod;
         driveWriteBlockedRef.current = false;
         suppressNextSaveRef.current = true;
         setState(remoteState);
