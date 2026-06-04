@@ -365,6 +365,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const syncStatusRef = React.useRef<"idle" | "saving" | "synced" | "error">("idle");
   const suppressNextSaveRef = React.useRef<boolean>(false);
   const skippedInitialAutoSaveRef = React.useRef<boolean>(false);
+  const driveWriteBlockedRef = React.useRef<boolean>(false);
   React.useEffect(() => {
     syncStatusRef.current = syncStatus;
   }, [syncStatus]);
@@ -385,6 +386,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (!drive.connected) {
       driveLoadedRef.current = false;
       driveModifiedRef.current = null;
+      driveWriteBlockedRef.current = false;
       setDriveReady(false);
     }
   }, [drive.connected]);
@@ -478,6 +480,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           // PIN-encrypted blob from a different PIN — do not overwrite the Drive copy.
           setSyncStatus("error");
           toast.error("Drive data could not be unlocked. Use the same PIN on this device.");
+          driveWriteBlockedRef.current = true;
           driveLoadedRef.current = true;
           return;
         }
@@ -515,6 +518,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (d.connected && enc) {
+      if (driveWriteBlockedRef.current) {
+        setSyncStatus("error");
+        return;
+      }
       try {
         const token = await d.ensureToken();
         if (!token) throw new Error("no token");
@@ -567,13 +574,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       try {
         const parsed = await decryptWithKey<FinanceState>(blob, k);
         driveModifiedRef.current = remoteMod;
+        driveWriteBlockedRef.current = false;
         suppressNextSaveRef.current = true;
         setState(ensureRegions({ ...initialState, ...parsed }));
         setSyncStatus("synced");
         setLastSyncedAt(Date.now());
         return true;
       } catch {
-        // Different PIN on the other device — can't decrypt, keep local.
+        // Different PIN on the other device — can't decrypt, keep local and never overwrite it.
+        driveWriteBlockedRef.current = true;
+        setSyncStatus("error");
       }
     } catch {
       // Network/Drive blip — try again next tick.
