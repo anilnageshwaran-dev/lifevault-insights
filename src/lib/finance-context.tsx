@@ -247,6 +247,8 @@ type Ctx = {
   exportData: () => void;
   importData: (file: File) => Promise<void>;
   syncStatus: "idle" | "saving" | "synced" | "error";
+  lastSyncedAt: number | null;
+  syncNow: () => Promise<void>;
   fx: FxCache | null;
   refreshFx: (force?: boolean) => Promise<void>;
 };
@@ -261,9 +263,22 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [syncStatus, setSyncStatus] = React.useState<"idle" | "saving" | "synced" | "error">(
     "idle",
   );
+  const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(null);
   const [fx, setFx] = React.useState<FxCache | null>(null);
   const driveFileIdRef = React.useRef<string | null>(null);
   const driveLoadedRef = React.useRef<boolean>(false);
+  const stateRef = React.useRef<FinanceState>(state);
+  const keyRef = React.useRef<CryptoKey | null>(key);
+  const driveRef = React.useRef(drive);
+  React.useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  React.useEffect(() => {
+    keyRef.current = key;
+  }, [key]);
+  React.useEffect(() => {
+    driveRef.current = drive;
+  }, [drive]);
 
   // Load FX on mount
   React.useEffect(() => {
