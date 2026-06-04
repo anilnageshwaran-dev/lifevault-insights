@@ -133,8 +133,16 @@ export function EssentialsView() {
       toast.error("Keep at least one region");
       return;
     }
+    const target = state.regions.find((r) => r.id === id);
+    if (!target) return;
+    const linkedGoals = state.goals.filter((g) => g.name?.endsWith(`· ${target.name}`)).length;
+    const msg = linkedGoals > 0
+      ? `${target.name} has ${linkedGoals} linked goal${linkedGoals > 1 ? "s" : ""}. Delete the region anyway? Linked goals will remain in the Goals tab.`
+      : `Delete the ${target.name} region? Its baseline, emergency fund and insurance numbers will be removed.`;
+    if (!confirm(msg)) return;
     setState((s) => ({ ...s, regions: s.regions.filter((r) => r.id !== id) }));
   };
+
 
   if (!region) {
     return (
