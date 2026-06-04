@@ -193,6 +193,7 @@ type Ctx = {
   reset: () => void;
   exportData: () => void;
   importData: (file: File) => Promise<void>;
+  syncStatus: "idle" | "saving" | "synced" | "error";
 };
 
 const FinanceContext = React.createContext<Ctx | null>(null);
