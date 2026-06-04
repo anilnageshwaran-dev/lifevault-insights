@@ -71,7 +71,9 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
     })
     .sort((a, b) => +new Date(a.nextDue) - +new Date(b.nextDue));
   const overdueBills = (state.bills || []).filter((b) => new Date(b.nextDue) < new Date(today.toDateString()));
-  const goalsNearTarget = (state.goals || []).filter((g) => g.target > 0 && g.current / g.target >= 0.8).length;
+  const goalsNearTarget = (state.goals || []).filter(
+    (g) => g.currentCost > 0 && g.currentSavings / g.currentCost >= 0.8,
+  ).length;
 
   const toggleTheme = () => setMode(resolved === "dark" ? "light" : "dark");
 
