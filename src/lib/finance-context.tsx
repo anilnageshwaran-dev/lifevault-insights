@@ -247,6 +247,8 @@ type Ctx = {
   exportData: () => void;
   importData: (file: File) => Promise<void>;
   syncStatus: "idle" | "saving" | "synced" | "error";
+  lastSyncedAt: number | null;
+  syncNow: () => Promise<void>;
   fx: FxCache | null;
   refreshFx: (force?: boolean) => Promise<void>;
 };
@@ -261,9 +263,22 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [syncStatus, setSyncStatus] = React.useState<"idle" | "saving" | "synced" | "error">(
     "idle",
   );
+  const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(null);
   const [fx, setFx] = React.useState<FxCache | null>(null);
   const driveFileIdRef = React.useRef<string | null>(null);
   const driveLoadedRef = React.useRef<boolean>(false);
+  const stateRef = React.useRef<FinanceState>(state);
+  const keyRef = React.useRef<CryptoKey | null>(key);
+  const driveRef = React.useRef(drive);
+  React.useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  React.useEffect(() => {
+    keyRef.current = key;
+  }, [key]);
+  React.useEffect(() => {
+    driveRef.current = drive;
+  }, [drive]);
 
   // Load FX on mount
   React.useEffect(() => {
@@ -363,49 +378,88 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     };
   }, [hydrated, key, drive.connected, drive]);
 
-  // 3) Save (debounced) — local always; Drive if connected
+  // Core writer — persists locally and pushes to Drive when connected.
+  const writeAndPush = React.useCallback(async (force = false): Promise<void> => {
+    const k = keyRef.current;
+    const s = stateRef.current;
+    const d = driveRef.current;
+    setSyncStatus("saving");
+    let enc: string | null = null;
+    try {
+      if (k) {
+        enc = await encryptWithKey(s, k);
+        localStorage.setItem(STORAGE_KEY_ENC, enc);
+      } else {
+        localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(s));
+      }
+    } catch {
+      setSyncStatus("error");
+      return;
+    }
+    if (d.connected && enc) {
+      try {
+        const token = await d.ensureToken();
+        if (!token) throw new Error("no token");
+        if (driveFileIdRef.current) {
+          await updateAppFile(driveFileIdRef.current, enc);
+        } else {
+          const id = await createAppFile(enc);
+          driveFileIdRef.current = id;
+          try {
+            localStorage.setItem("lifevault_drive_fileid", id);
+          } catch {}
+        }
+        setSyncStatus("synced");
+        setLastSyncedAt(Date.now());
+      } catch (e) {
+        const msg = (e as Error).message || "";
+        if (msg.includes("403")) toast.error("Drive access denied — check permissions");
+        else if (force) toast.error("Sync failed — working from cache");
+        setSyncStatus("error");
+      }
+    } else {
+      setSyncStatus("synced");
+      if (force) setLastSyncedAt(Date.now());
+    }
+  }, []);
+
+  // 3) Debounced auto-save on every state change
   React.useEffect(() => {
     if (!hydrated) return;
     setSyncStatus("saving");
-    const t = setTimeout(async () => {
-      let enc: string | null = null;
-      try {
-        if (key) {
-          enc = await encryptWithKey(state, key);
-          localStorage.setItem(STORAGE_KEY_ENC, enc);
-        } else {
-          localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(state));
-        }
-      } catch {
-        setSyncStatus("error");
-        return;
-      }
-      // Drive write (best-effort, never blocks app)
-      if (drive.connected && enc) {
-        try {
-          const token = await drive.ensureToken();
-          if (!token) throw new Error("no token");
-          if (driveFileIdRef.current) {
-            await updateAppFile(driveFileIdRef.current, enc);
-          } else {
-            const id = await createAppFile(enc);
-            driveFileIdRef.current = id;
-            try {
-              localStorage.setItem("lifevault_drive_fileid", id);
-            } catch {}
-          }
-          setSyncStatus("synced");
-        } catch (e) {
-          const msg = (e as Error).message || "";
-          if (msg.includes("403")) toast.error("Drive access denied — check permissions");
-          setSyncStatus("error");
-        }
-      } else {
-        setSyncStatus("synced");
-      }
+    const t = setTimeout(() => {
+      void writeAndPush(false);
     }, 800);
     return () => clearTimeout(t);
-  }, [state, hydrated, key, drive.connected, drive]);
+  }, [state, hydrated, key, drive.connected, writeAndPush]);
+
+  // 4) Flush on tab hide / before unload / when coming back online
+  React.useEffect(() => {
+    if (!hydrated) return;
+    const flush = () => {
+      void writeAndPush(false);
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    const onOnline = () => {
+      if (syncStatus === "error") void writeAndPush(false);
+    };
+    window.addEventListener("beforeunload", flush);
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("online", onOnline);
+    return () => {
+      window.removeEventListener("beforeunload", flush);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [hydrated, writeAndPush, syncStatus]);
+
+  const syncNow = React.useCallback(async () => {
+    await writeAndPush(true);
+  }, [writeAndPush]);
 
   const update = React.useCallback(
     <K extends keyof FinanceState>(key: K, value: FinanceState[K]) => {
@@ -446,6 +500,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         exportData,
         importData,
         syncStatus,
+        lastSyncedAt,
+        syncNow,
         fx,
         refreshFx,
       }}

@@ -345,23 +345,28 @@ function DataTab() {
 
 function DriveSyncCard() {
   const drive = useDrive();
-  const { syncStatus } = useFinance();
+  const { syncStatus, lastSyncedAt, syncNow } = useFinance();
   const [busy, setBusy] = React.useState(false);
+  const [syncing, setSyncing] = React.useState(false);
 
   const statusLabel = !drive.connected
     ? "Not connected"
-    : syncStatus === "saving"
+    : syncStatus === "saving" || syncing
       ? "Saving…"
       : syncStatus === "error"
         ? "Offline — working from cache"
         : "Synced";
   const statusDot = !drive.connected
     ? "bg-foreground/30"
-    : syncStatus === "saving"
+    : syncStatus === "saving" || syncing
       ? "bg-warning animate-pulse"
       : syncStatus === "error"
         ? "bg-danger"
         : "bg-positive";
+
+  const lastLabel = lastSyncedAt
+    ? new Date(lastSyncedAt).toLocaleString()
+    : null;
 
   return (
     <Card>
@@ -373,13 +378,19 @@ function DriveSyncCard() {
         <code className="mx-1">appDataFolder</code>. Data stays end-to-end
         encrypted with your PIN — Google cannot read it.
       </p>
-      <div className="flex items-center gap-2 mb-4 text-sm">
+      <div className="flex items-center gap-2 mb-1 text-sm">
         <span className={`h-2 w-2 rounded-full ${statusDot}`} />
         <span className="text-muted-foreground">{statusLabel}</span>
         {drive.connected && drive.user?.email && (
           <span className="text-muted-foreground">· {drive.user.email}</span>
         )}
       </div>
+      {lastLabel && drive.connected && (
+        <div className="text-xs text-muted-foreground mb-4">
+          Last synced {lastLabel}
+        </div>
+      )}
+      {!lastLabel && <div className="mb-4" />}
       {!drive.connected ? (
         <button
           disabled={busy || drive.connecting}
@@ -399,22 +410,45 @@ function DriveSyncCard() {
           {busy || drive.connecting ? "Connecting…" : "Connect Google Drive"}
         </button>
       ) : (
-        <button
-          disabled={busy}
-          onClick={async () => {
-            if (!confirm("Disconnect Google Drive? Your local data stays on this device.")) return;
-            setBusy(true);
-            try {
-              await drive.disconnect();
-              toast.success("Disconnected");
-            } finally {
-              setBusy(false);
-            }
-          }}
-          className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent disabled:opacity-50"
-        >
-          Disconnect
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            disabled={syncing || syncStatus === "saving"}
+            onClick={async () => {
+              setSyncing(true);
+              try {
+                if (!drive.user) {
+                  // Silent reconnect lost the session — prompt the user.
+                  await drive.connect();
+                }
+                await syncNow();
+                toast.success("Synced to Google Drive");
+              } catch (e) {
+                toast.error((e as Error).message || "Sync failed");
+              } finally {
+                setSyncing(false);
+              }
+            }}
+            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
+          >
+            {syncing ? "Syncing…" : "Sync now"}
+          </button>
+          <button
+            disabled={busy}
+            onClick={async () => {
+              if (!confirm("Disconnect Google Drive? Your local data stays on this device.")) return;
+              setBusy(true);
+              try {
+                await drive.disconnect();
+                toast.success("Disconnected");
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent disabled:opacity-50"
+          >
+            Disconnect
+          </button>
+        </div>
       )}
     </Card>
   );
