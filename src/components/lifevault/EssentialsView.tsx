@@ -76,7 +76,7 @@ function ProgressBar({ value, color = "var(--color-primary)" }: { value: number;
 }
 
 export function EssentialsView() {
-  const { state, update, fx } = useFinance();
+  const { state, setState, update, fx } = useFinance();
   const base = state.baseCurrency || "INR";
   const score = computeHealthScore(state, fx);
   const liquid = liquidEmergencyAssets(state, fx, base);
@@ -84,6 +84,40 @@ export function EssentialsView() {
 
   const runwayMonths =
     state.monthlyExpenses > 0 ? effectiveEmergency / state.monthlyExpenses : 0;
+
+  const linkEmergencyGoal = () => {
+    const target = state.monthlyExpenses * 6;
+    if (target <= 0) {
+      toast.error("Enter your monthly expenses first");
+      return;
+    }
+    const existing = state.goals.find((g) => g.type === "Emergency Fund");
+    const targetYear = new Date().getFullYear() + 1;
+    if (existing) {
+      setState((s) => ({
+        ...s,
+        goals: s.goals.map((g) => g.id === existing.id
+          ? { ...g, currentCost: target, currentSavings: effectiveEmergency, targetYear }
+          : g),
+      }));
+      toast.success("Emergency Fund goal updated");
+    } else {
+      const goal: Goal = {
+        id: uid(),
+        name: "Emergency Fund",
+        type: "Emergency Fund",
+        currentCost: target,
+        targetYear,
+        inflation: 0,
+        currentSavings: effectiveEmergency,
+        currency: base,
+        icon: "🛡️",
+        linked: "Accounts flagged as emergency fund",
+      };
+      setState((s) => ({ ...s, goals: [...s.goals, goal] }));
+      toast.success("Tracking Emergency Fund as a Goal");
+    }
+  };
 
   const emergencyTarget = state.monthlyExpenses * 6;
   const emergencyPct = emergencyTarget > 0 ? clamp((effectiveEmergency / emergencyTarget) * 100) : 0;
