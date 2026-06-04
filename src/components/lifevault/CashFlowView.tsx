@@ -636,9 +636,26 @@ function InsightsTab() {
     () => Object.fromEntries(state.accounts.map((a) => [a.id, a])),
     [state.accounts],
   );
+
+  const [acctFilter, setAcctFilter] = React.useState<string>("all");
+  const [ccyFilter, setCcyFilter] = React.useState<string>("all");
+  const currencies = React.useMemo(() => {
+    const set = new Set<string>();
+    state.accounts.forEach((a) => set.add(a.currency));
+    state.transactions.forEach((t) => {
+      if (t.currency) set.add(t.currency);
+    });
+    if (set.size === 0) set.add(base);
+    return Array.from(set);
+  }, [state.accounts, state.transactions, base]);
+
   const inPeriod = state.transactions.filter((t) => {
     const d = new Date(t.date);
-    return d >= start && d <= end;
+    if (d < start || d > end) return false;
+    if (acctFilter !== "all" && t.accountId !== acctFilter) return false;
+    const ccy = t.currency || (t.accountId ? accById[t.accountId]?.currency : base) || base;
+    if (ccyFilter !== "all" && ccy !== ccyFilter) return false;
+    return true;
   });
   const toBase = (t: Transaction) => {
     const ccy = t.currency || (t.accountId ? accById[t.accountId]?.currency : base) || base;
@@ -648,10 +665,26 @@ function InsightsTab() {
   const expense = inPeriod.filter((t) => t.type === "expense").reduce((s, t) => s + toBase(t), 0);
   const invested = inPeriod.filter((t) => t.type === "investment").reduce((s, t) => s + toBase(t), 0);
 
+  // Per-account breakdown (for current period & filters)
+  const perAccount = React.useMemo(() => {
+    const map = new Map<string, { income: number; expense: number; invested: number }>();
+    inPeriod.forEach((t) => {
+      const key = t.accountId || "__none";
+      const cur = map.get(key) || { income: 0, expense: 0, invested: 0 };
+      const v = toBase(t);
+      if (t.type === "income") cur.income += v;
+      else if (t.type === "expense") cur.expense += v;
+      else cur.invested += v;
+      map.set(key, cur);
+    });
+    return Array.from(map.entries());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inPeriod]);
+
   return (
     <GlassCard>
       <SectionTitle title="Cash Flow Insights" subtitle="Compare income, spending, investing" />
-      <div className="flex gap-1 p-1 rounded-lg bg-white/[0.04] w-fit mb-4 flex-wrap">
+      <div className="flex gap-1 p-1 rounded-lg bg-white/[0.04] w-fit mb-3 flex-wrap">
         {([
           { id: "thisMonth", label: "This Month" },
           { id: "lastMonth", label: "Last Month" },
@@ -666,6 +699,35 @@ function InsightsTab() {
             }`}>{p.label}</button>
         ))}
       </div>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        <div className="min-w-44">
+          <Select value={acctFilter} onValueChange={setAcctFilter}>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All accounts</SelectItem>
+              {state.accounts.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: a.color }} />
+                    {a.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-32">
+          <Select value={ccyFilter} onValueChange={setCcyFilter}>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All currencies</SelectItem>
+              {currencies.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           { label: "Total Income", val: income, color: "var(--color-positive)" },
@@ -690,6 +752,38 @@ function InsightsTab() {
           {formatMoney(income - expense, base)}
         </div>
       </div>
+
+      {perAccount.length > 0 && (
+        <div className="mt-5">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">By account</div>
+          <div className="space-y-1.5">
+            {perAccount.map(([id, v]) => {
+              const a = id === "__none" ? null : accById[id];
+              const net = v.income - v.expense;
+              return (
+                <div key={id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 border border-white/5 bg-white/[0.02] text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {a ? (
+                      <>
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: a.color }} />
+                        <span className="truncate">{a.name}</span>
+                        <span className="text-[10px] text-muted-foreground">· {a.currency}</span>
+                      </>
+                    ) : <span className="text-muted-foreground">No account</span>}
+                  </div>
+                  <div className="flex gap-3 tabular text-xs">
+                    <span style={{ color: "var(--color-positive)" }}>+{formatMoney(v.income, base)}</span>
+                    <span style={{ color: "var(--color-danger)" }}>−{formatMoney(v.expense, base)}</span>
+                    <span className="font-medium" style={{ color: net >= 0 ? "var(--color-positive)" : "var(--color-danger)" }}>
+                      {formatMoney(net, base)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </GlassCard>
   );
 }
