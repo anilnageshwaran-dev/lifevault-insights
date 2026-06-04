@@ -531,7 +531,7 @@ function BiometricSection() {
 }
 
 function DataTab() {
-  const { state, setState, exportData, importData, fx } = useFinance();
+  const { state, setState, exportData, importData, fx, reset: resetFinance, syncNow } = useFinance();
   const lock = useLock();
   const { resetAll } = lock;
 
