@@ -56,7 +56,7 @@ import {
   TrendingDown,
   Eye,
   EyeOff,
-  Coins,
+
 } from "lucide-react";
 import {
   PieChart,
