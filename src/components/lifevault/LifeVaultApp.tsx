@@ -34,7 +34,7 @@ export function LifeVaultApp() {
   const [profileOpen, setProfileOpen] = React.useState(false);
   const { syncStatus } = useFinance();
   const { lock } = useLock();
-  const { resolved, setMode, mode } = useTheme();
+  
 
   React.useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
