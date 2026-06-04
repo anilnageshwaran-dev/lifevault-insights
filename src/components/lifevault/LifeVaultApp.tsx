@@ -70,12 +70,15 @@ export function LifeVaultApp() {
           title="Open profile"
           aria-label="Open profile"
         >
-          <LifeVaultIcon className="h-9 w-9" />
+          <UserAvatar user={user} size={36} />
           {!collapsed && (
-            <div>
-              <div className="font-display text-lg leading-none">LifeVault</div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">
-                Personal Finance
+            <div className="flex items-center gap-2 min-w-0">
+              <LifeVaultIcon className="h-6 w-6" />
+              <div className="min-w-0">
+                <div className="font-display text-lg leading-none truncate">LifeVault</div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">
+                  Personal Finance
+                </div>
               </div>
             </div>
           )}
