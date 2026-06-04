@@ -1,0 +1,9 @@
+# LifeVault
+
+> Private, PIN-locked personal finance dashboard for tracking net worth, cash flow, goals, and household accounts with end-to-end encryption.
+
+LifeVault is a personal and household finance app. Users track net worth across accounts, plan cash flow, set inflation-adjusted goals, and securely store sensitive credentials in an encrypted vault. Data is protected by per-user encryption and a local PIN lock.
+
+## Pages
+
+- [Home](/): Overview of LifeVault — features, dashboard, and sign-in.
