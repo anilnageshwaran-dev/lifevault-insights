@@ -595,7 +595,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     } catch {
       setSyncStatus("error");
     }
-  }, [encryptSyncData]);
+  }, []);
 
   // Core writer — persists locally and pushes to Drive when connected.
   const writeAndPush = React.useCallback(async (force = false): Promise<void> => {
@@ -651,7 +651,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus("synced");
       if (force) setLastSyncedAt(Date.now());
     }
-  }, []);
+  }, [encryptSyncData]);
 
   // Pull latest from Drive if remote file changed. Skips while a save is in-flight.
   const inspectDrive = React.useCallback(async (): Promise<void> => {
