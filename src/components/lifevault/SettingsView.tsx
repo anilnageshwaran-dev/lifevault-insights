@@ -65,6 +65,42 @@ function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl md:rounded-2xl border border-border bg-card p-4 md:p-5">{children}</div>;
 }
 
+function CountList({
+  title,
+  counts,
+  fallback,
+}: {
+  title: string;
+  counts?: {
+    accounts: number;
+    transactions: number;
+    assets: number;
+    liabilities: number;
+    goals: number;
+    bills: number;
+    vaultItems: number;
+  };
+  fallback?: string;
+}) {
+  return (
+    <div className="rounded-lg bg-card/60 p-2">
+      <div className="mb-1 font-medium text-foreground">{title}</div>
+      {counts ? (
+        <div className="space-y-0.5">
+          <div>Accounts: {counts.accounts}</div>
+          <div>Transactions: {counts.transactions}</div>
+          <div>Assets: {counts.assets}</div>
+          <div>Goals: {counts.goals}</div>
+          <div>Bills: {counts.bills}</div>
+          <div>Vault: {counts.vaultItems}</div>
+        </div>
+      ) : (
+        <div className="capitalize">{fallback ?? "Not checked"}</div>
+      )}
+    </div>
+  );
+}
+
 function AccountTab() {
   const { meta, updateMeta, resetAll } = useLock();
   const { user, signOut } = useAuth();
