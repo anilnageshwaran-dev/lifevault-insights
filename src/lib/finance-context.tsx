@@ -735,8 +735,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       } catch {}
       const blob = await downloadAppFile(file.id);
       try {
-        const parsed = await decryptWithKey<FinanceState>(blob, k);
+        const parsed = await decryptSyncData<FinanceState>(blob);
         const remoteState = ensureRegions({ ...initialState, ...parsed });
+        if (!isSyncEnvelopeBlob(blob)) {
+          const migrated = await encryptSyncData(remoteState);
+          await updateAppFile(file.id, migrated);
+          try {
+            const fresh = await findAppFile();
+            driveModifiedRef.current = fresh?.modifiedTime ?? remoteMod;
+          } catch {}
+        }
         driveModifiedRef.current = remoteMod;
         driveWriteBlockedRef.current = false;
         suppressNextSaveRef.current = true;
@@ -750,16 +758,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           remote: { status: "available", modifiedTime: file.modifiedTime, counts: countFinanceState(remoteState) },
         }));
         return true;
-      } catch {
+      } catch (error) {
         // Different PIN on the other device — can't decrypt, keep local and never overwrite it.
         driveWriteBlockedRef.current = true;
         setSyncStatus("error");
+        setSyncDiagnostics((diag) => ({
+          ...diag,
+          checkedAt: Date.now(),
+          remote: {
+            status: "locked",
+            modifiedTime: file.modifiedTime,
+            message: (error as Error).message || "A Drive file exists, but this PIN cannot decrypt it.",
+          },
+        }));
       }
     } catch {
       // Network/Drive blip — try again next tick.
     }
     return false;
-  }, []);
+  }, [decryptSyncData, encryptSyncData]);
 
   // 3) Debounced auto-save on every state change (skip if we just applied a remote pull)
   React.useEffect(() => {
