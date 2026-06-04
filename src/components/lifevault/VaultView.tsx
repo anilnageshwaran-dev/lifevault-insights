@@ -45,6 +45,25 @@ const CATS: Category[] = [
     ],
   },
   {
+    id: "insurance", name: "Insurance", emoji: "🛡️", titleField: "policy", subtitleField: "insurer",
+    fields: [
+      { key: "type", label: "Type (Term / Health / Vehicle / Other)" },
+      { key: "policy", label: "Policy Name / Number" },
+      { key: "insurer", label: "Insurer" },
+      { key: "sumInsured", label: "Sum Insured ₹" },
+      { key: "premium", label: "Premium ₹" },
+      { key: "frequency", label: "Premium Frequency (Monthly / Yearly)" },
+      { key: "due", label: "Next Renewal Date" },
+      { key: "members", label: "Covered Members (one per line — Name | Relation | Sum Insured)", multiline: true },
+      { key: "nominee", label: "Nominee" },
+      { key: "agent", label: "Agent / Contact" },
+      { key: "website", label: "Login Website" },
+      { key: "username", label: "Login Username" },
+      { key: "password", label: "Login Password", secret: true },
+      { key: "notes", label: "Notes", multiline: true },
+    ],
+  },
+  {
     id: "documents", name: "Documents", emoji: "📄", titleField: "type", subtitleField: "name",
     fields: [
       { key: "type", label: "Document Type" }, { key: "number", label: "Document Number", secret: true },

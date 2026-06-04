@@ -3,9 +3,10 @@ import {
   useFinance,
   computeHealthScore,
   liquidEmergencyAssets,
+  type Goal,
 } from "@/lib/finance-context";
 import { formatMoney } from "@/lib/currency";
-import { pct, clamp } from "@/lib/finance-utils";
+import { pct, clamp, uid } from "@/lib/finance-utils";
 import {
   GlassCard,
   MoneyInput,
@@ -14,7 +15,9 @@ import {
   SectionTitle,
 } from "./primitives";
 import { Badge } from "@/components/ui/badge";
-import { ShieldAlert, HeartPulse, Flame, PiggyBank, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ShieldAlert, HeartPulse, Flame, PiggyBank, Wallet, Target, Lightbulb } from "lucide-react";
+import { toast } from "sonner";
 
 function HealthGauge({ score }: { score: number }) {
   const size = 220;
@@ -73,7 +76,7 @@ function ProgressBar({ value, color = "var(--color-primary)" }: { value: number;
 }
 
 export function EssentialsView() {
-  const { state, update, fx } = useFinance();
+  const { state, setState, update, fx } = useFinance();
   const base = state.baseCurrency || "INR";
   const score = computeHealthScore(state, fx);
   const liquid = liquidEmergencyAssets(state, fx, base);
@@ -81,6 +84,40 @@ export function EssentialsView() {
 
   const runwayMonths =
     state.monthlyExpenses > 0 ? effectiveEmergency / state.monthlyExpenses : 0;
+
+  const linkEmergencyGoal = () => {
+    const target = state.monthlyExpenses * 6;
+    if (target <= 0) {
+      toast.error("Enter your monthly expenses first");
+      return;
+    }
+    const existing = state.goals.find((g) => g.type === "Emergency Fund");
+    const targetYear = new Date().getFullYear() + 1;
+    if (existing) {
+      setState((s) => ({
+        ...s,
+        goals: s.goals.map((g) => g.id === existing.id
+          ? { ...g, currentCost: target, currentSavings: effectiveEmergency, targetYear }
+          : g),
+      }));
+      toast.success("Emergency Fund goal updated");
+    } else {
+      const goal: Goal = {
+        id: uid(),
+        name: "Emergency Fund",
+        type: "Emergency Fund",
+        currentCost: target,
+        targetYear,
+        inflation: 0,
+        currentSavings: effectiveEmergency,
+        currency: base,
+        icon: "🛡️",
+        linked: "Accounts flagged as emergency fund",
+      };
+      setState((s) => ({ ...s, goals: [...s.goals, goal] }));
+      toast.success("Tracking Emergency Fund as a Goal");
+    }
+  };
 
   const emergencyTarget = state.monthlyExpenses * 6;
   const emergencyPct = emergencyTarget > 0 ? clamp((effectiveEmergency / emergencyTarget) * 100) : 0;
@@ -198,6 +235,19 @@ export function EssentialsView() {
               <span>0m</span><span>3m</span><span>6m</span><span>12m+</span>
             </div>
           </div>
+          <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs text-muted-foreground flex items-start gap-2">
+            <Lightbulb className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p><strong className="text-foreground">Aim for 6 months of expenses</strong> in liquid form — sweep-FD, liquid funds, or a high-yield savings account.</p>
+              <p>Keep it separate from your daily spending account so you don't dip into it.</p>
+              <p>Replenish first before any other goal if you use it.</p>
+            </div>
+          </div>
+          <Button size="sm" variant="secondary" className="mt-3 gap-1.5"
+            onClick={linkEmergencyGoal} disabled={state.monthlyExpenses <= 0}>
+            <Target className="h-3.5 w-3.5" />
+            {state.goals.some((g) => g.type === "Emergency Fund") ? "Sync with Goals" : "Track as Goal"}
+          </Button>
         </GlassCard>
 
         <GlassCard>
@@ -222,6 +272,15 @@ export function EssentialsView() {
           <MoneyInput value={state.termInsurance} onChange={(n) => update("termInsurance", n)} />
           <div className="mt-4">
             <ProgressBar value={idealTerm > 0 ? (state.termInsurance / idealTerm) * 100 : 0} />
+          </div>
+          <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs text-muted-foreground flex items-start gap-2">
+            <Lightbulb className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p><strong className="text-foreground">Rule of thumb: 15–20× annual income</strong> (or 25× annual expenses) as pure term cover.</p>
+              <p>Buy <strong>pure term</strong> — avoid ULIPs and endowment plans that mix insurance with investment.</p>
+              <p>Prefer claim-settlement ratio above 95%, lock in young while premiums are low, add critical-illness + accidental-death riders.</p>
+              <p className="text-[10px]">Save policy login, premium, and nominee in <strong>Vault → Insurance</strong>.</p>
+            </div>
           </div>
         </GlassCard>
 
@@ -251,6 +310,15 @@ export function EssentialsView() {
                 style={{ color: healthGap > 0 ? "var(--color-danger)" : "var(--color-positive)" }}>
                 {formatMoney(Math.abs(healthGap), base)}
               </div>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs text-muted-foreground flex items-start gap-2">
+            <Lightbulb className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p><strong className="text-foreground">Don't rely solely on employer cover</strong> — it ends with the job.</p>
+              <p>Get a <strong>family floater of ₹10–25L</strong> in tier-1 cities, plus a <strong>super top-up of ₹50L–1Cr</strong> for catastrophic events at a fraction of the cost.</p>
+              <p>Insure parents on a <strong>separate policy</strong> so claim history won't affect your premiums.</p>
+              <p>Watch room-rent sub-limits, day-care cover, and pre-existing waiting periods (lower is better).</p>
             </div>
           </div>
         </GlassCard>
