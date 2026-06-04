@@ -210,6 +210,12 @@ export function LifeVaultApp() {
 
       {tab !== "settings" && <QuickAddFab />}
 
+      <ProfileDrawer
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        onOpenSettings={() => setTabAnimated("settings")}
+      />
+
       <InstallBanner />
 
       <style>{`
