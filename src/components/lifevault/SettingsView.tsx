@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   User, Settings as SettingsIcon, ShieldCheck, Database, Sliders, Download, Upload,
-  LogOut, Sun, Moon, Monitor, Smartphone, Cloud, RefreshCw,
+  LogOut, Sun, Moon, Monitor, Smartphone, Cloud, RefreshCw, Users,
 } from "lucide-react";
 import { useFinance, accountBalance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
@@ -10,14 +10,16 @@ import { useDrive } from "@/lib/drive-context";
 import { useAuth } from "@/lib/auth-context";
 import { PinKeypad } from "./PinKeypad";
 import { CurrencySelect } from "./CurrencySelect";
+import { HouseholdTab } from "./HouseholdTab";
 import { convert } from "@/lib/currency";
 import { toast } from "sonner";
 import JSZip from "jszip";
 
-type Tab = "account" | "preferences" | "security" | "data" | "general";
+type Tab = "account" | "family" | "preferences" | "security" | "data" | "general";
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "account", label: "Account", icon: User },
+  { id: "family", label: "Family", icon: Users },
   { id: "preferences", label: "Preferences", icon: Sliders },
   { id: "security", label: "Security", icon: ShieldCheck },
   { id: "data", label: "Data", icon: Database },
@@ -47,6 +49,7 @@ export function SettingsView() {
       </nav>
       <div className="max-w-2xl space-y-5">
         {tab === "account" && <AccountTab />}
+        {tab === "family" && <HouseholdTab />}
         {tab === "preferences" && <PreferencesTab />}
         {tab === "security" && <SecurityTab />}
         {tab === "data" && <DataTab />}

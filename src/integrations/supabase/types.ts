@@ -14,6 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      household_invites: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          household_id: string
+          id: string
+          invited_by: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          household_id: string
+          id?: string
+          invited_by: string
+          token: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          household_id?: string
+          id?: string
+          invited_by?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_invites_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      household_members: {
+        Row: {
+          household_id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          household_id: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          household_id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_members_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      households: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -46,7 +140,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_household_member: {
+        Args: { _hid: string; _uid: string }
+        Returns: boolean
+      }
+      is_household_owner: {
+        Args: { _hid: string; _uid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
