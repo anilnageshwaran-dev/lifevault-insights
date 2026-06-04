@@ -591,6 +591,33 @@ function DataTab() {
       </Card>
 
       <Card>
+        <h3 className="font-display text-xl mb-2 flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5" /> Encrypted Vault Backup
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Download a single <code>.lvault</code> file encrypted with your PIN. Safe to store anywhere —
+          even Dropbox, email, or a USB stick. Restore it on any device with your PIN.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={exportEncrypted}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
+            <Download className="h-4 w-4" /> Download Encrypted Backup
+          </button>
+          <button onClick={() => encRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent">
+            <Upload className="h-4 w-4" /> Restore Encrypted Backup
+          </button>
+          <input ref={encRef} type="file" accept=".lvault,application/octet-stream,text/plain" className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0]; if (!f) return;
+              await importEncrypted(f);
+              e.target.value = "";
+            }} />
+        </div>
+      </Card>
+
+
+      <Card>
         <div className="border-l-2 border-warning pl-4">
           <h4 className="font-medium">Reset All Data</h4>
           <p className="text-sm text-muted-foreground mt-1 mb-3">
