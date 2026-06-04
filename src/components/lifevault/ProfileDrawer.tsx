@@ -35,6 +35,7 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
   const { lock } = useLock();
   const { state, update, fx, syncStatus, lastSyncedAt, syncNow } = useFinance();
   const [syncing, setSyncing] = React.useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = React.useState(false);
 
   const name =
     (user?.user_metadata?.name as string | undefined) ||
