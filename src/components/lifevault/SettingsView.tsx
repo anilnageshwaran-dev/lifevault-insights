@@ -422,8 +422,9 @@ function SecurityTab() {
 
 function DataTab() {
   const { state, setState, exportData, importData, fx } = useFinance();
-  const { resetAll } = useLock();
   const lock = useLock();
+  const { resetAll } = lock;
+
   const fileRef = React.useRef<HTMLInputElement>(null);
   const encRef = React.useRef<HTMLInputElement>(null);
 
