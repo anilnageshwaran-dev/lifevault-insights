@@ -6,6 +6,7 @@ import {
 import { useFinance, accountBalance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
 import { useTheme } from "@/lib/theme-context";
+import { useDrive } from "@/lib/drive-context";
 import { PinKeypad } from "./PinKeypad";
 import { CurrencySelect } from "./CurrencySelect";
 import { convert } from "@/lib/currency";
