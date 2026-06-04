@@ -374,7 +374,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             const enc = await encryptWithKey(parsed, key);
             localStorage.setItem(STORAGE_KEY_ENC, enc);
             localStorage.removeItem(STORAGE_KEY_PLAIN);
-            if (!cancelled) setState({ ...initialState, ...parsed });
+            if (!cancelled) setState(ensureRegions({ ...initialState, ...parsed }));
             setHydrated(true);
             return;
           } catch {}
@@ -383,14 +383,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         if (encRaw && key) {
           try {
             const parsed = await decryptWithKey<FinanceState>(encRaw, key);
-            if (!cancelled) setState({ ...initialState, ...parsed });
+            if (!cancelled) setState(ensureRegions({ ...initialState, ...parsed }));
           } catch {
             if (!cancelled) setState(initialState);
           }
         } else if (legacy && !key) {
           try {
             const parsed = JSON.parse(legacy);
-            if (!cancelled) setState({ ...initialState, ...parsed });
+            if (!cancelled) setState(ensureRegions({ ...initialState, ...parsed }));
           } catch {}
         }
       } catch {}
@@ -427,7 +427,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         try {
           const parsed = await decryptWithKey<FinanceState>(blob, key);
           if (!cancelled) {
-            setState({ ...initialState, ...parsed });
+            setState(ensureRegions({ ...initialState, ...parsed }));
             setSyncStatus("synced");
           }
         } catch {
@@ -556,7 +556,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const importData = React.useCallback(async (file: File) => {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    setState({ ...initialState, ...parsed });
+    setState(ensureRegions({ ...initialState, ...parsed }));
   }, []);
 
   return (
