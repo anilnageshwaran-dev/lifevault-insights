@@ -102,6 +102,9 @@ export function NetWorthView() {
   const byCat = assetsByCategory(state, fx, base);
 
   const [openAdd, setOpenAdd] = React.useState<{ kind: "asset" | "liability"; category: string } | null>(null);
+  const [scheduleFor, setScheduleFor] = React.useState<LiabilityItem | null>(null);
+  const [refreshingPrices, setRefreshingPrices] = React.useState(false);
+  const refreshPricesFn = useServerFn(refreshInvestmentPrices);
 
   const takeSnapshot = () => {
     const snap: NetWorthSnapshot = {
@@ -114,6 +117,43 @@ export function NetWorthView() {
     };
     setState((s) => ({ ...s, snapshots: [...s.snapshots, snap] }));
     toast.success("Snapshot saved");
+  };
+
+  const refreshPrices = async () => {
+    const holdings = state.assets
+      .filter((a) => (a.category === "equity" || a.category === "crypto") && a.ticker && (a.units ?? 0) > 0)
+      .map((a) => ({
+        id: a.id,
+        ticker: a.ticker as string,
+        name: a.name,
+        kind: a.category === "crypto" ? ("crypto" as const) : a.subtype === "Equity Mutual Fund" ? ("mutualfund" as const) : ("stock" as const),
+        currency: a.currency || base,
+      }));
+    if (holdings.length === 0) {
+      toast.info("Add tickers and units to assets to enable price refresh");
+      return;
+    }
+    setRefreshingPrices(true);
+    try {
+      const { results, error } = await refreshPricesFn({ data: { holdings } });
+      if (error) { toast.error(error); return; }
+      let updated = 0;
+      setState((s) => {
+        const map = new Map(results.map((r) => [r.id, r]));
+        const next = s.assets.map((a) => {
+          const r = map.get(a.id);
+          if (!r || r.price == null || !a.units) return a;
+          updated += 1;
+          return { ...a, avgPrice: a.avgPrice ?? r.price, value: Math.round((a.units * r.price) * 100) / 100 };
+        });
+        return { ...s, assets: next };
+      });
+      toast.success(updated > 0 ? `Updated ${updated} holding${updated > 1 ? "s" : ""}` : "No prices returned by the AI");
+    } catch (e) {
+      toast.error((e as Error).message || "Price refresh failed");
+    } finally {
+      setRefreshingPrices(false);
+    }
   };
 
   return (
