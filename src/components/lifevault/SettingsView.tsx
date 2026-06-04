@@ -2,7 +2,14 @@ import * as React from "react";
 import {
   User, Settings as SettingsIcon, ShieldCheck, Database, Sliders, Download, Upload,
   LogOut, Sun, Moon, Monitor, Smartphone, Cloud, RefreshCw, Users, MessageSquare,
+  Fingerprint,
 } from "lucide-react";
+import {
+  isBiometricEnrolled,
+  isPlatformAuthenticatorAvailable,
+  enrollBiometric,
+  disableBiometric,
+} from "@/lib/biometric";
 import { useFinance, accountBalance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
 import { useTheme } from "@/lib/theme-context";
