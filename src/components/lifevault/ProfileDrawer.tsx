@@ -259,15 +259,6 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
           <button
             onClick={() => {
               onOpenChange(false);
-              lock();
-            }}
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm hover:bg-accent transition-colors"
-          >
-            <Lock className="h-4 w-4" /> Lock
-          </button>
-          <button
-            onClick={() => {
-              onOpenChange(false);
               void signOut();
             }}
             className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
