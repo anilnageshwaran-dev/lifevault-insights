@@ -45,7 +45,7 @@ const ACCOUNT_COLORS = [
 
 const ACCOUNT_ICONS = ["🏦", "💳", "💵", "📱", "💼", "🏧", "💎", "💰", "🪙", "📊", "📈", "🧾"];
 
-type SubTab = "transactions" | "accounts" | "budget" | "insights";
+type SubTab = "transactions" | "accounts" | "bills" | "budget" | "insights";
 
 export function CashFlowView() {
   const [tab, setTab] = React.useState<SubTab>("transactions");
@@ -56,6 +56,7 @@ export function CashFlowView() {
         {([
           { id: "transactions", label: "Transactions" },
           { id: "accounts", label: "Accounts" },
+          { id: "bills", label: "Bills" },
           { id: "budget", label: "Budget" },
           { id: "insights", label: "Insights" },
         ] as const).map((t) => (
@@ -70,10 +71,11 @@ export function CashFlowView() {
 
       {tab === "transactions" && <TransactionsTab />}
       {tab === "accounts" && <AccountsTab />}
+      {tab === "bills" && <BillsTab />}
       {tab === "budget" && <BudgetTab />}
       {tab === "insights" && <InsightsTab />}
 
-      <QuickAddFab />
+      {tab !== "bills" && <QuickAddFab />}
     </div>
   );
 }
