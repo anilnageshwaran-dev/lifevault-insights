@@ -11,6 +11,7 @@ export const Route = createFileRoute("/")({
         content:
           "Premium personal finance dashboard with zero-knowledge encryption, PIN lock, and a secure vault for credentials, accounts, and household finances.",
       },
+      { name: "theme-color", content: "#0A0F1E" },
       { property: "og:title", content: "LifeVault — Personal Finance, Beautifully" },
       {
         property: "og:description",
@@ -24,7 +25,6 @@ export const Route = createFileRoute("/")({
       { rel: "apple-touch-icon", href: "/__l5e/assets-v1/5f170c05-aeb0-4cb3-a63e-a4f7293b12a9/apple-touch-icon.png" },
       { rel: "icon", type: "image/png", sizes: "192x192", href: "/__l5e/assets-v1/35dfce03-92de-4e01-84ec-85450234c4ca/icon-192.png" },
       { rel: "icon", type: "image/png", sizes: "512x512", href: "/__l5e/assets-v1/df51c657-7131-4d53-8602-b7e473c4b872/icon-512.png" },
-      { name: "theme-color", href: "#0A0F1E" },
       { rel: "canonical", href: "https://lifevaultapp.lovable.app/" },
     ],
     scripts: [
