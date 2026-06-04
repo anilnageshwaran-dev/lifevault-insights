@@ -362,6 +362,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const driveModifiedRef = React.useRef<string | null>(null);
   const driveLoadedRef = React.useRef<boolean>(false);
   const syncStatusRef = React.useRef<"idle" | "saving" | "synced" | "error">("idle");
+  const suppressNextSaveRef = React.useRef<boolean>(false);
+  React.useEffect(() => {
+    syncStatusRef.current = syncStatus;
+  }, [syncStatus]);
   const stateRef = React.useRef<FinanceState>(state);
   const keyRef = React.useRef<CryptoKey | null>(key);
   const driveRef = React.useRef(drive);
