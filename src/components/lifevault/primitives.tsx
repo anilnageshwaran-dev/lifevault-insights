@@ -18,7 +18,7 @@ export function MoneyInput({
   }, [value]);
   return (
     <input
-      inputMode="numeric"
+      inputMode="decimal"
       className={cn("underline-input", className)}
       placeholder={placeholder ?? "0"}
       value={text}
