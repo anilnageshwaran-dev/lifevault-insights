@@ -697,6 +697,12 @@ export function liquidEmergencyAssets(
     );
 }
 
+/** Per-region ideal health cover in that region's currency.
+ *  Currency-neutral: ~2× annual expenses per dependent (≈₹5L for ₹20k/mo). */
+export function idealHealthForRegion(r: Region): number {
+  return r.dependents * r.monthlyExpenses * 12 * 2;
+}
+
 export function computeHealthScore(
   state: FinanceState,
   fx: FxCache | null,
@@ -708,21 +714,45 @@ export function computeHealthScore(
   savings: number;
 } {
   const base = state.baseCurrency || "INR";
-  const liquid = liquidEmergencyAssets(state, fx, base) || state.emergencyFund;
-  const target = state.monthlyExpenses * 6;
-  const emergencyPct = target > 0 ? Math.min(1, liquid / target) : 0;
+  const regions: Region[] = state.regions && state.regions.length > 0
+    ? state.regions
+    : [{
+        id: "legacy", name: "Primary", currency: base,
+        monthlyIncome: state.monthlyIncome,
+        monthlyExpenses: state.monthlyExpenses,
+        intendedSavings: state.intendedSavings,
+        emergencyFund: state.emergencyFund,
+        termInsurance: state.termInsurance,
+        healthInsurance: state.healthInsurance,
+        dependents: state.dependents,
+      }];
+
+  const sum = (fn: (r: Region) => number) =>
+    regions.reduce((acc, r) => acc + convert(fn(r), r.currency, base, fx), 0);
+
+  const totalExpenses = sum((r) => r.monthlyExpenses);
+  const totalIncome = sum((r) => r.monthlyIncome);
+  const totalIntended = sum((r) => r.intendedSavings);
+  const totalEmergencyManual = sum((r) => r.emergencyFund);
+  const totalTerm = sum((r) => r.termInsurance);
+  const totalHealth = sum((r) => r.healthInsurance);
+  const totalIdealHealth = sum(idealHealthForRegion);
+
+  const liquid = liquidEmergencyAssets(state, fx, base) + totalEmergencyManual;
+  const targetEmergency = totalExpenses * 6;
+  const emergencyPct = targetEmergency > 0 ? Math.min(1, liquid / targetEmergency) : 0;
   const emergency = emergencyPct * 30;
 
-  const idealTerm = state.monthlyExpenses * 12 * 25;
-  const termPct = idealTerm > 0 ? Math.min(1, state.termInsurance / idealTerm) : 0;
+  const idealTerm = totalExpenses * 12 * 25;
+  const termPct = idealTerm > 0 ? Math.min(1, totalTerm / idealTerm) : 0;
   const insurance = termPct * 20;
 
-  const idealHealth = state.dependents * 500000;
-  const healthPct =
-    idealHealth > 0 ? Math.min(1, state.healthInsurance / idealHealth) : 0;
+  const healthPct = totalIdealHealth > 0
+    ? Math.min(1, totalHealth / totalIdealHealth)
+    : 0;
   const health = healthPct * 20;
 
-  const sr = state.monthlyIncome > 0 ? state.intendedSavings / state.monthlyIncome : 0;
+  const sr = totalIncome > 0 ? totalIntended / totalIncome : 0;
   const savings = Math.min(1, sr / 0.2) * 30;
 
   return {
