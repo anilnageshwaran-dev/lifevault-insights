@@ -511,6 +511,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem("lifevault_drive_fileid", id);
           } catch {}
         }
+        // Refresh our known modifiedTime so the live-poll doesn't re-pull our own write.
+        try {
+          const fresh = await findAppFile();
+          if (fresh) driveModifiedRef.current = fresh.modifiedTime ?? null;
+        } catch {}
         setSyncStatus("synced");
         setLastSyncedAt(Date.now());
       } catch (e) {
@@ -525,15 +530,79 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // 3) Debounced auto-save on every state change
+  // Pull latest from Drive if remote file changed. Skips while a save is in-flight.
+  const pullIfRemoteNewer = React.useCallback(async (): Promise<void> => {
+    const k = keyRef.current;
+    const d = driveRef.current;
+    if (!k || !d.connected) return;
+    if (syncStatusRef.current === "saving") return;
+    try {
+      const token = await d.ensureToken();
+      if (!token) return;
+      const file = await findAppFile();
+      if (!file) return;
+      const remoteMod = file.modifiedTime ?? null;
+      if (remoteMod && remoteMod === driveModifiedRef.current) return;
+      driveFileIdRef.current = file.id;
+      try {
+        localStorage.setItem("lifevault_drive_fileid", file.id);
+      } catch {}
+      const blob = await downloadAppFile(file.id);
+      try {
+        const parsed = await decryptWithKey<FinanceState>(blob, k);
+        driveModifiedRef.current = remoteMod;
+        suppressNextSaveRef.current = true;
+        setState(ensureRegions({ ...initialState, ...parsed }));
+        setSyncStatus("synced");
+        setLastSyncedAt(Date.now());
+      } catch {
+        // Different PIN on the other device — can't decrypt, keep local.
+      }
+    } catch {
+      // Network/Drive blip — try again next tick.
+    }
+  }, []);
+
+  // 3) Debounced auto-save on every state change (skip if we just applied a remote pull)
   React.useEffect(() => {
     if (!hydrated) return;
+    if (suppressNextSaveRef.current) {
+      suppressNextSaveRef.current = false;
+      return;
+    }
     setSyncStatus("saving");
     const t = setTimeout(() => {
       void writeAndPush(false);
     }, 800);
     return () => clearTimeout(t);
   }, [state, hydrated, key, drive.connected, writeAndPush]);
+
+  // 3b) Live auto-pull from Drive: every 20s, on tab focus, and on reconnect.
+  React.useEffect(() => {
+    if (!hydrated || !key || !drive.connected) return;
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      void pullIfRemoteNewer();
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") void pullIfRemoteNewer();
+    };
+    const onFocus = () => void pullIfRemoteNewer();
+    const onOnline = () => void pullIfRemoteNewer();
+    // Kick once shortly after wiring up so a fresh tab catches up quickly.
+    const kick = setTimeout(() => void pullIfRemoteNewer(), 1500);
+    const id = setInterval(tick, 20_000);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onOnline);
+    return () => {
+      clearTimeout(kick);
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [hydrated, key, drive.connected, pullIfRemoteNewer]);
 
   // 4) Flush on tab hide / before unload / when coming back online
   React.useEffect(() => {
