@@ -163,13 +163,6 @@ export function LifeVaultApp() {
           <div className="flex items-center gap-2">
             <SyncDot status={syncStatus} />
             <button
-              onClick={toggleTheme}
-              className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              aria-label="Toggle theme"
-            >
-              {resolved === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-            <button
               onClick={lock}
               className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               aria-label="Lock vault"
