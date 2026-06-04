@@ -329,6 +329,16 @@ export function ensureRegions(s: FinanceState): FinanceState {
 }
 
 
+function isSyncEnvelopeBlob(blob: string): boolean {
+  try {
+    const parsed = JSON.parse(blob.trim()) as { v?: number; salt?: unknown; data?: unknown; pinHash?: unknown };
+    return parsed.v === 1 && typeof parsed.salt === "string" && typeof parsed.data === "string" && typeof parsed.pinHash === "string";
+  } catch {
+    return false;
+  }
+}
+
+
 const STORAGE_KEY_PLAIN = "lifevault_data";
 const STORAGE_KEY_ENC = "lifevault_cache";
 
@@ -386,7 +396,7 @@ type Ctx = {
 const FinanceContext = React.createContext<Ctx | null>(null);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-  const { key } = useLock();
+  const { key, encryptSyncData, decryptSyncData } = useLock();
   const drive = useDrive();
   const [state, setState] = React.useState<FinanceState>(initialState);
   const [hydrated, setHydrated] = React.useState(false);
