@@ -12,6 +12,10 @@ export const Route = createFileRoute("/")({
           "Premium personal finance dashboard with zero-knowledge encryption, PIN lock, and a secure vault for credentials, accounts, and household finances.",
       },
       { name: "theme-color", content: "#0A0F1E" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "LifeVault" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { property: "og:title", content: "LifeVault — Personal Finance, Beautifully" },
       {
         property: "og:description",
