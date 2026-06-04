@@ -261,7 +261,7 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
               onOpenChange(false);
               void signOut();
             }}
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="col-span-2 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <LogOut className="h-4 w-4" /> Sign out
           </button>
