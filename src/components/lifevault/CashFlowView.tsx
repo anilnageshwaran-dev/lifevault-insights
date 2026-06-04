@@ -894,7 +894,7 @@ function InsightsTab() {
 
 // ────────────────────────────────────────────── QUICK ADD FAB
 
-function QuickAddFab() {
+export function QuickAddFab() {
   const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
   const [open, setOpen] = React.useState(false);
