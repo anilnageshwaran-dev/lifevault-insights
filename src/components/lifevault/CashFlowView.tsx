@@ -751,6 +751,7 @@ function InsightsTab() {
   }, [state.accounts, state.transactions, base]);
 
   const inPeriod = state.transactions.filter((t) => {
+    if (t.transferId) return false;
     const d = new Date(t.date);
     if (d < start || d > end) return false;
     if (acctFilter !== "all" && t.accountId !== acctFilter) return false;
