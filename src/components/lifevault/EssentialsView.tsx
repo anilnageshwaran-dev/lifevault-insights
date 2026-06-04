@@ -312,6 +312,15 @@ export function EssentialsView() {
               </div>
             </div>
           </div>
+          <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs text-muted-foreground flex items-start gap-2">
+            <Lightbulb className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p><strong className="text-foreground">Don't rely solely on employer cover</strong> — it ends with the job.</p>
+              <p>Get a <strong>family floater of ₹10–25L</strong> in tier-1 cities, plus a <strong>super top-up of ₹50L–1Cr</strong> for catastrophic events at a fraction of the cost.</p>
+              <p>Insure parents on a <strong>separate policy</strong> so claim history won't affect your premiums.</p>
+              <p>Watch room-rent sub-limits, day-care cover, and pre-existing waiting periods (lower is better).</p>
+            </div>
+          </div>
         </GlassCard>
 
         <GlassCard className="lg:col-span-2">
