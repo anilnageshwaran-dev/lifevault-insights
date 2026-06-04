@@ -529,10 +529,124 @@ function GeneralTab() {
           </p>
         )}
       </Card>
+      <FeedbackCard />
       <Card>
         <h3 className="font-display text-xl mb-2">App Version</h3>
         <div className="text-sm text-muted-foreground">LifeVault v1.2.0</div>
       </Card>
     </div>
+  );
+}
+
+function FeedbackCard() {
+  const send = useServerFn(submitFeedback);
+  const [category, setCategory] = React.useState<"bug" | "idea" | "praise" | "general">("general");
+  const [message, setMessage] = React.useState("");
+  const [rating, setRating] = React.useState<number | undefined>(undefined);
+  const [busy, setBusy] = React.useState(false);
+
+  const submit = async () => {
+    const trimmed = message.trim();
+    if (trimmed.length < 3) {
+      toast.error("Please write a bit more");
+      return;
+    }
+    if (trimmed.length > 2000) {
+      toast.error("Message too long (max 2000 chars)");
+      return;
+    }
+    setBusy(true);
+    try {
+      await send({
+        data: {
+          category,
+          message: trimmed,
+          rating,
+          appVersion: "1.2.0",
+          userAgent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 512) : undefined,
+        },
+      });
+      toast.success("Thanks! Feedback received.");
+      setMessage("");
+      setRating(undefined);
+      setCategory("general");
+    } catch (e) {
+      toast.error((e as Error).message || "Failed to send feedback");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <h3 className="font-display text-xl mb-2 flex items-center gap-2">
+        <MessageSquare className="h-5 w-5" /> Send Feedback
+      </h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        Tell us what's broken, what's missing, or what you love. Goes straight to the team.
+      </p>
+      <div className="space-y-3">
+        <div className="grid grid-cols-4 gap-2">
+          {(["bug", "idea", "praise", "general"] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategory(c)}
+              className={`px-2 py-1.5 rounded-lg border text-xs capitalize transition-colors ${
+                category === c
+                  ? "bg-primary/15 text-foreground border-primary/30"
+                  : "border-border text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value.slice(0, 2000))}
+          rows={4}
+          maxLength={2000}
+          placeholder="Your feedback…"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
+        />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 text-sm">
+            <span className="text-muted-foreground mr-1">Rating:</span>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setRating(rating === n ? undefined : n)}
+                className={`h-7 w-7 rounded-md border text-xs ${
+                  rating && n <= rating
+                    ? "bg-primary/15 border-primary/30 text-foreground"
+                    : "border-border text-muted-foreground hover:bg-accent"
+                }`}
+                aria-label={`${n} star${n > 1 ? "s" : ""}`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-muted-foreground">{message.length}/2000</div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            disabled={busy || message.trim().length < 3}
+            onClick={submit}
+            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
+          >
+            {busy ? "Sending…" : "Send feedback"}
+          </button>
+          <a
+            href={`mailto:anilnageshwaran@gmail.com?subject=${encodeURIComponent("LifeVault feedback")}&body=${encodeURIComponent(message)}`}
+            className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent"
+          >
+            Email instead
+          </a>
+        </div>
+      </div>
+    </Card>
   );
 }
