@@ -31,15 +31,15 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: st
 export function SettingsView() {
   const [tab, setTab] = React.useState<Tab>("account");
   return (
-    <div className="grid md:grid-cols-[200px_1fr] gap-4 md:gap-6">
-      <nav className="space-y-1 md:sticky md:top-24 self-start">
-        <div className="flex md:flex-col gap-1 overflow-x-auto">
+    <div className="grid min-w-0 max-w-full md:grid-cols-[200px_1fr] gap-3 md:gap-6">
+      <nav className="min-w-0 space-y-1 md:sticky md:top-24 self-start">
+        <div className="flex md:flex-col gap-1 overflow-x-auto pb-1 md:pb-0 [-webkit-overflow-scrolling:touch]">
           {TABS.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
+                className={`flex shrink-0 items-center gap-2 px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
                   active ? "bg-primary/15 text-foreground border border-primary/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent"
                 }`}>
@@ -49,7 +49,7 @@ export function SettingsView() {
           })}
         </div>
       </nav>
-      <div className="max-w-2xl space-y-4 md:space-y-5 min-w-0">
+      <div className="w-full max-w-2xl min-w-0 space-y-4 md:space-y-5">
         {tab === "account" && <AccountTab />}
         {tab === "family" && <HouseholdTab />}
         {tab === "preferences" && <PreferencesTab />}
