@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
+import { useAuth } from "@/lib/auth-context";
 import { EssentialsView } from "./EssentialsView";
 import { NetWorthView } from "./NetWorthView";
 import { CashFlowView, QuickAddFab } from "./CashFlowView";
