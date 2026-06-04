@@ -178,7 +178,11 @@ export function NetWorthView() {
             </div>
           </div>
         </div>
-        <div className="mt-5 flex justify-end">
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button onClick={refreshPrices} disabled={refreshingPrices} variant="outline" className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${refreshingPrices ? "animate-spin" : ""}`} />
+            {refreshingPrices ? "Refreshing…" : "Refresh Market Prices"}
+          </Button>
           <Button onClick={takeSnapshot} className="gap-2">
             <Camera className="h-4 w-4" /> Take Snapshot
           </Button>
