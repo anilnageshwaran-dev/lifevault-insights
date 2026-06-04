@@ -1,11 +1,10 @@
 import * as React from "react";
 import {
   ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock,
-  Sun, Moon, Settings as SettingsIcon, ChevronLeft, ChevronRight,
+  Settings as SettingsIcon, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
-import { useTheme } from "@/lib/theme-context";
 import { EssentialsView } from "./EssentialsView";
 import { NetWorthView } from "./NetWorthView";
 import { CashFlowView, QuickAddFab } from "./CashFlowView";
