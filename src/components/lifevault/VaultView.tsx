@@ -236,12 +236,19 @@ function RecordList({
         <div className="text-2xl">{category.emoji}</div>
         <h2 className="font-display text-2xl">{category.name}</h2>
       </div>
-      {category.id === "bank" && (
+      {category.id === "investments" && (
         <div className="rounded-xl border border-border bg-card/50 p-3 text-xs text-muted-foreground">
-          Store your net banking credentials and account details here. To <strong>track balances</strong>,
-          add accounts in <strong>Cash Flow → Accounts</strong>.
+          Store login credentials and folio details here. Track <strong>value &amp; allocation</strong> under
+          <strong> Net Worth → Assets</strong>.
         </div>
       )}
+      {category.id === "insurance" && (
+        <div className="rounded-xl border border-border bg-card/50 p-3 text-xs text-muted-foreground">
+          Keep policy numbers, premiums, and nominee info here. Renewal reminders live under
+          <strong> Essentials</strong>.
+        </div>
+      )}
+
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
