@@ -95,7 +95,10 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
       } else if (document.visibilityState === "visible" && hiddenAt) {
         const elapsed = (Date.now() - hiddenAt) / 60000;
         hiddenAt = null;
-        if (meta.autoLockMin > 0 && elapsed >= meta.autoLockMin) setKey(null);
+        if (meta.autoLockMin > 0 && elapsed >= meta.autoLockMin) {
+          pinRef.current = null;
+          setKey(null);
+        }
       }
     };
     document.addEventListener("visibilitychange", onVis);
