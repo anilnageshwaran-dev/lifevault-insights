@@ -228,6 +228,24 @@ export function EssentialsView() {
           <p className="text-sm text-muted-foreground mt-1">
             Aggregated across all regions and converted to {base}.
           </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+            <span>
+              FX rates {fx ? `as of ${new Date(fx.ts).toLocaleString()}` : "unavailable"}
+            </span>
+            <button
+              disabled={refreshingFx}
+              onClick={async () => {
+                setRefreshingFx(true);
+                try { await refreshFx(true); toast.success("FX rates refreshed"); }
+                catch { toast.error("Couldn't refresh rates"); }
+                finally { setRefreshingFx(false); }
+              }}
+              className="underline hover:text-foreground disabled:opacity-50"
+            >
+              {refreshingFx ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-3 mt-5">
             {[
               { label: "Emergency", val: score.emergency, max: 30 },
