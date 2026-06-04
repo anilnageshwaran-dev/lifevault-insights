@@ -329,6 +329,16 @@ export function ensureRegions(s: FinanceState): FinanceState {
 }
 
 
+function isSyncEnvelopeBlob(blob: string): boolean {
+  try {
+    const parsed = JSON.parse(blob.trim()) as { v?: number; salt?: unknown; data?: unknown; pinHash?: unknown };
+    return parsed.v === 1 && typeof parsed.salt === "string" && typeof parsed.data === "string" && typeof parsed.pinHash === "string";
+  } catch {
+    return false;
+  }
+}
+
+
 const STORAGE_KEY_PLAIN = "lifevault_data";
 const STORAGE_KEY_ENC = "lifevault_cache";
 
@@ -386,7 +396,7 @@ type Ctx = {
 const FinanceContext = React.createContext<Ctx | null>(null);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-  const { key } = useLock();
+  const { key, encryptSyncData, decryptSyncData } = useLock();
   const drive = useDrive();
   const [state, setState] = React.useState<FinanceState>(initialState);
   const [hydrated, setHydrated] = React.useState(false);
@@ -518,9 +528,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         } catch {}
         const blob = await downloadAppFile(file.id);
         try {
-          const parsed = await decryptWithKey<FinanceState>(blob, key);
+          const parsed = await decryptSyncData<FinanceState>(blob);
           if (!cancelled) {
             const remoteState = ensureRegions({ ...initialState, ...parsed });
+            if (!isSyncEnvelopeBlob(blob)) {
+              const migrated = await encryptSyncData(remoteState);
+              await updateAppFile(file.id, migrated);
+              try {
+                const fresh = await findAppFile();
+                driveModifiedRef.current = fresh?.modifiedTime ?? file.modifiedTime ?? null;
+              } catch {}
+            }
             suppressNextSaveRef.current = true;
             setState(remoteState);
             setSyncStatus("synced");
@@ -532,10 +550,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
               remote: { status: "available", modifiedTime: file.modifiedTime, counts: countFinanceState(remoteState) },
             }));
           }
-        } catch {
+        } catch (error) {
           // PIN-encrypted blob from a different PIN — do not overwrite the Drive copy.
           setSyncStatus("error");
-          toast.error("Drive data could not be unlocked. Use the same PIN on this device.");
+          toast.error((error as Error).message || "Drive data could not be unlocked. Use the same PIN on this device.");
           driveWriteBlockedRef.current = true;
           driveLoadedRef.current = true;
           setSyncDiagnostics((diag) => ({
@@ -544,7 +562,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             remote: {
               status: "locked",
               modifiedTime: file.modifiedTime,
-              message: "A Drive file exists, but this PIN cannot decrypt it.",
+              message: (error as Error).message || "A Drive file exists, but this PIN cannot decrypt it.",
             },
           }));
           return;
@@ -562,7 +580,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, key, drive.connected, drive]);
+  }, [hydrated, key, drive.connected, drive, decryptSyncData, encryptSyncData]);
 
   const persistLocal = React.useCallback(async (): Promise<void> => {
     const k = keyRef.current;
@@ -586,10 +604,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const d = driveRef.current;
     setSyncStatus("saving");
     let enc: string | null = null;
+    let driveEnc: string | null = null;
     try {
       if (k) {
         enc = await encryptWithKey(s, k);
         localStorage.setItem(STORAGE_KEY_ENC, enc);
+        driveEnc = await encryptSyncData(s);
       } else {
         localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(s));
       }
@@ -597,7 +617,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus("error");
       return;
     }
-    if (d.connected && enc) {
+    if (d.connected && driveEnc) {
       if (driveWriteBlockedRef.current) {
         setSyncStatus("error");
         return;
@@ -606,9 +626,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const token = await d.ensureToken();
         if (!token) throw new Error("no token");
         if (driveFileIdRef.current) {
-          await updateAppFile(driveFileIdRef.current, enc);
+          await updateAppFile(driveFileIdRef.current, driveEnc);
         } else {
-          const id = await createAppFile(enc);
+          const id = await createAppFile(driveEnc);
           driveFileIdRef.current = id;
           try {
             localStorage.setItem("lifevault_drive_fileid", id);
@@ -631,7 +651,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus("synced");
       if (force) setLastSyncedAt(Date.now());
     }
-  }, []);
+  }, [encryptSyncData]);
 
   // Pull latest from Drive if remote file changed. Skips while a save is in-flight.
   const inspectDrive = React.useCallback(async (): Promise<void> => {
@@ -658,8 +678,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       }
       const blob = await downloadAppFile(file.id);
       try {
-        const parsed = await decryptWithKey<FinanceState>(blob, k);
+        const parsed = await decryptSyncData<FinanceState>(blob);
         const remoteState = ensureRegions({ ...initialState, ...parsed });
+        if (!isSyncEnvelopeBlob(blob)) {
+          const migrated = await encryptSyncData(remoteState);
+          await updateAppFile(file.id, migrated);
+          try {
+            const fresh = await findAppFile();
+            if (fresh) driveModifiedRef.current = fresh.modifiedTime ?? null;
+          } catch {}
+        }
         setSyncDiagnostics((diag) => ({
           ...diag,
           checkedAt: Date.now(),
@@ -669,14 +697,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             counts: countFinanceState(remoteState),
           },
         }));
-      } catch {
+      } catch (error) {
         setSyncDiagnostics((diag) => ({
           ...diag,
           checkedAt: Date.now(),
           remote: {
             status: "locked",
             modifiedTime: file.modifiedTime,
-            message: "A Drive file exists, but this PIN cannot decrypt it.",
+            message: (error as Error).message || "A Drive file exists, but this PIN cannot decrypt it.",
           },
         }));
       }
@@ -687,7 +715,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         remote: { status: "error", message: (e as Error).message || "Drive check failed" },
       }));
     }
-  }, []);
+  }, [decryptSyncData, encryptSyncData]);
 
   const pullIfRemoteNewer = React.useCallback(async (force = false): Promise<boolean> => {
     const k = keyRef.current;
@@ -707,9 +735,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       } catch {}
       const blob = await downloadAppFile(file.id);
       try {
-        const parsed = await decryptWithKey<FinanceState>(blob, k);
+        const parsed = await decryptSyncData<FinanceState>(blob);
         const remoteState = ensureRegions({ ...initialState, ...parsed });
-        driveModifiedRef.current = remoteMod;
+        let appliedRemoteMod = remoteMod;
+        if (!isSyncEnvelopeBlob(blob)) {
+          const migrated = await encryptSyncData(remoteState);
+          await updateAppFile(file.id, migrated);
+          try {
+            const fresh = await findAppFile();
+            appliedRemoteMod = fresh?.modifiedTime ?? remoteMod;
+          } catch {}
+        }
+        driveModifiedRef.current = appliedRemoteMod;
         driveWriteBlockedRef.current = false;
         suppressNextSaveRef.current = true;
         setState(remoteState);
@@ -722,16 +759,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           remote: { status: "available", modifiedTime: file.modifiedTime, counts: countFinanceState(remoteState) },
         }));
         return true;
-      } catch {
+      } catch (error) {
         // Different PIN on the other device — can't decrypt, keep local and never overwrite it.
         driveWriteBlockedRef.current = true;
         setSyncStatus("error");
+        setSyncDiagnostics((diag) => ({
+          ...diag,
+          checkedAt: Date.now(),
+          remote: {
+            status: "locked",
+            modifiedTime: file.modifiedTime,
+            message: (error as Error).message || "A Drive file exists, but this PIN cannot decrypt it.",
+          },
+        }));
       }
     } catch {
       // Network/Drive blip — try again next tick.
     }
     return false;
-  }, []);
+  }, [decryptSyncData, encryptSyncData]);
 
   // 3) Debounced auto-save on every state change (skip if we just applied a remote pull)
   React.useEffect(() => {

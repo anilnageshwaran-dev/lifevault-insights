@@ -31,15 +31,15 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: st
 export function SettingsView() {
   const [tab, setTab] = React.useState<Tab>("account");
   return (
-    <div className="grid md:grid-cols-[200px_1fr] gap-4 md:gap-6">
-      <nav className="space-y-1 md:sticky md:top-24 self-start">
-        <div className="flex md:flex-col gap-1 overflow-x-auto">
+    <div className="grid min-w-0 max-w-full md:grid-cols-[200px_1fr] gap-3 md:gap-6">
+      <nav className="min-w-0 space-y-1 md:sticky md:top-24 self-start">
+        <div className="flex md:flex-col gap-1 overflow-x-auto pb-1 md:pb-0 [-webkit-overflow-scrolling:touch]">
           {TABS.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
+                className={`flex shrink-0 items-center gap-2 px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
                   active ? "bg-primary/15 text-foreground border border-primary/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent"
                 }`}>
@@ -49,7 +49,7 @@ export function SettingsView() {
           })}
         </div>
       </nav>
-      <div className="max-w-2xl space-y-4 md:space-y-5 min-w-0">
+      <div className="w-full max-w-2xl min-w-0 space-y-4 md:space-y-5">
         {tab === "account" && <AccountTab />}
         {tab === "family" && <HouseholdTab />}
         {tab === "preferences" && <PreferencesTab />}
@@ -62,7 +62,7 @@ export function SettingsView() {
 }
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-xl md:rounded-2xl border border-border bg-card p-4 md:p-5">{children}</div>;
+  return <div className="min-w-0 rounded-xl md:rounded-2xl border border-border bg-card p-4 md:p-5">{children}</div>;
 }
 
 function CountList({
@@ -83,10 +83,10 @@ function CountList({
   fallback?: string;
 }) {
   return (
-    <div className="rounded-lg bg-card/60 p-2">
+    <div className="min-w-0 rounded-lg bg-card/60 p-2">
       <div className="mb-1 font-medium text-foreground">{title}</div>
       {counts ? (
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 break-words">
           <div>Accounts: {counts.accounts}</div>
           <div>Transactions: {counts.transactions}</div>
           <div>Assets: {counts.assets}</div>
@@ -95,7 +95,7 @@ function CountList({
           <div>Vault: {counts.vaultItems}</div>
         </div>
       ) : (
-        <div className="capitalize">{fallback ?? "Not checked"}</div>
+        <div className="break-words capitalize">{fallback ?? "Not checked"}</div>
       )}
     </div>
   );
@@ -156,15 +156,15 @@ function AccountTab() {
           {user.email && accountName !== user.email && (
             <div className="text-xs text-muted-foreground">{user.email}</div>
           )}
-          <div className="flex items-center gap-2 mt-2 text-xs">
+          <div className="flex min-w-0 items-start gap-2 mt-2 text-xs">
             <Cloud className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className={`h-2 w-2 rounded-full ${statusDot}`} />
-            <span className="text-muted-foreground">
+            <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${statusDot}`} />
+            <span className="min-w-0 break-words text-muted-foreground">
               Drive · {statusLabel}
               {lastLabel && drive.connected && <> · last {lastLabel}</>}
             </span>
           </div>
-          <div className="flex flex-wrap gap-2 mt-3">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {!drive.connected ? (
               <button
                 disabled={busy || drive.connecting}
@@ -174,7 +174,7 @@ function AccountTab() {
                   catch (e) { toast.error((e as Error).message || "Sign-in cancelled"); }
                   finally { setBusy(false); }
                 }}
-                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
+                className="min-w-0 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
               >
                 {busy || drive.connecting
                   ? (isGoogleSignIn ? "Linking Drive…" : "Connecting…")
@@ -193,7 +193,7 @@ function AccountTab() {
                     } catch (e) { toast.error((e as Error).message || "Sync failed"); }
                     finally { setSyncing(false); }
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
+                  className="min-w-0 px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
                 >
                   {syncing ? "Syncing…" : "Sync now"}
                 </button>
@@ -205,7 +205,7 @@ function AccountTab() {
                     catch (e) { toast.error((e as Error).message || "Drive check failed"); }
                     finally { setSyncing(false); }
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
+                  className="min-w-0 px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
                 >
                   Check Drive
                 </button>
@@ -219,7 +219,7 @@ function AccountTab() {
                     } catch (e) { toast.error((e as Error).message || "Pull failed"); }
                     finally { setSyncing(false); }
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
+                  className="min-w-0 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
                 >
                   Pull from Drive
                 </button>
@@ -232,7 +232,7 @@ function AccountTab() {
                     catch (e) { toast.error((e as Error).message || "Upload failed"); }
                     finally { setSyncing(false); }
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-warning/50 text-warning text-xs hover:bg-warning/10 disabled:opacity-50"
+                  className="min-w-0 px-3 py-2 rounded-lg border border-warning/50 text-warning text-xs hover:bg-warning/10 disabled:opacity-50"
                 >
                   Push this device
                 </button>
@@ -244,7 +244,7 @@ function AccountTab() {
                     try { await drive.disconnect(); toast.success("Disconnected"); }
                     finally { setBusy(false); }
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
+                  className="min-w-0 px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
                 >
                   Disconnect Drive
                 </button>
@@ -259,20 +259,20 @@ function AccountTab() {
                 try { await signOut(); toast.success("Signed out"); }
                 finally { setBusy(false); }
               }}
-              className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-accent flex items-center gap-1 disabled:opacity-50"
+              className="min-w-0 px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent flex items-center justify-center gap-1 disabled:opacity-50"
             >
               <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>
           </div>
-          <p className="text-xs text-muted-foreground mt-3">
+          <p className="break-words text-xs text-muted-foreground mt-3">
             Your encrypted vault syncs to your private Google Drive
-            <code className="mx-1">appDataFolder</code>. Data stays end-to-end
+            <code className="mx-1 break-all">appDataFolder</code>. Data stays end-to-end
             encrypted with your PIN — Google cannot read it.
           </p>
           {drive.connected && (
-            <div className="mt-3 rounded-lg border border-border bg-background/50 p-3 text-xs text-muted-foreground space-y-2">
+            <div className="mt-3 min-w-0 rounded-lg border border-border bg-background/50 p-3 text-xs text-muted-foreground space-y-2">
               <div className="font-medium text-foreground">Sync diagnostics</div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <CountList title="This device" counts={syncDiagnostics.local} />
                 <CountList
                   title="Google Drive"
@@ -284,7 +284,7 @@ function AccountTab() {
                   }
                 />
               </div>
-              <div>
+              <div className="break-words">
                 Drive file: {remoteLabel ?? "not verified yet"}
                 {syncDiagnostics.checkedAt && <> · checked {new Date(syncDiagnostics.checkedAt).toLocaleTimeString()}</>}
               </div>
@@ -296,7 +296,7 @@ function AccountTab() {
         <label className="text-xs uppercase tracking-wider text-muted-foreground">Display Name</label>
         <div className="flex gap-2 mt-1">
           <input value={name} onChange={(e) => setName(e.target.value)}
-            className="flex-1 px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary" />
+            className="min-w-0 flex-1 px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary" />
           <button onClick={() => { updateMeta({ displayName: name }); toast.success("Saved"); }}
             className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Save</button>
         </div>
