@@ -32,6 +32,7 @@ export function LifeVaultApp() {
   const [tab, setTab] = React.useState<TabId>("essentials");
   const [animKey, setAnimKey] = React.useState(0);
   const [collapsed, setCollapsed] = React.useState(false);
+  const [profileOpen, setProfileOpen] = React.useState(false);
   const { syncStatus } = useFinance();
   const { lock } = useLock();
   const { resolved, setMode, mode } = useTheme();
