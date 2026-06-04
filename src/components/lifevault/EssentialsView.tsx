@@ -273,6 +273,15 @@ export function EssentialsView() {
           <div className="mt-4">
             <ProgressBar value={idealTerm > 0 ? (state.termInsurance / idealTerm) * 100 : 0} />
           </div>
+          <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs text-muted-foreground flex items-start gap-2">
+            <Lightbulb className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p><strong className="text-foreground">Rule of thumb: 15–20× annual income</strong> (or 25× annual expenses) as pure term cover.</p>
+              <p>Buy <strong>pure term</strong> — avoid ULIPs and endowment plans that mix insurance with investment.</p>
+              <p>Prefer claim-settlement ratio above 95%, lock in young while premiums are low, add critical-illness + accidental-death riders.</p>
+              <p className="text-[10px]">Save policy login, premium, and nominee in <strong>Vault → Insurance</strong>.</p>
+            </div>
+          </div>
         </GlassCard>
 
         <GlassCard>
