@@ -418,7 +418,115 @@ export function NetWorthView() {
           onClose={() => setOpenAdd(null)}
         />
       )}
+      {scheduleFor && (
+        <LoanScheduleDialog liability={scheduleFor} onClose={() => setScheduleFor(null)} />
+      )}
     </div>
+  );
+}
+
+function LoanScheduleDialog({ liability, onClose }: { liability: LiabilityItem; onClose: () => void }) {
+  const { state, setState } = useFinance();
+  const base = state.baseCurrency || "INR";
+  const ccy = liability.currency || base;
+  const result = React.useMemo(
+    () => amortize(liability.principal, liability.rate, liability.emi),
+    [liability.principal, liability.rate, liability.emi],
+  );
+
+  const recordPayment = () => {
+    const amt = Number(prompt("Payment amount", String(liability.emi)));
+    if (!amt || amt <= 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    setState((s) => {
+      const interest = liability.principal * (liability.rate / 100) / 12;
+      const principalPaid = Math.max(0, amt - interest);
+      const newPrincipal = Math.max(0, liability.principal - principalPaid);
+      const tx = {
+        id: uid(),
+        date: today,
+        type: "expense" as const,
+        category: "EMI & Loans",
+        description: `EMI: ${liability.name}`,
+        amount: amt,
+        currency: ccy,
+      };
+      return {
+        ...s,
+        liabilities: s.liabilities.map((l) => (l.id === liability.id ? { ...l, principal: newPrincipal } : l)),
+        transactions: [tx, ...s.transactions],
+      };
+    });
+    toast.success("Payment recorded");
+    onClose();
+  };
+
+  const monthsLabel = result.months === Infinity
+    ? "EMI too low — loan never amortizes"
+    : result.months === 0
+      ? "Already paid off"
+      : `${result.months} months (${Math.floor(result.months / 12)}y ${result.months % 12}m)`;
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">{liability.name} · Schedule</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 text-sm">
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Outstanding</div>
+            <div className="tabular font-display text-lg">{formatMoney(liability.principal, ccy)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Months left</div>
+            <div className="font-display text-lg">{monthsLabel}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Interest</div>
+            <div className="tabular font-display text-lg" style={{ color: "var(--color-danger)" }}>
+              {isFinite(result.totalInterest) ? formatMoney(result.totalInterest, ccy) : "—"}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Payoff Date</div>
+            <div className="font-display text-lg">{result.payoffDate ?? "—"}</div>
+          </div>
+        </div>
+        <div className="flex gap-2 pb-3">
+          <Button size="sm" onClick={recordPayment}>Record EMI Payment</Button>
+        </div>
+        <div className="overflow-auto border border-white/5 rounded-lg">
+          <table className="w-full text-xs tabular">
+            <thead className="sticky top-0 bg-background">
+              <tr className="text-left text-muted-foreground">
+                <th className="px-3 py-2">#</th>
+                <th className="px-3 py-2">Date</th>
+                <th className="px-3 py-2 text-right">EMI</th>
+                <th className="px-3 py-2 text-right">Principal</th>
+                <th className="px-3 py-2 text-right">Interest</th>
+                <th className="px-3 py-2 text-right">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.schedule.map((row) => (
+                <tr key={row.month} className="border-t border-white/5">
+                  <td className="px-3 py-1.5">{row.month}</td>
+                  <td className="px-3 py-1.5">{row.date}</td>
+                  <td className="px-3 py-1.5 text-right">{formatMoney(row.emi, ccy)}</td>
+                  <td className="px-3 py-1.5 text-right">{formatMoney(row.principal, ccy)}</td>
+                  <td className="px-3 py-1.5 text-right" style={{ color: "var(--color-danger)" }}>{formatMoney(row.interest, ccy)}</td>
+                  <td className="px-3 py-1.5 text-right">{formatMoney(row.balance, ccy)}</td>
+                </tr>
+              ))}
+              {result.schedule.length === 0 && (
+                <tr><td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">No schedule to display.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
