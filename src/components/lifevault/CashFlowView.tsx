@@ -54,21 +54,23 @@ export function CashFlowView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] w-fit overflow-x-auto">
-        {([
-          { id: "transactions", label: "Transactions" },
-          { id: "accounts", label: "Accounts" },
-          { id: "bills", label: "Bills" },
-          { id: "budget", label: "Budget" },
-          { id: "insights", label: "Insights" },
-        ] as const).map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-1.5 text-sm rounded-lg transition-colors ${
-              tab === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}>
-            {t.label}
-          </button>
-        ))}
+      <div className="-mx-4 px-4 overflow-x-auto scrollbar-none">
+        <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] w-max">
+          {([
+            { id: "transactions", label: "Transactions" },
+            { id: "accounts", label: "Accounts" },
+            { id: "bills", label: "Bills" },
+            { id: "budget", label: "Budget" },
+            { id: "insights", label: "Insights" },
+          ] as const).map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`px-4 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap ${
+                tab === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {tab === "transactions" && <TransactionsTab />}

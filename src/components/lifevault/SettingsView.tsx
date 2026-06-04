@@ -531,7 +531,7 @@ function BiometricSection() {
 }
 
 function DataTab() {
-  const { state, setState, exportData, importData, fx } = useFinance();
+  const { state, setState, exportData, importData, fx, reset: resetFinance, syncNow } = useFinance();
   const lock = useLock();
   const { resetAll } = lock;
 
@@ -728,21 +728,42 @@ function DataTab() {
 
 
       <Card>
-        <div className="border-l-2 border-warning pl-4">
-          <h4 className="font-medium">Reset All Data</h4>
-          <p className="text-sm text-muted-foreground mt-1 mb-3">
-            Permanently deletes assets, liabilities, snapshots, goals, transactions,
-            accounts, budgets, vault records, and allocation targets.
-          </p>
-          <button onClick={() => {
-              if (!confirm("Permanently delete ALL data?")) return;
-              if (!confirm("Final confirmation: this cannot be undone. Continue?")) return;
-              resetAll();
-              toast.success("All data reset");
-            }}
-            className="px-4 py-2 rounded-lg bg-warning text-white text-sm">
-            Reset All Data
-          </button>
+        <div className="border-l-2 border-warning pl-4 space-y-4">
+          <div>
+            <h4 className="font-medium">Reset All Data</h4>
+            <p className="text-sm text-muted-foreground mt-1 mb-3">
+              Permanently deletes all transactions, accounts, assets, liabilities, snapshots,
+              goals, bills, budgets, vault records, and allocation targets. Your PIN and
+              biometric unlock are preserved. <strong>This change syncs to every device</strong>
+              connected to the same Google Drive vault.
+            </p>
+            <button onClick={async () => {
+                if (!confirm("Permanently delete ALL your financial data? This will also wipe data on every linked device.")) return;
+                if (!confirm("Final confirmation: this cannot be undone. Continue?")) return;
+                resetFinance();
+                try { await syncNow(); } catch {}
+                toast.success("All data reset and synced");
+              }}
+              className="px-4 py-2 rounded-lg bg-warning text-white text-sm">
+              Reset All Data
+            </button>
+          </div>
+          <div className="pt-4 border-t border-border/40">
+            <h4 className="font-medium">Reset Device &amp; PIN</h4>
+            <p className="text-sm text-muted-foreground mt-1 mb-3">
+              Wipes the encrypted cache and PIN from <strong>this device only</strong>. Other
+              devices and the Drive backup are untouched — sign back in to restore.
+            </p>
+            <button onClick={() => {
+                if (!confirm("Reset device PIN and wipe local cache on this device only?")) return;
+                if (!confirm("Final confirmation: you'll need to set a new PIN. Continue?")) return;
+                resetAll();
+                toast.success("Device reset");
+              }}
+              className="px-4 py-2 rounded-lg border border-danger/40 text-danger text-sm hover:bg-danger/10">
+              Reset Device &amp; PIN
+            </button>
+          </div>
         </div>
       </Card>
     </div>
