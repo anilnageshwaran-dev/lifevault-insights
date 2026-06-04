@@ -9,16 +9,18 @@ import {
   Settings as SettingsIcon,
   Sun,
   Moon,
-  
   LogOut,
   RefreshCw,
   Wallet,
   CalendarClock,
   ShieldCheck,
   Globe,
+  Sparkles,
 } from "lucide-react";
 import { LifeVaultIcon } from "./LifeVaultIcon";
 import { CurrencySelect } from "./CurrencySelect";
+import { WhatsNewDialog } from "./WhatsNewDialog";
+import { APP_VERSION } from "@/lib/changelog";
 import { toast } from "sonner";
 
 interface Props {
