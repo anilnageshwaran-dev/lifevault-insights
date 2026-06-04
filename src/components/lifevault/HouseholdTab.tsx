@@ -274,7 +274,10 @@ function HouseholdDetail({
         </div>
       )}
 
+      <FamilyOverview householdId={household.id} currentUserId={currentUserId} />
+
       <div className="space-y-2">
+
         <h4 className="text-sm font-medium">Members</h4>
         {m.isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
