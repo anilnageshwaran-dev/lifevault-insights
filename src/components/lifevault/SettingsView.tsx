@@ -828,7 +828,7 @@ function GeneralTab() {
       <FeedbackCard />
       <Card>
         <h3 className="font-display text-xl mb-2">App Version</h3>
-        <div className="text-sm text-muted-foreground">LifeVault v1.2.0</div>
+        <div className="text-sm text-muted-foreground">LifeVault v{APP_VERSION}</div>
       </Card>
     </div>
   );
