@@ -367,10 +367,6 @@ export function EssentialsView() {
               <MoneyInput value={region.monthlyIncome} onChange={(n) => updateRegion(region.id, { monthlyIncome: n })} />
             </div>
             <div>
-              <FieldLabel>Monthly Income ({ccy})</FieldLabel>
-              <MoneyInput value={region.monthlyIncome} onChange={(n) => updateRegion(region.id, { monthlyIncome: n })} />
-            </div>
-            <div>
               <FieldLabel>Monthly Expenses ({ccy})</FieldLabel>
               <MoneyInput value={region.monthlyExpenses} onChange={(n) => updateRegion(region.id, { monthlyExpenses: n })} />
             </div>
