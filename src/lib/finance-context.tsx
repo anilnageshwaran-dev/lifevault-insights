@@ -229,6 +229,7 @@ export interface FinanceState {
   goals: Goal[];
   vault: Record<string, VaultRecord[]>;
   accounts: Account[];
+  bills: Bill[];
 
   baseCurrency: string;
   lastUsedAccountId?: string;
