@@ -51,11 +51,11 @@ export function DriveProvider({ children }: { children: React.ReactNode }) {
     void loadGsi().catch(() => {});
   }, []);
 
-  // Attempt silent token refresh on mount if previously connected
+  // Auto-reconnect silently on launch (and again when network returns)
   React.useEffect(() => {
     if (!pref.connected) return;
     let cancelled = false;
-    (async () => {
+    const attempt = async () => {
       try {
         const tok = await requestToken({ silent: true });
         if (cancelled) return;
@@ -63,11 +63,15 @@ export function DriveProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         if (info) setUser(info);
       } catch {
-        // silent refresh failed — user will need to reconnect on next action
+        // Silent refresh failed — user will see "Reconnect" affordance in Settings.
       }
-    })();
+    };
+    void attempt();
+    const onOnline = () => void attempt();
+    window.addEventListener("online", onOnline);
     return () => {
       cancelled = true;
+      window.removeEventListener("online", onOnline);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pref.connected]);
