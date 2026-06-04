@@ -35,6 +35,7 @@ export function LifeVaultApp() {
   const [profileOpen, setProfileOpen] = React.useState(false);
   const { syncStatus } = useFinance();
   const { lock } = useLock();
+  const { user } = useAuth();
   
 
   React.useEffect(() => {
