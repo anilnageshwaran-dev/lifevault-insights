@@ -87,21 +87,47 @@ export function CashFlowView() {
 function TransactionsTab() {
   const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
-  const [filterType, setFilterType] = React.useState<"all" | TxType>("all");
+  const [filterType, setFilterType] = React.useState<"all" | TxType | "transfer">("all");
   const [search, setSearch] = React.useState("");
   const [monthOffset, setMonthOffset] = React.useState(0);
+  const [allTime, setAllTime] = React.useState(false);
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [acctFilter, setAcctFilter] = React.useState<string>("all");
+  const [catFilter, setCatFilter] = React.useState<string>("all");
+  const [minAmt, setMinAmt] = React.useState<string>("");
+  const [maxAmt, setMaxAmt] = React.useState<string>("");
 
   const now = new Date();
   const viewing = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   const monthStart = new Date(viewing.getFullYear(), viewing.getMonth(), 1);
   const monthEnd = new Date(viewing.getFullYear(), viewing.getMonth() + 1, 0, 23, 59, 59);
 
+  const allCats = React.useMemo(() => {
+    const set = new Set<string>();
+    state.transactions.forEach((t) => set.add(t.category));
+    return Array.from(set).sort();
+  }, [state.transactions]);
+
   const filtered = state.transactions
     .filter((t) => {
+      if (allTime) return true;
       const d = new Date(t.date);
       return d >= monthStart && d <= monthEnd;
     })
-    .filter((t) => filterType === "all" || t.type === filterType)
+    .filter((t) => {
+      if (filterType === "all") return true;
+      if (filterType === "transfer") return !!t.transferId;
+      return t.type === filterType && !t.transferId;
+    })
+    .filter((t) => acctFilter === "all" || t.accountId === acctFilter)
+    .filter((t) => catFilter === "all" || t.category === catFilter)
+    .filter((t) => {
+      const min = minAmt ? Number(minAmt) : null;
+      const max = maxAmt ? Number(maxAmt) : null;
+      if (min !== null && t.amount < min) return false;
+      if (max !== null && t.amount > max) return false;
+      return true;
+    })
     .filter((t) => {
       if (!search) return true;
       const q = search.toLowerCase();
@@ -115,19 +141,31 @@ function TransactionsTab() {
     [state.accounts],
   );
 
+  const activeFilterCount =
+    (acctFilter !== "all" ? 1 : 0) +
+    (catFilter !== "all" ? 1 : 0) +
+    (minAmt ? 1 : 0) +
+    (maxAmt ? 1 : 0) +
+    (allTime ? 1 : 0);
+
+  const resetFilters = () => {
+    setAcctFilter("all"); setCatFilter("all");
+    setMinAmt(""); setMaxAmt(""); setAllTime(false);
+  };
+
   return (
     <GlassCard>
-      <SectionTitle title="Transactions" subtitle={`${filtered.length} entries this month`} />
+      <SectionTitle title="Transactions" subtitle={`${filtered.length} ${allTime ? "entries (all time)" : "entries this month"}`} />
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <button onClick={() => setMonthOffset((o) => o - 1)}
-          className="p-2 rounded-lg hover:bg-accent">
+        <button onClick={() => setMonthOffset((o) => o - 1)} disabled={allTime}
+          className="p-2 rounded-lg hover:bg-accent disabled:opacity-30">
           <ChevronLeft className="h-4 w-4" />
         </button>
         <div className="text-sm font-medium min-w-32 text-center">
-          {viewing.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+          {allTime ? "All time" : viewing.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
         </div>
-        <button onClick={() => setMonthOffset((o) => o + 1)} disabled={monthOffset >= 0}
+        <button onClick={() => setMonthOffset((o) => o + 1)} disabled={monthOffset >= 0 || allTime}
           className="p-2 rounded-lg hover:bg-accent disabled:opacity-30">
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -136,10 +174,61 @@ function TransactionsTab() {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search description or category"
             className="w-full pl-10 pr-3 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-sm outline-none focus:border-primary" />
         </div>
+        <button onClick={() => setShowFilters((v) => !v)}
+          className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
+            showFilters || activeFilterCount > 0 ? "border-primary/40 bg-primary/10 text-foreground" : "border-white/10 text-muted-foreground hover:bg-accent"
+          }`}>
+          Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}
+        </button>
       </div>
 
-      <div className="flex gap-1 p-1 rounded-lg bg-white/[0.04] w-fit mb-3">
-        {(["all", "income", "expense", "investment"] as const).map((t) => (
+      {showFilters && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-3 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
+          <div>
+            <FieldLabel>Account</FieldLabel>
+            <Select value={acctFilter} onValueChange={setAcctFilter}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All accounts</SelectItem>
+                {state.accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <FieldLabel>Category</FieldLabel>
+            <Select value={catFilter} onValueChange={setCatFilter}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="all">All categories</SelectItem>
+                {allCats.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <FieldLabel>Min amount</FieldLabel>
+            <input inputMode="decimal" value={minAmt} onChange={(e) => setMinAmt(e.target.value.replace(/[^\d.]/g, ""))}
+              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm" />
+          </div>
+          <div>
+            <FieldLabel>Max amount</FieldLabel>
+            <input inputMode="decimal" value={maxAmt} onChange={(e) => setMaxAmt(e.target.value.replace(/[^\d.]/g, ""))}
+              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm" />
+          </div>
+          <label className="flex items-center gap-2 text-xs sm:col-span-2">
+            <input type="checkbox" checked={allTime} onChange={(e) => setAllTime(e.target.checked)} />
+            Search across all months (ignore month selector)
+          </label>
+          <div className="sm:col-span-2 flex justify-end">
+            <button onClick={resetFilters}
+              className="text-xs text-muted-foreground hover:text-foreground underline">Clear filters</button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-1 p-1 rounded-lg bg-white/[0.04] w-fit mb-3 flex-wrap">
+        {(["all", "income", "expense", "investment", "transfer"] as const).map((t) => (
           <button key={t} onClick={() => setFilterType(t)}
             className={`px-3 py-1 text-xs capitalize rounded-md transition-colors ${
               filterType === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"
@@ -157,11 +246,15 @@ function TransactionsTab() {
           {filtered.map((t) => {
             const acc = t.accountId ? accById[t.accountId] : undefined;
             const ccy = t.currency || acc?.currency || base;
+            const isTransfer = !!t.transferId;
             return (
               <div key={t.id}
                 className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 border border-white/5 bg-white/[0.02]">
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm truncate">{t.description || t.category}</div>
+                  <div className="text-sm truncate flex items-center gap-1.5">
+                    {isTransfer && <Repeat className="h-3 w-3 text-primary shrink-0" />}
+                    <span className="truncate">{t.description || t.category}</span>
+                  </div>
                   <div className="text-[11px] text-muted-foreground flex flex-wrap gap-1.5 items-center">
                     <span>{new Date(t.date).toLocaleDateString("en-IN")}</span>
                     {acc && (
@@ -180,11 +273,12 @@ function TransactionsTab() {
                 <div className="text-right shrink-0">
                   <div className="tabular text-sm"
                     style={{
-                      color: t.type === "income" ? "var(--color-positive)"
+                      color: isTransfer ? "var(--color-primary)"
+                        : t.type === "income" ? "var(--color-positive)"
                         : t.type === "expense" ? "var(--color-danger)"
                         : "var(--color-primary)",
                     }}>
-                    {t.type === "expense" ? "−" : t.type === "income" ? "+" : ""}
+                    {!isTransfer && (t.type === "expense" ? "−" : t.type === "income" ? "+" : "")}
                     {formatMoney(t.amount, ccy)}
                   </div>
                   {ccy !== base && (
@@ -195,8 +289,13 @@ function TransactionsTab() {
                 </div>
                 <button className="text-muted-foreground hover:text-rose-400"
                   onClick={() => {
-                    if (!confirm("Delete this transaction?")) return;
-                    setState((s) => ({ ...s, transactions: s.transactions.filter((x) => x.id !== t.id) }));
+                    if (!confirm(isTransfer ? "Delete this transfer? Both linked entries will be removed." : "Delete this transaction?")) return;
+                    setState((s) => ({
+                      ...s,
+                      transactions: s.transactions.filter((x) =>
+                        isTransfer ? x.transferId !== t.transferId : x.id !== t.id,
+                      ),
+                    }));
                     toast.success("Deleted");
                   }}>
                   <Trash2 className="h-3.5 w-3.5" />
