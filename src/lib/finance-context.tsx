@@ -543,18 +543,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Pull latest from Drive if remote file changed. Skips while a save is in-flight.
-  const pullIfRemoteNewer = React.useCallback(async (): Promise<void> => {
+  const pullIfRemoteNewer = React.useCallback(async (): Promise<boolean> => {
     const k = keyRef.current;
     const d = driveRef.current;
-    if (!k || !d.connected) return;
-    if (syncStatusRef.current === "saving") return;
+    if (!k || !d.connected) return false;
+    if (syncStatusRef.current === "saving") return false;
     try {
       const token = await d.ensureToken();
-      if (!token) return;
+      if (!token) return false;
       const file = await findAppFile();
-      if (!file) return;
+      if (!file) return false;
       const remoteMod = file.modifiedTime ?? null;
-      if (remoteMod && remoteMod === driveModifiedRef.current) return;
+      if (remoteMod && remoteMod === driveModifiedRef.current) return false;
       driveFileIdRef.current = file.id;
       try {
         localStorage.setItem("lifevault_drive_fileid", file.id);
@@ -567,12 +567,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         setState(ensureRegions({ ...initialState, ...parsed }));
         setSyncStatus("synced");
         setLastSyncedAt(Date.now());
+        return true;
       } catch {
         // Different PIN on the other device — can't decrypt, keep local.
       }
     } catch {
       // Network/Drive blip — try again next tick.
     }
+    return false;
   }, []);
 
   // 3) Debounced auto-save on every state change (skip if we just applied a remote pull)
@@ -648,8 +650,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [hydrated, writeAndPush, syncStatus]);
 
   const syncNow = React.useCallback(async () => {
+    const pulled = await pullIfRemoteNewer();
+    if (pulled) return;
     await writeAndPush(true);
-  }, [writeAndPush]);
+  }, [pullIfRemoteNewer, writeAndPush]);
 
   const update = React.useCallback(
     <K extends keyof FinanceState>(key: K, value: FinanceState[K]) => {
