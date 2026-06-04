@@ -83,10 +83,10 @@ function CountList({
   fallback?: string;
 }) {
   return (
-    <div className="rounded-lg bg-card/60 p-2">
+    <div className="min-w-0 rounded-lg bg-card/60 p-2">
       <div className="mb-1 font-medium text-foreground">{title}</div>
       {counts ? (
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 break-words">
           <div>Accounts: {counts.accounts}</div>
           <div>Transactions: {counts.transactions}</div>
           <div>Assets: {counts.assets}</div>
@@ -95,7 +95,7 @@ function CountList({
           <div>Vault: {counts.vaultItems}</div>
         </div>
       ) : (
-        <div className="capitalize">{fallback ?? "Not checked"}</div>
+        <div className="break-words capitalize">{fallback ?? "Not checked"}</div>
       )}
     </div>
   );
@@ -264,15 +264,15 @@ function AccountTab() {
               <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>
           </div>
-          <p className="text-xs text-muted-foreground mt-3">
+          <p className="break-words text-xs text-muted-foreground mt-3">
             Your encrypted vault syncs to your private Google Drive
-            <code className="mx-1">appDataFolder</code>. Data stays end-to-end
+            <code className="mx-1 break-all">appDataFolder</code>. Data stays end-to-end
             encrypted with your PIN — Google cannot read it.
           </p>
           {drive.connected && (
-            <div className="mt-3 rounded-lg border border-border bg-background/50 p-3 text-xs text-muted-foreground space-y-2">
+            <div className="mt-3 min-w-0 rounded-lg border border-border bg-background/50 p-3 text-xs text-muted-foreground space-y-2">
               <div className="font-medium text-foreground">Sync diagnostics</div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <CountList title="This device" counts={syncDiagnostics.local} />
                 <CountList
                   title="Google Drive"
@@ -284,7 +284,7 @@ function AccountTab() {
                   }
                 />
               </div>
-              <div>
+              <div className="break-words">
                 Drive file: {remoteLabel ?? "not verified yet"}
                 {syncDiagnostics.checkedAt && <> · checked {new Date(syncDiagnostics.checkedAt).toLocaleTimeString()}</>}
               </div>
