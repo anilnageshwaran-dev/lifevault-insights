@@ -183,7 +183,7 @@ export function NetWorthView() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${hideValues ? "[&_.tabular]:blur-md [&_.tabular]:select-none" : ""}`}>
       <GlassCard className="relative overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
           <div>
@@ -205,6 +205,22 @@ export function NetWorthView() {
           </div>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button
+            onClick={() => setHideValues((v) => !v)}
+            variant="outline"
+            className="gap-2"
+            title={hideValues ? "Show values" : "Hide values"}>
+            {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            <span className="hidden sm:inline">{hideValues ? "Show" : "Hide"} values</span>
+          </Button>
+          <Button
+            onClick={() => setShowByCurrency((v) => !v)}
+            variant={showByCurrency ? "default" : "outline"}
+            className="gap-2"
+            title="Breakdown by currency">
+            <Coins className="h-4 w-4" />
+            <span className="hidden sm:inline">By currency</span>
+          </Button>
           <Button onClick={refreshPrices} disabled={refreshingPrices} variant="outline" className="gap-2">
             <RefreshCw className={`h-4 w-4 ${refreshingPrices ? "animate-spin" : ""}`} />
             {refreshingPrices ? "Refreshing…" : "Refresh Market Prices"}
@@ -214,6 +230,41 @@ export function NetWorthView() {
           </Button>
         </div>
       </GlassCard>
+
+      {showByCurrency && (
+        <GlassCard>
+          <SectionTitle title="By Currency" subtitle="Native totals across your added currencies (no FX conversion)" />
+          {byCurrency.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No entries yet.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {byCurrency.map((row) => (
+                <div key={row.ccy} className="rounded-xl border border-white/5 bg-white/[0.02] p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-display">{row.ccy}</div>
+                    <div className="tabular text-sm" style={{ color: row.net >= 0 ? "var(--color-positive)" : "var(--color-danger)" }}>
+                      {formatMoney(row.net, row.ccy)}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                    <div>
+                      <div>Assets</div>
+                      <div className="tabular text-sm text-foreground">{formatMoney(row.assets, row.ccy)}</div>
+                    </div>
+                    <div>
+                      <div>Liabilities</div>
+                      <div className="tabular text-sm" style={{ color: "var(--color-danger)" }}>
+                        {formatMoney(row.liabs, row.ccy)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassCard>
+      )}
+
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <GlassCard>
