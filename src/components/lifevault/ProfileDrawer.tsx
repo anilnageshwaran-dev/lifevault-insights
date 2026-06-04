@@ -9,16 +9,18 @@ import {
   Settings as SettingsIcon,
   Sun,
   Moon,
-  
   LogOut,
   RefreshCw,
   Wallet,
   CalendarClock,
   ShieldCheck,
   Globe,
+  Sparkles,
 } from "lucide-react";
 import { LifeVaultIcon } from "./LifeVaultIcon";
 import { CurrencySelect } from "./CurrencySelect";
+import { WhatsNewDialog } from "./WhatsNewDialog";
+import { APP_VERSION } from "@/lib/changelog";
 import { toast } from "sonner";
 
 interface Props {
@@ -33,6 +35,7 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
   const { lock } = useLock();
   const { state, update, fx, syncStatus, lastSyncedAt, syncNow } = useFinance();
   const [syncing, setSyncing] = React.useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = React.useState(false);
 
   const name =
     (user?.user_metadata?.name as string | undefined) ||
@@ -237,7 +240,17 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
               </button>
             </div>
           </Section>
+
+          <button
+            onClick={() => setWhatsNewOpen(true)}
+            className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            What's new · v{APP_VERSION}
+          </button>
         </div>
+
+        <WhatsNewDialog open={whatsNewOpen} onOpenChange={setWhatsNewOpen} />
 
         <div className="border-t border-border p-3 grid grid-cols-2 gap-2">
           <button
