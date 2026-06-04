@@ -3,15 +3,29 @@ import { FinanceProvider } from "@/lib/finance-context";
 import { LockProvider, useLock } from "@/lib/lock-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { DriveProvider } from "@/lib/drive-context";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LifeVaultApp } from "./LifeVaultApp";
 import { OnboardingScreen } from "./OnboardingScreen";
 import { PinSetupScreen } from "./PinSetupScreen";
 import { PinLockScreen } from "./PinLockScreen";
+import { AuthScreen } from "./AuthScreen";
+import { Loader2 } from "lucide-react";
 
 function Gate() {
   const { meta, key } = useLock();
+  const { session, loading } = useAuth();
 
   if (!meta.onboardingComplete) return <OnboardingScreen />;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!session) return <AuthScreen />;
   if (!meta.pinHash) return <PinSetupScreen />;
   if (!key) return <PinLockScreen />;
 
@@ -25,11 +39,13 @@ function Gate() {
 export function AppRoot() {
   return (
     <ThemeProvider>
-      <LockProvider>
-        <DriveProvider>
-          <Gate />
-        </DriveProvider>
-      </LockProvider>
+      <AuthProvider>
+        <LockProvider>
+          <DriveProvider>
+            <Gate />
+          </DriveProvider>
+        </LockProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
