@@ -32,6 +32,11 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
 
   const toggleTheme = () => setMode(resolved === "dark" ? "light" : "dark");
 
+  const hour = new Date().getHours();
+  const partOfDay =
+    hour < 5 ? "night" : hour < 12 ? "morning" : hour < 17 ? "afternoon" : hour < 21 ? "evening" : "night";
+  const firstName = (name || "").split(/[\s@]/)[0];
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="p-0 flex flex-col w-[88vw] max-w-sm">
@@ -45,21 +50,20 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
         <div className="p-5 flex-1 overflow-y-auto">
           <div className="flex items-center gap-3">
             {avatar ? (
-              <img src={avatar} alt={name} className="h-14 w-14 rounded-full object-cover border border-border" />
+              <img src={avatar} alt={name} className="h-16 w-16 rounded-full object-cover border border-border" />
             ) : (
-              <div className="h-14 w-14 rounded-full bg-primary/15 text-foreground flex items-center justify-center font-display text-lg">
+              <div className="h-16 w-16 rounded-full bg-primary/15 text-foreground flex items-center justify-center font-display text-xl">
                 {initials}
               </div>
             )}
             <div className="min-w-0">
-              <div className="font-medium truncate">{name}</div>
-              {user?.email && user.email !== name && (
-                <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-              )}
+              <div className="text-xs text-muted-foreground">Good {partOfDay},</div>
+              <div className="font-display text-lg truncate">{firstName || "there"} 👋</div>
             </div>
           </div>
 
           <div className="mt-6 space-y-2 text-sm">
+            <Row label="Name" value={name} />
             <Row label="Email" value={user?.email ?? "—"} />
             <Row
               label="Signed in with"
@@ -75,7 +79,7 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
           </div>
 
           <p className="mt-6 text-xs text-muted-foreground leading-relaxed">
-            More profile fields (display name, photo) can be edited from Settings.
+            Edit your display name and other profile details from Settings.
           </p>
         </div>
 
