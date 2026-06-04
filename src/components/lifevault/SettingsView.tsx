@@ -2,7 +2,14 @@ import * as React from "react";
 import {
   User, Settings as SettingsIcon, ShieldCheck, Database, Sliders, Download, Upload,
   LogOut, Sun, Moon, Monitor, Smartphone, Cloud, RefreshCw, Users, MessageSquare,
+  Fingerprint,
 } from "lucide-react";
+import {
+  isBiometricEnrolled,
+  isPlatformAuthenticatorAvailable,
+  enrollBiometric,
+  disableBiometric,
+} from "@/lib/biometric";
 import { useFinance, accountBalance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
 import { useTheme } from "@/lib/theme-context";
@@ -401,6 +408,7 @@ function SecurityTab() {
               <option value={-1}>Never</option>
             </select>
           </div>
+          <BiometricSection />
           <button onClick={() => { lock(); toast.success("Locked"); }}
             className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Lock now</button>
         </div>
@@ -417,6 +425,108 @@ function SecurityTab() {
         </div>
       )}
     </Card>
+  );
+}
+
+function BiometricSection() {
+  const [supported, setSupported] = React.useState(false);
+  const [enrolled, setEnrolled] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [enrolling, setEnrolling] = React.useState(false);
+  const [pin, setPin] = React.useState("");
+  const { unlock } = useLock();
+
+  React.useEffect(() => {
+    void (async () => {
+      const ok = await isPlatformAuthenticatorAvailable();
+      setSupported(ok);
+      setEnrolled(isBiometricEnrolled());
+    })();
+  }, []);
+
+  React.useEffect(() => {
+    if (!enrolling || pin.length !== 4) return;
+    void (async () => {
+      setBusy(true);
+      try {
+        // Verify the PIN by attempting unlock (which is already unlocked, but unlock() checks the hash)
+        const ok = await unlock(pin);
+        if (!ok) {
+          toast.error("PIN incorrect");
+          setPin("");
+          return;
+        }
+        await enrollBiometric(pin);
+        setEnrolled(true);
+        setEnrolling(false);
+        setPin("");
+        toast.success("Biometric unlock enabled");
+      } catch (e) {
+        const msg = (e as Error).message || "Enrollment failed";
+        if (!/cancel/i.test(msg)) toast.error(msg);
+        setPin("");
+      } finally {
+        setBusy(false);
+      }
+    })();
+  }, [pin, enrolling, unlock]);
+
+  if (!supported) {
+    return (
+      <div className="rounded-lg border border-border p-3 text-xs text-muted-foreground flex items-start gap-2">
+        <Fingerprint className="h-4 w-4 mt-0.5 shrink-0" />
+        <span>Biometric unlock isn't available on this device or browser.</span>
+      </div>
+    );
+  }
+
+  if (enrolling) {
+    return (
+      <div className="rounded-lg border border-border p-3 space-y-3">
+        <div className="text-sm font-medium flex items-center gap-2">
+          <Fingerprint className="h-4 w-4" /> Confirm your PIN to enable biometric
+        </div>
+        <PinKeypad value={pin} onChange={setPin} disabled={busy} />
+        <button
+          onClick={() => { setEnrolling(false); setPin(""); }}
+          className="block mx-auto text-xs text-muted-foreground hover:text-foreground"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border p-3 space-y-2">
+      <div className="text-sm font-medium flex items-center gap-2">
+        <Fingerprint className="h-4 w-4" /> Biometric unlock
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Unlock LifeVault with Face ID, Touch ID, or your device PIN instead of typing your 4-digit PIN.
+        Your PIN is stored encrypted on this device only.
+      </p>
+      {enrolled ? (
+        <button
+          onClick={() => {
+            if (!confirm("Turn off biometric unlock on this device?")) return;
+            disableBiometric();
+            setEnrolled(false);
+            toast.success("Biometric unlock disabled");
+          }}
+          className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-accent"
+        >
+          Disable biometric unlock
+        </button>
+      ) : (
+        <button
+          onClick={() => setEnrolling(true)}
+          className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs"
+        >
+          Enable biometric unlock
+        </button>
+      )}
+    </div>
   );
 }
 

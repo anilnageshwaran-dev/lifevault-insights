@@ -50,6 +50,10 @@ import {
   Trash2,
   Camera,
   LineChart as LineChartIcon,
+  Calendar,
+  RefreshCw,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import {
   PieChart,
@@ -64,6 +68,9 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
+import { amortize } from "@/lib/loan-utils";
+import { useServerFn } from "@tanstack/react-start";
+import { refreshInvestmentPrices } from "@/lib/investment-prices.functions";
 
 const ASSET_CATS: AssetCategory[] = ["cash", "equity", "debt", "gold", "realestate", "crypto"];
 const LIAB_CATS: LiabilityCategory[] = ["home", "vehicle", "personal", "credit", "other"];
@@ -95,6 +102,9 @@ export function NetWorthView() {
   const byCat = assetsByCategory(state, fx, base);
 
   const [openAdd, setOpenAdd] = React.useState<{ kind: "asset" | "liability"; category: string } | null>(null);
+  const [scheduleFor, setScheduleFor] = React.useState<LiabilityItem | null>(null);
+  const [refreshingPrices, setRefreshingPrices] = React.useState(false);
+  const refreshPricesFn = useServerFn(refreshInvestmentPrices);
 
   const takeSnapshot = () => {
     const snap: NetWorthSnapshot = {
@@ -107,6 +117,43 @@ export function NetWorthView() {
     };
     setState((s) => ({ ...s, snapshots: [...s.snapshots, snap] }));
     toast.success("Snapshot saved");
+  };
+
+  const refreshPrices = async () => {
+    const holdings = state.assets
+      .filter((a) => (a.category === "equity" || a.category === "crypto") && a.ticker && (a.units ?? 0) > 0)
+      .map((a) => ({
+        id: a.id,
+        ticker: a.ticker as string,
+        name: a.name,
+        kind: a.category === "crypto" ? ("crypto" as const) : a.subtype === "Equity Mutual Fund" ? ("mutualfund" as const) : ("stock" as const),
+        currency: a.currency || base,
+      }));
+    if (holdings.length === 0) {
+      toast.info("Add tickers and units to assets to enable price refresh");
+      return;
+    }
+    setRefreshingPrices(true);
+    try {
+      const { results, error } = await refreshPricesFn({ data: { holdings } });
+      if (error) { toast.error(error); return; }
+      let updated = 0;
+      setState((s) => {
+        const map = new Map(results.map((r) => [r.id, r]));
+        const next = s.assets.map((a) => {
+          const r = map.get(a.id);
+          if (!r || r.price == null || !a.units) return a;
+          updated += 1;
+          return { ...a, avgPrice: a.avgPrice ?? r.price, value: Math.round((a.units * r.price) * 100) / 100 };
+        });
+        return { ...s, assets: next };
+      });
+      toast.success(updated > 0 ? `Updated ${updated} holding${updated > 1 ? "s" : ""}` : "No prices returned by the AI");
+    } catch (e) {
+      toast.error((e as Error).message || "Price refresh failed");
+    } finally {
+      setRefreshingPrices(false);
+    }
   };
 
   return (
@@ -131,7 +178,11 @@ export function NetWorthView() {
             </div>
           </div>
         </div>
-        <div className="mt-5 flex justify-end">
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button onClick={refreshPrices} disabled={refreshingPrices} variant="outline" className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${refreshingPrices ? "animate-spin" : ""}`} />
+            {refreshingPrices ? "Refreshing…" : "Refresh Market Prices"}
+          </Button>
           <Button onClick={takeSnapshot} className="gap-2">
             <Camera className="h-4 w-4" /> Take Snapshot
           </Button>
@@ -190,19 +241,31 @@ export function NetWorthView() {
                     {manualItems.length === 0 && accountItems.length === 0 && (
                       <p className="text-xs text-muted-foreground py-1">No entries yet.</p>
                     )}
-                    {manualItems.map((item) => (
+                    {manualItems.map((item) => {
+                      const invested = item.invested || 0;
+                      const gain = invested > 0 ? item.value - invested : 0;
+                      const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
+                      const gainColor = gain >= 0 ? "var(--color-positive)" : "var(--color-danger)";
+                      return (
                       <div key={item.id}
                         className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
                         <div className="min-w-0">
                           <div className="text-sm truncate">{item.name || "(unnamed)"}</div>
                           <div className="text-[11px] text-muted-foreground">
                             {item.subtype || ASSET_LABELS[cat]}
-                            {item.invested ? ` · Invested ${formatMoney(item.invested, item.currency || base)}` : ""}
+                            {invested ? ` · Invested ${formatMoney(invested, item.currency || base)}` : ""}
+                            {item.units ? ` · ${item.units} units` : ""}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <div className="tabular text-sm text-right">
                             {formatMoney(item.value, item.currency || base)}
+                            {invested > 0 && (
+                              <div className="text-[11px] flex items-center justify-end gap-1" style={{ color: gainColor }}>
+                                {gain >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                                {gain >= 0 ? "+" : ""}{formatMoney(gain, item.currency || base)} ({gainPct.toFixed(1)}%)
+                              </div>
+                            )}
                             {(item.currency || base) !== base && (
                               <div className="text-[11px] text-muted-foreground">
                                 · {formatMoney(convert(item.value, item.currency || base, base, fx), base)}
@@ -219,7 +282,7 @@ export function NetWorthView() {
                           </button>
                         </div>
                       </div>
-                    ))}
+                    );})}
                     <Button variant="ghost" size="sm" className="gap-1"
                       onClick={() => setOpenAdd({ kind: "asset", category: cat })}>
                       <Plus className="h-3.5 w-3.5" /> Add asset
@@ -303,6 +366,12 @@ export function NetWorthView() {
                             <div className="tabular text-sm" style={{ color: "var(--color-danger)" }}>
                               {formatMoney(item.principal, item.currency || base)}
                             </div>
+                            <button
+                              className="text-muted-foreground hover:text-foreground"
+                              title="View EMI schedule"
+                              onClick={() => setScheduleFor(item)}>
+                              <Calendar className="h-4 w-4" />
+                            </button>
                             <button className="text-muted-foreground hover:text-rose-400"
                               onClick={() => {
                                 if (!confirm("Delete this liability?")) return;
@@ -349,7 +418,115 @@ export function NetWorthView() {
           onClose={() => setOpenAdd(null)}
         />
       )}
+      {scheduleFor && (
+        <LoanScheduleDialog liability={scheduleFor} onClose={() => setScheduleFor(null)} />
+      )}
     </div>
+  );
+}
+
+function LoanScheduleDialog({ liability, onClose }: { liability: LiabilityItem; onClose: () => void }) {
+  const { state, setState } = useFinance();
+  const base = state.baseCurrency || "INR";
+  const ccy = liability.currency || base;
+  const result = React.useMemo(
+    () => amortize(liability.principal, liability.rate, liability.emi),
+    [liability.principal, liability.rate, liability.emi],
+  );
+
+  const recordPayment = () => {
+    const amt = Number(prompt("Payment amount", String(liability.emi)));
+    if (!amt || amt <= 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    setState((s) => {
+      const interest = liability.principal * (liability.rate / 100) / 12;
+      const principalPaid = Math.max(0, amt - interest);
+      const newPrincipal = Math.max(0, liability.principal - principalPaid);
+      const tx = {
+        id: uid(),
+        date: today,
+        type: "expense" as const,
+        category: "EMI & Loans",
+        description: `EMI: ${liability.name}`,
+        amount: amt,
+        currency: ccy,
+      };
+      return {
+        ...s,
+        liabilities: s.liabilities.map((l) => (l.id === liability.id ? { ...l, principal: newPrincipal } : l)),
+        transactions: [tx, ...s.transactions],
+      };
+    });
+    toast.success("Payment recorded");
+    onClose();
+  };
+
+  const monthsLabel = result.months === Infinity
+    ? "EMI too low — loan never amortizes"
+    : result.months === 0
+      ? "Already paid off"
+      : `${result.months} months (${Math.floor(result.months / 12)}y ${result.months % 12}m)`;
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">{liability.name} · Schedule</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 text-sm">
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Outstanding</div>
+            <div className="tabular font-display text-lg">{formatMoney(liability.principal, ccy)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Months left</div>
+            <div className="font-display text-lg">{monthsLabel}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Interest</div>
+            <div className="tabular font-display text-lg" style={{ color: "var(--color-danger)" }}>
+              {isFinite(result.totalInterest) ? formatMoney(result.totalInterest, ccy) : "—"}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Payoff Date</div>
+            <div className="font-display text-lg">{result.payoffDate ?? "—"}</div>
+          </div>
+        </div>
+        <div className="flex gap-2 pb-3">
+          <Button size="sm" onClick={recordPayment}>Record EMI Payment</Button>
+        </div>
+        <div className="overflow-auto border border-white/5 rounded-lg">
+          <table className="w-full text-xs tabular">
+            <thead className="sticky top-0 bg-background">
+              <tr className="text-left text-muted-foreground">
+                <th className="px-3 py-2">#</th>
+                <th className="px-3 py-2">Date</th>
+                <th className="px-3 py-2 text-right">EMI</th>
+                <th className="px-3 py-2 text-right">Principal</th>
+                <th className="px-3 py-2 text-right">Interest</th>
+                <th className="px-3 py-2 text-right">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.schedule.map((row) => (
+                <tr key={row.month} className="border-t border-white/5">
+                  <td className="px-3 py-1.5">{row.month}</td>
+                  <td className="px-3 py-1.5">{row.date}</td>
+                  <td className="px-3 py-1.5 text-right">{formatMoney(row.emi, ccy)}</td>
+                  <td className="px-3 py-1.5 text-right">{formatMoney(row.principal, ccy)}</td>
+                  <td className="px-3 py-1.5 text-right" style={{ color: "var(--color-danger)" }}>{formatMoney(row.interest, ccy)}</td>
+                  <td className="px-3 py-1.5 text-right">{formatMoney(row.balance, ccy)}</td>
+                </tr>
+              ))}
+              {result.schedule.length === 0 && (
+                <tr><td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">No schedule to display.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

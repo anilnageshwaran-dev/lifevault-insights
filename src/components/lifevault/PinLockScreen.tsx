@@ -2,12 +2,22 @@ import * as React from "react";
 import { PinKeypad } from "./PinKeypad";
 import { useLock } from "@/lib/lock-context";
 import { LifeVaultIcon } from "./LifeVaultIcon";
+import { Fingerprint } from "lucide-react";
+import {
+  isBiometricEnrolled,
+  isPlatformAuthenticatorAvailable,
+  unlockWithBiometric,
+  disableBiometric,
+} from "@/lib/biometric";
 
 export function PinLockScreen() {
   const { unlock, lockoutUntil } = useLock();
   const [pin, setPin] = React.useState("");
   const [err, setErr] = React.useState<string | null>(null);
   const [remaining, setRemaining] = React.useState(0);
+  const [bioAvail, setBioAvail] = React.useState(false);
+  const [bioBusy, setBioBusy] = React.useState(false);
+  const triedAutoRef = React.useRef(false);
 
   React.useEffect(() => {
     if (!lockoutUntil) {
@@ -37,6 +47,42 @@ export function PinLockScreen() {
 
   const locked = remaining > 0;
 
+  const tryBiometric = React.useCallback(async () => {
+    setErr(null);
+    setBioBusy(true);
+    try {
+      const pin = await unlockWithBiometric();
+      const ok = await unlock(pin);
+      if (!ok) setErr("Saved PIN no longer matches. Use your PIN.");
+    } catch (e) {
+      const msg = (e as Error).message || "";
+      if (!/cancel/i.test(msg)) setErr(msg || "Biometric unlock failed");
+    } finally {
+      setBioBusy(false);
+    }
+  }, [unlock]);
+
+  // Detect biometric availability + auto-prompt on mount
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const enrolled = isBiometricEnrolled();
+      if (!enrolled) return;
+      const avail = await isPlatformAuthenticatorAvailable();
+      if (cancelled) return;
+      if (!avail) {
+        disableBiometric();
+        return;
+      }
+      setBioAvail(true);
+      if (!triedAutoRef.current && !locked) {
+        triedAutoRef.current = true;
+        void tryBiometric();
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tryBiometric, locked]);
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-sm">
@@ -50,8 +96,18 @@ export function PinLockScreen() {
         <PinKeypad
           value={pin}
           onChange={(v) => { setErr(null); setPin(v); }}
-          disabled={locked}
+          disabled={locked || bioBusy}
         />
+        {bioAvail && !locked && (
+          <button
+            onClick={tryBiometric}
+            disabled={bioBusy}
+            className="mx-auto mt-6 flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent disabled:opacity-50"
+          >
+            <Fingerprint className="h-4 w-4" />
+            {bioBusy ? "Waiting…" : "Use biometric unlock"}
+          </button>
+        )}
         {locked ? (
           <p className="text-center text-sm text-warning mt-6">
             Too many attempts. Try again in {remaining}s
