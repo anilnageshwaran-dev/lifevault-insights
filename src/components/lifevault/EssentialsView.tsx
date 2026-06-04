@@ -3,9 +3,10 @@ import {
   useFinance,
   computeHealthScore,
   liquidEmergencyAssets,
+  type Goal,
 } from "@/lib/finance-context";
 import { formatMoney } from "@/lib/currency";
-import { pct, clamp } from "@/lib/finance-utils";
+import { pct, clamp, uid } from "@/lib/finance-utils";
 import {
   GlassCard,
   MoneyInput,
@@ -14,7 +15,9 @@ import {
   SectionTitle,
 } from "./primitives";
 import { Badge } from "@/components/ui/badge";
-import { ShieldAlert, HeartPulse, Flame, PiggyBank, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ShieldAlert, HeartPulse, Flame, PiggyBank, Wallet, Target, Lightbulb } from "lucide-react";
+import { toast } from "sonner";
 
 function HealthGauge({ score }: { score: number }) {
   const size = 220;
