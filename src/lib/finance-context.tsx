@@ -285,25 +285,49 @@ const initialState: FinanceState = {
   baseCurrency: "INR",
 };
 
-/** Ensure at least one region exists; migrates legacy top-level fields into a seeded region. */
+/** Ensure at least one region exists; migrates legacy top-level fields into a seeded region.
+ *  Also migrates legacy `recurring[]` templates into the unified `bills[]` list. */
 export function ensureRegions(s: FinanceState): FinanceState {
-  if (s.regions && s.regions.length > 0) return s;
-  const base = s.baseCurrency || "INR";
-  const seeded: Region = {
-    id: uid(),
-    name: base === "INR" ? "India" : base === "GBP" ? "UK" : "Primary",
-    currency: base,
-    flag: base === "INR" ? "🇮🇳" : base === "GBP" ? "🇬🇧" : "🌐",
-    monthlyIncome: s.monthlyIncome || 0,
-    monthlyExpenses: s.monthlyExpenses || 0,
-    intendedSavings: s.intendedSavings || 0,
-    emergencyFund: s.emergencyFund || 0,
-    termInsurance: s.termInsurance || 0,
-    healthInsurance: s.healthInsurance || 0,
-    dependents: s.dependents || 0,
-  };
-  return { ...s, regions: [seeded] };
+  let next = s;
+  if (!next.regions || next.regions.length === 0) {
+    const base = next.baseCurrency || "INR";
+    const seeded: Region = {
+      id: uid(),
+      name: base === "INR" ? "India" : base === "GBP" ? "UK" : "Primary",
+      currency: base,
+      flag: base === "INR" ? "🇮🇳" : base === "GBP" ? "🇬🇧" : "🌐",
+      monthlyIncome: next.monthlyIncome || 0,
+      monthlyExpenses: next.monthlyExpenses || 0,
+      intendedSavings: next.intendedSavings || 0,
+      emergencyFund: next.emergencyFund || 0,
+      termInsurance: next.termInsurance || 0,
+      healthInsurance: next.healthInsurance || 0,
+      dependents: next.dependents || 0,
+    };
+    next = { ...next, regions: [seeded] };
+  }
+  if (next.recurring && next.recurring.length > 0) {
+    const existing = new Set((next.bills ?? []).map((b) => b.name.toLowerCase()));
+    const migrated: Bill[] = next.recurring
+      .filter((r) => !existing.has(r.name.toLowerCase()))
+      .map((r) => ({
+        id: uid(),
+        name: r.name,
+        amount: r.amount,
+        category: r.category,
+        accountId: r.accountId,
+        frequency: (r.frequency === "monthly" || r.frequency === "quarterly" || r.frequency === "yearly")
+          ? r.frequency
+          : "monthly",
+        nextDue: r.nextDue,
+        autopay: false,
+        history: [],
+      }));
+    next = { ...next, bills: [...(next.bills ?? []), ...migrated], recurring: [] };
+  }
+  return next;
 }
+
 
 const STORAGE_KEY_PLAIN = "lifevault_data";
 const STORAGE_KEY_ENC = "lifevault_cache";
