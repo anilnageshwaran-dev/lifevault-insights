@@ -261,6 +261,7 @@ const initialState: FinanceState = {
   goals: [],
   vault: {},
   accounts: [],
+  bills: [],
   baseCurrency: "INR",
 };
 
