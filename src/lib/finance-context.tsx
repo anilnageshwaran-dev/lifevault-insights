@@ -450,6 +450,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         driveFileIdRef.current = file.id;
+        driveModifiedRef.current = file.modifiedTime ?? null;
         try {
           localStorage.setItem("lifevault_drive_fileid", file.id);
         } catch {}
@@ -457,8 +458,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         try {
           const parsed = await decryptWithKey<FinanceState>(blob, key);
           if (!cancelled) {
+            suppressNextSaveRef.current = true;
             setState(ensureRegions({ ...initialState, ...parsed }));
             setSyncStatus("synced");
+            setLastSyncedAt(Date.now());
           }
         } catch {
           // PIN-encrypted blob from a different PIN — ignore, keep local
