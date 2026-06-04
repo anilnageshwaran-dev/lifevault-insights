@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
+import { useAuth } from "@/lib/auth-context";
 import { EssentialsView } from "./EssentialsView";
 import { NetWorthView } from "./NetWorthView";
 import { CashFlowView, QuickAddFab } from "./CashFlowView";
@@ -34,6 +35,7 @@ export function LifeVaultApp() {
   const [profileOpen, setProfileOpen] = React.useState(false);
   const { syncStatus } = useFinance();
   const { lock } = useLock();
+  const { user } = useAuth();
   
 
   React.useEffect(() => {
@@ -68,12 +70,15 @@ export function LifeVaultApp() {
           title="Open profile"
           aria-label="Open profile"
         >
-          <LifeVaultIcon className="h-9 w-9" />
+          <UserAvatar user={user} size={36} />
           {!collapsed && (
-            <div>
-              <div className="font-display text-lg leading-none">LifeVault</div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">
-                Personal Finance
+            <div className="flex items-center gap-2 min-w-0">
+              <LifeVaultIcon className="h-6 w-6" />
+              <div className="min-w-0">
+                <div className="font-display text-lg leading-none truncate">LifeVault</div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">
+                  Personal Finance
+                </div>
               </div>
             </div>
           )}
@@ -136,7 +141,8 @@ export function LifeVaultApp() {
             className="flex items-center gap-2 rounded-lg hover:bg-accent p-1 -m-1 transition-colors text-left"
             aria-label="Open profile"
           >
-            <LifeVaultIcon className="h-8 w-8" />
+            <UserAvatar user={user} size={32} />
+            <LifeVaultIcon className="h-6 w-6" />
             <div>
               <div className="font-display text-base leading-none">LifeVault</div>
               <div className="text-[10px] text-muted-foreground mt-0.5">{activeLabel}</div>
@@ -220,6 +226,35 @@ export function LifeVaultApp() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+    </div>
+  );
+}
+
+function UserAvatar({ user, size = 32 }: { user: ReturnType<typeof useAuth>["user"]; size?: number }) {
+  const name =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email ||
+    "?";
+  const avatar = user?.user_metadata?.avatar_url as string | undefined;
+  const initials = name.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+  const style = { width: size, height: size };
+  if (avatar) {
+    return (
+      <img
+        src={avatar}
+        alt={name}
+        style={style}
+        className="rounded-full object-cover border border-border shrink-0"
+      />
+    );
+  }
+  return (
+    <div
+      style={style}
+      className="rounded-full bg-primary/15 text-foreground flex items-center justify-center font-display text-sm shrink-0"
+    >
+      {initials}
     </div>
   );
 }
