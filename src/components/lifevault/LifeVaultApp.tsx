@@ -230,6 +230,35 @@ export function LifeVaultApp() {
   );
 }
 
+function UserAvatar({ user, size = 32 }: { user: ReturnType<typeof useAuth>["user"]; size?: number }) {
+  const name =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email ||
+    "?";
+  const avatar = user?.user_metadata?.avatar_url as string | undefined;
+  const initials = name.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+  const style = { width: size, height: size };
+  if (avatar) {
+    return (
+      <img
+        src={avatar}
+        alt={name}
+        style={style}
+        className="rounded-full object-cover border border-border shrink-0"
+      />
+    );
+  }
+  return (
+    <div
+      style={style}
+      className="rounded-full bg-primary/15 text-foreground flex items-center justify-center font-display text-sm shrink-0"
+    >
+      {initials}
+    </div>
+  );
+}
+
 function SyncDot({
   status,
   compact,
