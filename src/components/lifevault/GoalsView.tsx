@@ -1,66 +1,35 @@
 import * as React from "react";
 import { useFinance, type Goal } from "@/lib/finance-context";
-import { formatINR, pct, uid, clamp } from "@/lib/finance-utils";
+import { formatMoney, getCurrency } from "@/lib/currency";
+import { pct, uid, clamp } from "@/lib/finance-utils";
 import {
-  GlassCard,
-  MoneyInput,
-  NumberInput,
-  FieldLabel,
-  SectionTitle,
-  EmptyState,
+  GlassCard, MoneyInput, NumberInput, FieldLabel, SectionTitle, EmptyState,
 } from "./primitives";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Home,
-  Car,
-  GraduationCap,
-  Heart,
-  Palmtree,
-  Plane,
-  ShieldCheck,
-  Sparkles,
-  Target,
-  Plus,
-  Trash2,
-  Pencil,
+  Target, Plus, Trash2, Pencil, Calculator, X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CurrencySelect } from "./CurrencySelect";
 
-const GOAL_TYPES = [
-  "Home Purchase",
-  "Vehicle",
-  "Higher Education",
-  "Wedding",
-  "Retirement",
-  "Travel",
-  "Emergency Fund",
-  "Custom",
-] as const;
-
-const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
-  "Home Purchase": Home,
-  Vehicle: Car,
-  "Higher Education": GraduationCap,
-  Wedding: Heart,
-  Retirement: Palmtree,
-  Travel: Plane,
-  "Emergency Fund": ShieldCheck,
-  Custom: Sparkles,
+interface Template { name: string; icon: string; inflation: number; }
+const TEMPLATES: Record<string, Template> = {
+  "Home Purchase":    { name: "Home Purchase",    icon: "🏠", inflation: 7 },
+  "Vehicle":          { name: "Vehicle",          icon: "🚗", inflation: 8 },
+  "Higher Education": { name: "Higher Education", icon: "🎓", inflation: 10 },
+  "Wedding":          { name: "Wedding",          icon: "💍", inflation: 8 },
+  "Retirement":       { name: "Retirement",       icon: "🌅", inflation: 6 },
+  "Travel":           { name: "Travel",           icon: "✈️", inflation: 5 },
+  "Emergency Fund":   { name: "Emergency Fund",   icon: "🛡️", inflation: 0 },
+  "Custom":           { name: "Custom",           icon: "🎯", inflation: 6 },
 };
+const GOAL_TYPES = Object.keys(TEMPLATES);
 
 function computeGoal(g: Goal) {
   const years = Math.max(0, g.targetYear - new Date().getFullYear());
@@ -72,287 +41,181 @@ function computeGoal(g: Goal) {
 
 export function GoalsView() {
   const { state, setState } = useFinance();
+  const base = state.baseCurrency || "INR";
   const [open, setOpen] = React.useState(false);
+  const [calcOpen, setCalcOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Goal | null>(null);
 
   const blank: Goal = {
-    id: "",
-    name: "",
-    type: "Home Purchase",
-    currentCost: 0,
-    targetYear: new Date().getFullYear() + 5,
-    inflation: 6,
-    linked: "",
-    currentSavings: 0,
+    id: "", name: "", type: "Home Purchase", currentCost: 0,
+    targetYear: new Date().getFullYear() + 5, inflation: 7,
+    linked: "", currentSavings: 0, currency: base, icon: TEMPLATES["Home Purchase"].icon,
   };
-
   const [form, setForm] = React.useState<Goal>(blank);
 
-  const startNew = () => {
-    setEditing(null);
-    setForm(blank);
-    setOpen(true);
+  const applyTemplate = (typeName: string) => {
+    const t = TEMPLATES[typeName];
+    setForm((f) => ({ ...f, type: typeName, icon: t.icon, inflation: t.inflation }));
   };
-  const startEdit = (g: Goal) => {
-    setEditing(g);
-    setForm(g);
-    setOpen(true);
-  };
+
+  const startNew = () => { setEditing(null); setForm(blank); setOpen(true); };
+  const startEdit = (g: Goal) => { setEditing(g); setForm({ ...g, icon: g.icon || TEMPLATES[g.type]?.icon }); setOpen(true); };
+
   const save = () => {
-    if (!form.name || !form.currentCost) {
-      toast.error("Name and current cost required");
-      return;
-    }
+    if (!form.name || !form.currentCost) { toast.error("Name and current cost required"); return; }
     if (editing) {
-      setState((s) => ({
-        ...s,
-        goals: s.goals.map((g) => (g.id === editing.id ? form : g)),
-      }));
+      setState((s) => ({ ...s, goals: s.goals.map((g) => g.id === editing.id ? form : g) }));
       toast.success("Goal updated");
     } else {
-      setState((s) => ({
-        ...s,
-        goals: [...s.goals, { ...form, id: uid() }],
-      }));
+      setState((s) => ({ ...s, goals: [...s.goals, { ...form, id: uid() }] }));
       toast.success("Goal added");
     }
     setOpen(false);
   };
 
-  // Summary
-  const summary = state.goals.reduce(
-    (acc, g) => {
-      const c = computeGoal(g);
-      acc.future += c.futureTarget;
-      acc.monthly += c.monthlyNeeded;
-      acc.savings += g.currentSavings;
-      return acc;
-    },
-    { future: 0, monthly: 0, savings: 0 },
-  );
-  const overallPct = summary.future > 0 ? (summary.savings / summary.future) * 100 : 0;
-  const earliest = state.goals.length
-    ? Math.min(...state.goals.map((g) => g.targetYear))
-    : null;
-
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <GlassCard className="lg:col-span-2">
-          <SectionTitle
-            title="Your Goals"
-            subtitle="Future-priced and tracked monthly"
-            right={
-              <Button onClick={startNew} className="gap-1">
-                <Plus className="h-4 w-4" /> Add New Goal
-              </Button>
-            }
-          />
-          {state.goals.length === 0 ? (
-            <EmptyState
-              icon={Target}
-              title="No goals yet"
-              description="Add your first life goal and we'll inflation-adjust it for you."
-              cta={
-                <Button onClick={startNew} className="gap-1">
-                  <Plus className="h-4 w-4" /> Add Your First Goal
-                </Button>
-              }
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {state.goals.map((g) => {
-                const c = computeGoal(g);
-                const Icon = TYPE_ICON[g.type] || Sparkles;
-                return (
-                  <div
-                    key={g.id}
-                    className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="rounded-xl bg-primary/15 p-2 shrink-0">
-                          <Icon className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-display text-lg truncate">{g.name}</div>
-                          <div className="text-[11px] text-muted-foreground">{g.type}</div>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
-                          onClick={() => startEdit(g)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-rose-400"
-                          onClick={() =>
-                            setState((s) => ({
-                              ...s,
-                              goals: s.goals.filter((x) => x.id !== g.id),
-                            }))
-                          }
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+      <GlassCard>
+        <SectionTitle title="Your Goals" subtitle="Future-priced and tracked monthly"
+          right={
+            <div className="flex gap-2">
+              <Button onClick={startNew} className="gap-1"><Plus className="h-4 w-4" /> Add Goal</Button>
+            </div>
+          } />
+        {state.goals.length === 0 ? (
+          <EmptyState icon={Target} title="No goals yet"
+            description="Add your first life goal and we'll inflation-adjust it for you."
+            cta={<Button onClick={startNew} className="gap-1"><Plus className="h-4 w-4" /> Add Your First Goal</Button>} />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {state.goals.map((g) => {
+              const c = computeGoal(g);
+              const ccy = g.currency || base;
+              return (
+                <div key={g.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="text-3xl">{g.icon || TEMPLATES[g.type]?.icon || "🎯"}</div>
+                      <div className="min-w-0">
+                        <div className="font-display text-lg truncate">{g.name}</div>
+                        <div className="text-[11px] text-muted-foreground">{g.type} · {ccy}</div>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <div className="text-muted-foreground">Today's cost</div>
-                        <div className="tabular text-sm">{formatINR(g.currentCost)}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">In {c.years}y (inflation)</div>
-                        <div
-                          className="tabular text-sm"
-                          style={{ color: "var(--color-warning)" }}
-                        >
-                          {formatINR(c.futureTarget)}
-                        </div>
-                      </div>
+                    <div className="flex gap-1">
+                      <button onClick={() => startEdit(g)} className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => {
+                        if (!confirm("Delete this goal?")) return;
+                        setState((s) => ({ ...s, goals: s.goals.filter((x) => x.id !== g.id) }));
+                        toast.success("Deleted");
+                      }} className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-rose-400">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
-                        <span>Progress</span>
-                        <span className="tabular">{pct(c.progress, 1)}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700 ease-out"
-                          style={{
-                            width: `${clamp(c.progress)}%`,
-                            backgroundColor: "var(--color-positive)",
-                          }}
-                        />
-                      </div>
+                      <div className="text-muted-foreground">Today's cost</div>
+                      <div className="tabular text-sm">{formatMoney(g.currentCost, ccy)}</div>
                     </div>
-
-                    <div className="flex items-end justify-between pt-1">
-                      <div>
-                        <div className="text-[11px] text-muted-foreground">Monthly SIP needed</div>
-                        <div
-                          className="font-display text-2xl tabular"
-                          style={{ color: "var(--color-positive)" }}
-                        >
-                          {formatINR(c.monthlyNeeded)}
-                        </div>
-                      </div>
-                      <div className="rounded-full bg-white/5 text-[11px] px-2 py-1 text-muted-foreground">
-                        {c.years > 0 ? `${c.years}y left` : "Due now"}
+                    <div>
+                      <div className="text-muted-foreground">In {c.years}y</div>
+                      <div className="tabular text-sm" style={{ color: "var(--color-warning)" }}>
+                        {formatMoney(c.futureTarget, ccy)}
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </GlassCard>
+                  <div>
+                    <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
+                      <span>Progress</span>
+                      <span className="tabular">{pct(c.progress, 1)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700 ease-out"
+                        style={{ width: `${clamp(c.progress)}%`, backgroundColor: "var(--color-positive)" }} />
+                    </div>
+                  </div>
+                  <div className="flex items-end justify-between pt-1">
+                    <div>
+                      <div className="text-[11px] text-muted-foreground">Monthly SIP needed</div>
+                      <div className="font-display text-2xl tabular" style={{ color: "var(--color-positive)" }}>
+                        {formatMoney(c.monthlyNeeded, ccy)}
+                      </div>
+                    </div>
+                    <div className="rounded-full bg-white/5 text-[11px] px-2 py-1 text-muted-foreground">
+                      {c.years > 0 ? `${c.years}y left` : "Due now"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </GlassCard>
 
-        <GlassCard>
-          <SectionTitle title="Goals Summary" subtitle="The big picture" />
-          <div className="flex items-center justify-center my-4">
-            <RingProgress value={overallPct} />
-          </div>
-          <div className="space-y-3">
-            <Row label="Future obligations" value={formatINR(summary.future)} />
-            <Row
-              label="Total monthly SIP"
-              value={formatINR(summary.monthly)}
-              color="var(--color-positive)"
-            />
-            <Row
-              label="Currently saved"
-              value={formatINR(summary.savings)}
-            />
-            <Row
-              label="Earliest deadline"
-              value={earliest ? String(earliest) : "—"}
-            />
-          </div>
-        </GlassCard>
-      </div>
+      {/* Floating Calculator Button */}
+      <button onClick={() => setCalcOpen(true)}
+        className="fixed bottom-24 md:bottom-24 right-6 h-12 px-4 rounded-full bg-card border border-border shadow-xl flex items-center gap-2 hover:bg-accent transition-colors z-20"
+        aria-label="Inflation calculator">
+        <Calculator className="h-4 w-4" /> <span className="text-sm">Inflation</span>
+      </button>
+
+      {calcOpen && <InflationPanel onClose={() => setCalcOpen(false)} />}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-2xl">
               {editing ? "Edit Goal" : "New Goal"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 gap-4">
+            <div>
+              <FieldLabel>Template</FieldLabel>
+              <Select value={form.type} onValueChange={applyTemplate}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {GOAL_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{TEMPLATES[t].icon} {t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <FieldLabel>Goal Name</FieldLabel>
+              <input className="underline-input" placeholder="Buy a home"
+                value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <FieldLabel>Goal Name</FieldLabel>
-                <input
-                  className="underline-input"
-                  placeholder="Buy a home"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
+                <FieldLabel>Current Cost</FieldLabel>
+                <MoneyInput value={form.currentCost} onChange={(n) => setForm({ ...form, currentCost: n })} />
               </div>
               <div>
-                <FieldLabel>Goal Type</FieldLabel>
-                <Select
-                  value={form.type}
-                  onValueChange={(v) => setForm({ ...form, type: v })}
-                >
-                  <SelectTrigger className="bg-white/[0.04] border-white/10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GOAL_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <FieldLabel>Current Cost (₹)</FieldLabel>
-                <MoneyInput
-                  value={form.currentCost}
-                  onChange={(n) => setForm({ ...form, currentCost: n })}
-                />
+                <FieldLabel>Currency</FieldLabel>
+                <CurrencySelect value={form.currency || base} onChange={(c) => setForm({ ...form, currency: c })} />
               </div>
               <div>
                 <FieldLabel>Target Year</FieldLabel>
-                <NumberInput
-                  value={form.targetYear}
-                  onChange={(n) => setForm({ ...form, targetYear: n })}
-                  min={new Date().getFullYear() + 1}
-                />
+                <NumberInput value={form.targetYear} onChange={(n) => setForm({ ...form, targetYear: n })}
+                  min={new Date().getFullYear() + 1} />
               </div>
               <div>
                 <FieldLabel>Inflation %</FieldLabel>
-                <NumberInput
-                  value={form.inflation}
-                  onChange={(n) => setForm({ ...form, inflation: n })}
-                />
+                <NumberInput value={form.inflation} onChange={(n) => setForm({ ...form, inflation: n })} />
               </div>
-              <div>
-                <FieldLabel>Current Savings (₹)</FieldLabel>
-                <MoneyInput
-                  value={form.currentSavings}
-                  onChange={(n) => setForm({ ...form, currentSavings: n })}
-                />
+              <div className="col-span-2">
+                <FieldLabel>Current Savings</FieldLabel>
+                <MoneyInput value={form.currentSavings} onChange={(n) => setForm({ ...form, currentSavings: n })} />
               </div>
               <div className="col-span-2">
                 <FieldLabel>Linked Asset / SIP (optional)</FieldLabel>
-                <input
-                  className="underline-input"
-                  placeholder="e.g. Parag Parikh Flexi Cap"
-                  value={form.linked || ""}
-                  onChange={(e) => setForm({ ...form, linked: e.target.value })}
-                />
+                <input className="underline-input" placeholder="e.g. Parag Parikh Flexi Cap"
+                  value={form.linked || ""} onChange={(e) => setForm({ ...form, linked: e.target.value })} />
               </div>
             </div>
-            <Button className="w-full" onClick={save}>
+            <Button className="w-full" onClick={save} disabled={!form.name || !form.currentCost}>
               {editing ? "Update Goal" : "Create Goal"}
             </Button>
           </div>
@@ -362,61 +225,66 @@ export function GoalsView() {
   );
 }
 
-function Row({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="tabular font-display text-base" style={{ color }}>
-        {value}
-      </span>
-    </div>
-  );
-}
+function InflationPanel({ onClose }: { onClose: () => void }) {
+  const { state } = useFinance();
+  const base = state.baseCurrency || "INR";
+  const [cost, setCost] = React.useState(1000000);
+  const [years, setYears] = React.useState(10);
+  const [rate, setRate] = React.useState(6);
+  const [ccy, setCcy] = React.useState(base);
 
-function RingProgress({ value }: { value: number }) {
-  const size = 160;
-  const stroke = 14;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c * (1 - clamp(value) / 100);
+  const future = cost * Math.pow(1 + rate / 100, years);
+  const sip = years > 0 ? future / (years * 12) : future;
+
   return (
-    <div className="relative">
-      <svg width={size} height={size} className="-rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke="rgba(255,255,255,0.06)"
-          strokeWidth={stroke}
-          fill="none"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke="var(--color-positive)"
-          strokeWidth={stroke}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 900ms ease-out" }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="font-display text-3xl tabular">{Math.round(value)}%</div>
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-          Overall
+    <>
+      <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={onClose} />
+      <aside className="fixed top-0 right-0 bottom-0 z-50 w-full md:w-96 bg-card border-l border-border p-6 overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-display text-xl flex items-center gap-2">
+            <Calculator className="h-5 w-5" /> Inflation Calculator
+          </h3>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-accent"><X className="h-5 w-5" /></button>
         </div>
-      </div>
-    </div>
+        <div className="space-y-4">
+          <div>
+            <FieldLabel>Currency</FieldLabel>
+            <CurrencySelect value={ccy} onChange={setCcy} />
+          </div>
+          <div>
+            <FieldLabel>Current Estimated Cost ({getCurrency(ccy).symbol})</FieldLabel>
+            <MoneyInput value={cost} onChange={setCost} />
+          </div>
+          <div>
+            <FieldLabel>Years to Goal</FieldLabel>
+            <NumberInput value={years} onChange={setYears} />
+          </div>
+          <div>
+            <FieldLabel>Expected Inflation Rate %</FieldLabel>
+            <NumberInput value={rate} onChange={setRate} />
+          </div>
+          <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Future Inflated Amount</div>
+              <div className="font-display text-3xl tabular mt-1" style={{ color: "var(--color-warning)" }}>
+                {formatMoney(future, ccy)}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Cost × (1 + rate/100) ^ years
+              </p>
+            </div>
+            <div className="pt-3 border-t border-border">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Required Monthly SIP</div>
+              <div className="font-display text-3xl tabular mt-1" style={{ color: "var(--color-positive)" }}>
+                {formatMoney(sip, ccy)}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Future Amount ÷ (years × 12) — simple linear
+              </p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

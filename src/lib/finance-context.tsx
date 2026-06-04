@@ -2,6 +2,7 @@ import * as React from "react";
 import { uid } from "./finance-utils";
 import { decryptWithKey, encryptWithKey } from "./crypto";
 import { useLock } from "./lock-context";
+import { fetchFxRates, type FxCache, convert } from "./currency";
 
 export type AssetCategory =
   | "cash"
@@ -23,8 +24,16 @@ export type TxType = "income" | "expense" | "investment";
 export interface AssetItem {
   id: string;
   category: AssetCategory;
+  subtype?: string;
   name: string;
   value: number;
+  invested?: number;
+  currency?: string;
+  notes?: string;
+  // Stock/MF specifics
+  ticker?: string;
+  units?: number;
+  avgPrice?: number;
 }
 export interface LiabilityItem {
   id: string;
@@ -33,14 +42,21 @@ export interface LiabilityItem {
   principal: number;
   rate: number;
   emi: number;
+  currency?: string;
+  originalPrincipal?: number;
+  startDate?: string;
+  dueDate?: string;
+  notes?: string;
 }
 export interface Transaction {
   id: string;
-  date: string; // ISO yyyy-mm-dd
+  date: string;
   type: TxType;
   category: string;
   description: string;
   amount: number;
+  accountId?: string;
+  currency?: string;
 }
 export interface RecurringTemplate {
   id: string;
@@ -50,6 +66,7 @@ export interface RecurringTemplate {
   category: string;
   frequency: "monthly" | "quarterly" | "yearly";
   nextDue: string;
+  accountId?: string;
 }
 export interface Goal {
   id: string;
@@ -60,6 +77,8 @@ export interface Goal {
   inflation: number;
   linked?: string;
   currentSavings: number;
+  currency?: string;
+  icon?: string;
 }
 export interface NetWorthSnapshot {
   id: string;
@@ -70,37 +89,90 @@ export interface NetWorthSnapshot {
   assetBreakdown: Record<AssetCategory, number>;
 }
 
+export interface VaultRecord {
+  id: string;
+  title: string;
+  subtitle?: string;
+  fields: Record<string, string>;
+  updatedAt: number;
+}
+
+export type AccountType = "bank" | "credit" | "cash" | "wallet" | "other";
+
+export interface Account {
+  id: string;
+  type: AccountType;
+  name: string;
+  bank?: string;
+  accountSubtype?: string; // Savings/Current/Salary/NRE/NRO
+  last4?: string;
+  openingBalance: number;
+  currency: string;
+  asOf: string;
+  color: string;
+  icon: string;
+  emergencyFund?: boolean;
+  creditLimit?: number;
+  issuer?: string;
+}
+
 export const EXPENSE_CATEGORIES = [
-  "Housing",
-  "Utilities",
-  "Food & Groceries",
+  "Housing & Rent",
+  "Food & Dining",
+  "Groceries",
   "Transport",
   "Healthcare",
-  "Subscriptions",
-  "Entertainment",
-  "Shopping",
   "Education",
   "Insurance",
-  "Miscellaneous",
+  "EMI & Loans",
+  "Entertainment",
+  "Utilities",
+  "Shopping",
+  "Travel & Vacations",
+  "Subscriptions",
+  "Personal Care",
+  "Credit Card Payment",
+  "Taxes",
+  "Cash Withdrawal",
+  "Childcare",
+  "Other Expense",
+] as const;
+
+export const INCOME_CATEGORIES = [
+  "Salary",
+  "Freelance",
+  "Business Income",
+  "Rental Income",
+  "Interest",
+  "Dividends",
+  "Gift",
+  "Other Income",
+] as const;
+
+export const INVESTMENT_CATEGORIES = [
+  "Mutual Fund SIP",
+  "Stock Purchase",
+  "FD/RD Deposit",
+  "PPF/EPF",
+  "NPS",
+  "Gold",
+  "Crypto",
+  "Other Investment",
 ] as const;
 
 export const ALL_TX_CATEGORIES = [
   ...EXPENSE_CATEGORIES,
-  "Salary",
-  "Business",
-  "Interest",
-  "Dividend",
-  "Other Income",
-  "Mutual Funds",
-  "Stocks",
-  "PPF/EPF",
-  "Gold",
-  "Crypto",
-  "Other Investment",
+  ...INCOME_CATEGORIES,
+  ...INVESTMENT_CATEGORIES,
 ];
 
+export function categoriesForType(type: TxType): readonly string[] {
+  if (type === "income") return INCOME_CATEGORIES;
+  if (type === "investment") return INVESTMENT_CATEGORIES;
+  return EXPENSE_CATEGORIES;
+}
+
 export interface FinanceState {
-  // Essentials
   age: number;
   monthlyIncome: number;
   monthlyExpenses: number;
@@ -110,49 +182,21 @@ export interface FinanceState {
   dependents: number;
   healthInsurance: number;
 
-  // Net worth
   assets: AssetItem[];
   liabilities: LiabilityItem[];
   targetAllocation: Record<AssetCategory, number>;
   snapshots: NetWorthSnapshot[];
 
-  // Cash flow
   transactions: Transaction[];
   budgets: Record<string, number>;
   recurring: RecurringTemplate[];
 
-  // Goals
   goals: Goal[];
-
-  // Vault (encrypted credentials store)
   vault: Record<string, VaultRecord[]>;
-
-  // Cash flow extras
   accounts: Account[];
-}
 
-export interface VaultRecord {
-  id: string;
-  title: string;
-  subtitle?: string;
-  fields: Record<string, string>;
-  updatedAt: number;
-}
-
-export interface Account {
-  id: string;
-  type: "bank" | "credit" | "cash" | "wallet" | "other";
-  name: string;
-  bank?: string;
-  last4?: string;
-  openingBalance: number;
-  currency: string;
-  asOf: string;
-  color: string;
-  icon: string;
-  emergencyFund: boolean;
-  creditLimit?: number;
-  issuer?: string;
+  baseCurrency: string;
+  lastUsedAccountId?: string;
 }
 
 const initialState: FinanceState = {
@@ -181,6 +225,7 @@ const initialState: FinanceState = {
   goals: [],
   vault: {},
   accounts: [],
+  baseCurrency: "INR",
 };
 
 const STORAGE_KEY_PLAIN = "lifevault_data";
@@ -194,6 +239,8 @@ type Ctx = {
   exportData: () => void;
   importData: (file: File) => Promise<void>;
   syncStatus: "idle" | "saving" | "synced" | "error";
+  fx: FxCache | null;
+  refreshFx: (force?: boolean) => Promise<void>;
 };
 
 const FinanceContext = React.createContext<Ctx | null>(null);
@@ -205,13 +252,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [syncStatus, setSyncStatus] = React.useState<"idle" | "saving" | "synced" | "error">(
     "idle",
   );
+  const [fx, setFx] = React.useState<FxCache | null>(null);
 
-  // Load on mount or when key changes
+  // Load FX on mount
+  React.useEffect(() => {
+    void (async () => {
+      const r = await fetchFxRates(false);
+      if (r) setFx(r);
+    })();
+  }, []);
+
+  const refreshFx = React.useCallback(async (force = false) => {
+    const r = await fetchFxRates(force);
+    if (r) setFx(r);
+  }, []);
+
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        // Migrate legacy plaintext data once
         const legacy = localStorage.getItem(STORAGE_KEY_PLAIN);
         if (legacy && key) {
           try {
@@ -233,7 +292,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             if (!cancelled) setState(initialState);
           }
         } else if (legacy && !key) {
-          // Backward compat: plaintext only
           try {
             const parsed = JSON.parse(legacy);
             if (!cancelled) setState({ ...initialState, ...parsed });
@@ -247,7 +305,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     };
   }, [key]);
 
-  // Encrypted save with 800ms debounce
   React.useEffect(() => {
     if (!hydrated) return;
     setSyncStatus("saving");
@@ -298,7 +355,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <FinanceContext.Provider
-      value={{ state, setState, update, reset, exportData, importData, syncStatus }}
+      value={{
+        state,
+        setState,
+        update,
+        reset,
+        exportData,
+        importData,
+        syncStatus,
+        fx,
+        refreshFx,
+      }}
     >
       {children}
     </FinanceContext.Provider>
@@ -314,7 +381,7 @@ export function useFinance() {
 // ---------- Derived selectors ----------
 
 export const ASSET_LABELS: Record<AssetCategory, string> = {
-  cash: "Cash & Bank",
+  cash: "Cash & Savings",
   equity: "Equity",
   debt: "Debt",
   gold: "Gold & Silver",
@@ -330,14 +397,64 @@ export const LIABILITY_LABELS: Record<LiabilityCategory, string> = {
   other: "Other",
 };
 
-export function sumAssets(state: FinanceState): number {
-  return state.assets.reduce((s, a) => s + (a.value || 0), 0);
+/** Current balance of an account = opening + income − expense, on transactions
+ *  belonging to that account. Currency is the account currency. */
+export function accountBalance(state: FinanceState, accountId: string): number {
+  const acc = state.accounts.find((a) => a.id === accountId);
+  if (!acc) return 0;
+  const opening = acc.openingBalance || 0;
+  const txs = state.transactions.filter((t) => t.accountId === accountId);
+  if (acc.type === "credit") {
+    // Credit cards: outstanding = opening + expenses − credit card payments
+    const exp = txs
+      .filter((t) => t.type === "expense" && t.category !== "Credit Card Payment")
+      .reduce((s, t) => s + t.amount, 0);
+    const pay = txs
+      .filter((t) => t.type === "expense" && t.category === "Credit Card Payment")
+      .reduce((s, t) => s + t.amount, 0);
+    return opening + exp - pay;
+  }
+  const inc = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const exp = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  return opening + inc - exp;
 }
-export function sumLiabilities(state: FinanceState): number {
-  return state.liabilities.reduce((s, l) => s + (l.principal || 0), 0);
+
+export function sumAssets(state: FinanceState, fx: FxCache | null, base: string): number {
+  const assetsTotal = state.assets.reduce(
+    (s, a) => s + convert(a.value || 0, a.currency || base, base, fx),
+    0,
+  );
+  const accountsTotal = state.accounts
+    .filter((a) => a.type !== "credit")
+    .reduce(
+      (s, a) => s + convert(accountBalance(state, a.id), a.currency, base, fx),
+      0,
+    );
+  return assetsTotal + accountsTotal;
 }
+
+export function sumLiabilities(
+  state: FinanceState,
+  fx: FxCache | null,
+  base: string,
+): number {
+  const liabTotal = state.liabilities.reduce(
+    (s, l) => s + convert(l.principal || 0, l.currency || base, base, fx),
+    0,
+  );
+  const cardsTotal = state.accounts
+    .filter((a) => a.type === "credit")
+    .reduce(
+      (s, a) => s + convert(accountBalance(state, a.id), a.currency, base, fx),
+      0,
+    );
+  return liabTotal + cardsTotal;
+}
+
 export function assetsByCategory(
   state: FinanceState,
+  fx: FxCache | null,
+  base: string,
 ): Record<AssetCategory, number> {
   const out: Record<AssetCategory, number> = {
     cash: 0,
@@ -348,35 +465,55 @@ export function assetsByCategory(
     crypto: 0,
   };
   state.assets.forEach((a) => {
-    out[a.category] = (out[a.category] || 0) + (a.value || 0);
+    out[a.category] += convert(a.value || 0, a.currency || base, base, fx);
   });
+  // Bank/cash/wallet accounts → cash
+  state.accounts
+    .filter((a) => a.type !== "credit")
+    .forEach((a) => {
+      out.cash += convert(accountBalance(state, a.id), a.currency, base, fx);
+    });
   return out;
 }
 
-export function computeHealthScore(state: FinanceState): {
+export function liquidEmergencyAssets(
+  state: FinanceState,
+  fx: FxCache | null,
+  base: string,
+): number {
+  return state.accounts
+    .filter((a) => a.type !== "credit" && a.emergencyFund)
+    .reduce(
+      (s, a) => s + convert(accountBalance(state, a.id), a.currency, base, fx),
+      0,
+    );
+}
+
+export function computeHealthScore(
+  state: FinanceState,
+  fx: FxCache | null,
+): {
   total: number;
   emergency: number;
   insurance: number;
   health: number;
   savings: number;
 } {
-  // Emergency 30 pts
+  const base = state.baseCurrency || "INR";
+  const liquid = liquidEmergencyAssets(state, fx, base) || state.emergencyFund;
   const target = state.monthlyExpenses * 6;
-  const emergencyPct = target > 0 ? Math.min(1, state.emergencyFund / target) : 0;
+  const emergencyPct = target > 0 ? Math.min(1, liquid / target) : 0;
   const emergency = emergencyPct * 30;
 
-  // Insurance 20 pts
   const idealTerm = state.monthlyExpenses * 12 * 25;
   const termPct = idealTerm > 0 ? Math.min(1, state.termInsurance / idealTerm) : 0;
   const insurance = termPct * 20;
 
-  // Health 20 pts
   const idealHealth = state.dependents * 500000;
   const healthPct =
     idealHealth > 0 ? Math.min(1, state.healthInsurance / idealHealth) : 0;
   const health = healthPct * 20;
 
-  // Savings rate 30 pts (full at 20%)
   const sr = state.monthlyIncome > 0 ? state.intendedSavings / state.monthlyIncome : 0;
   const savings = Math.min(1, sr / 0.2) * 30;
 
