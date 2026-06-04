@@ -332,6 +332,39 @@ export function ensureRegions(s: FinanceState): FinanceState {
 const STORAGE_KEY_PLAIN = "lifevault_data";
 const STORAGE_KEY_ENC = "lifevault_cache";
 
+type FinanceCounts = {
+  accounts: number;
+  transactions: number;
+  assets: number;
+  liabilities: number;
+  goals: number;
+  bills: number;
+  vaultItems: number;
+};
+
+type SyncDiagnostics = {
+  checkedAt: number | null;
+  local: FinanceCounts;
+  remote: {
+    status: "not_connected" | "checking" | "missing" | "available" | "locked" | "error";
+    modifiedTime?: string;
+    counts?: FinanceCounts;
+    message?: string;
+  };
+};
+
+function countFinanceState(s: FinanceState): FinanceCounts {
+  return {
+    accounts: s.accounts.length,
+    transactions: s.transactions.length,
+    assets: s.assets.length,
+    liabilities: s.liabilities.length,
+    goals: s.goals.length,
+    bills: s.bills.length,
+    vaultItems: Object.values(s.vault).reduce((total, items) => total + items.length, 0),
+  };
+}
+
 type Ctx = {
   state: FinanceState;
   setState: React.Dispatch<React.SetStateAction<FinanceState>>;
@@ -341,7 +374,11 @@ type Ctx = {
   importData: (file: File) => Promise<void>;
   syncStatus: "idle" | "saving" | "synced" | "error";
   lastSyncedAt: number | null;
+  syncDiagnostics: SyncDiagnostics;
   syncNow: () => Promise<void>;
+  inspectDrive: () => Promise<void>;
+  pullFromDrive: () => Promise<boolean>;
+  pushToDrive: () => Promise<void>;
   fx: FxCache | null;
   refreshFx: (force?: boolean) => Promise<void>;
 };
