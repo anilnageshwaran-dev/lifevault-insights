@@ -133,13 +133,17 @@ export function LifeVaultApp() {
       <main className="flex-1 min-w-0">
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-20 bg-background/85 backdrop-blur-md border-b border-border px-3 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTabAnimated("settings")}
+            className="flex items-center gap-2 rounded-lg hover:bg-accent p-1 -m-1 transition-colors text-left"
+            aria-label="Open Settings"
+          >
             <LifeVaultIcon className="h-8 w-8" />
             <div>
               <div className="font-display text-base leading-none">LifeVault</div>
               <div className="text-[10px] text-muted-foreground mt-0.5">{activeLabel}</div>
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-1">
             <SyncDot status={syncStatus} compact />
             <button onClick={toggleTheme} className="p-2 rounded-lg text-muted-foreground hover:bg-accent" aria-label="Toggle theme">
