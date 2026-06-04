@@ -580,7 +580,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, key, drive.connected, drive]);
+  }, [hydrated, key, drive.connected, drive, decryptSyncData, encryptSyncData]);
 
   const persistLocal = React.useCallback(async (): Promise<void> => {
     const k = keyRef.current;
@@ -595,7 +595,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     } catch {
       setSyncStatus("error");
     }
-  }, []);
+  }, [encryptSyncData]);
 
   // Core writer — persists locally and pushes to Drive when connected.
   const writeAndPush = React.useCallback(async (force = false): Promise<void> => {
@@ -678,8 +678,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       }
       const blob = await downloadAppFile(file.id);
       try {
-        const parsed = await decryptWithKey<FinanceState>(blob, k);
+        const parsed = await decryptSyncData<FinanceState>(blob);
         const remoteState = ensureRegions({ ...initialState, ...parsed });
+        if (!isSyncEnvelopeBlob(blob)) {
+          const migrated = await encryptSyncData(remoteState);
+          await updateAppFile(file.id, migrated);
+          try {
+            const fresh = await findAppFile();
+            if (fresh) driveModifiedRef.current = fresh.modifiedTime ?? null;
+          } catch {}
+        }
         setSyncDiagnostics((diag) => ({
           ...diag,
           checkedAt: Date.now(),
@@ -689,14 +697,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             counts: countFinanceState(remoteState),
           },
         }));
-      } catch {
+      } catch (error) {
         setSyncDiagnostics((diag) => ({
           ...diag,
           checkedAt: Date.now(),
           remote: {
             status: "locked",
             modifiedTime: file.modifiedTime,
-            message: "A Drive file exists, but this PIN cannot decrypt it.",
+            message: (error as Error).message || "A Drive file exists, but this PIN cannot decrypt it.",
           },
         }));
       }
@@ -707,7 +715,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         remote: { status: "error", message: (e as Error).message || "Drive check failed" },
       }));
     }
-  }, []);
+  }, [decryptSyncData, encryptSyncData]);
 
   const pullIfRemoteNewer = React.useCallback(async (force = false): Promise<boolean> => {
     const k = keyRef.current;
