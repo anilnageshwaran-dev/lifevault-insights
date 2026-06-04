@@ -604,10 +604,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const d = driveRef.current;
     setSyncStatus("saving");
     let enc: string | null = null;
+    let driveEnc: string | null = null;
     try {
       if (k) {
         enc = await encryptWithKey(s, k);
         localStorage.setItem(STORAGE_KEY_ENC, enc);
+        driveEnc = await encryptSyncData(s);
       } else {
         localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(s));
       }
@@ -615,7 +617,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus("error");
       return;
     }
-    if (d.connected && enc) {
+    if (d.connected && driveEnc) {
       if (driveWriteBlockedRef.current) {
         setSyncStatus("error");
         return;
@@ -624,9 +626,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const token = await d.ensureToken();
         if (!token) throw new Error("no token");
         if (driveFileIdRef.current) {
-          await updateAppFile(driveFileIdRef.current, enc);
+          await updateAppFile(driveFileIdRef.current, driveEnc);
         } else {
-          const id = await createAppFile(enc);
+          const id = await createAppFile(driveEnc);
           driveFileIdRef.current = id;
           try {
             localStorage.setItem("lifevault_drive_fileid", id);
