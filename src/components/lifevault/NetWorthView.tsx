@@ -241,19 +241,31 @@ export function NetWorthView() {
                     {manualItems.length === 0 && accountItems.length === 0 && (
                       <p className="text-xs text-muted-foreground py-1">No entries yet.</p>
                     )}
-                    {manualItems.map((item) => (
+                    {manualItems.map((item) => {
+                      const invested = item.invested || 0;
+                      const gain = invested > 0 ? item.value - invested : 0;
+                      const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
+                      const gainColor = gain >= 0 ? "var(--color-positive)" : "var(--color-danger)";
+                      return (
                       <div key={item.id}
                         className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
                         <div className="min-w-0">
                           <div className="text-sm truncate">{item.name || "(unnamed)"}</div>
                           <div className="text-[11px] text-muted-foreground">
                             {item.subtype || ASSET_LABELS[cat]}
-                            {item.invested ? ` · Invested ${formatMoney(item.invested, item.currency || base)}` : ""}
+                            {invested ? ` · Invested ${formatMoney(invested, item.currency || base)}` : ""}
+                            {item.units ? ` · ${item.units} units` : ""}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <div className="tabular text-sm text-right">
                             {formatMoney(item.value, item.currency || base)}
+                            {invested > 0 && (
+                              <div className="text-[11px] flex items-center justify-end gap-1" style={{ color: gainColor }}>
+                                {gain >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                                {gain >= 0 ? "+" : ""}{formatMoney(gain, item.currency || base)} ({gainPct.toFixed(1)}%)
+                              </div>
+                            )}
                             {(item.currency || base) !== base && (
                               <div className="text-[11px] text-muted-foreground">
                                 · {formatMoney(convert(item.value, item.currency || base, base, fx), base)}
@@ -270,7 +282,7 @@ export function NetWorthView() {
                           </button>
                         </div>
                       </div>
-                    ))}
+                    );})}
                     <Button variant="ghost" size="sm" className="gap-1"
                       onClick={() => setOpenAdd({ kind: "asset", category: cat })}>
                       <Plus className="h-3.5 w-3.5" /> Add asset
