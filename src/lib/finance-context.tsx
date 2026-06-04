@@ -207,8 +207,24 @@ export function categoriesForType(type: TxType): readonly string[] {
   return EXPENSE_CATEGORIES;
 }
 
+export interface Region {
+  id: string;
+  name: string;          // "India", "UK", "USA"
+  currency: string;      // ISO code (e.g. "INR", "GBP")
+  flag?: string;         // emoji
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  intendedSavings: number;
+  emergencyFund: number;
+  termInsurance: number;
+  healthInsurance: number;
+  dependents: number;
+  notes?: string;
+}
+
 export interface FinanceState {
   age: number;
+  // Legacy single-region fields — preserved for backward compat. New UI uses `regions`.
   monthlyIncome: number;
   monthlyExpenses: number;
   intendedSavings: number;
@@ -216,6 +232,9 @@ export interface FinanceState {
   termInsurance: number;
   dependents: number;
   healthInsurance: number;
+
+  // Multi-region (per country / currency) financial baselines.
+  regions: Region[];
 
   assets: AssetItem[];
   liabilities: LiabilityItem[];
@@ -244,6 +263,7 @@ const initialState: FinanceState = {
   termInsurance: 0,
   dependents: 0,
   healthInsurance: 0,
+  regions: [],
   assets: [],
   liabilities: [],
   targetAllocation: {
@@ -264,6 +284,26 @@ const initialState: FinanceState = {
   bills: [],
   baseCurrency: "INR",
 };
+
+/** Ensure at least one region exists; migrates legacy top-level fields into a seeded region. */
+export function ensureRegions(s: FinanceState): FinanceState {
+  if (s.regions && s.regions.length > 0) return s;
+  const base = s.baseCurrency || "INR";
+  const seeded: Region = {
+    id: uid(),
+    name: base === "INR" ? "India" : base === "GBP" ? "UK" : "Primary",
+    currency: base,
+    flag: base === "INR" ? "🇮🇳" : base === "GBP" ? "🇬🇧" : "🌐",
+    monthlyIncome: s.monthlyIncome || 0,
+    monthlyExpenses: s.monthlyExpenses || 0,
+    intendedSavings: s.intendedSavings || 0,
+    emergencyFund: s.emergencyFund || 0,
+    termInsurance: s.termInsurance || 0,
+    healthInsurance: s.healthInsurance || 0,
+    dependents: s.dependents || 0,
+  };
+  return { ...s, regions: [seeded] };
+}
 
 const STORAGE_KEY_PLAIN = "lifevault_data";
 const STORAGE_KEY_ENC = "lifevault_cache";
