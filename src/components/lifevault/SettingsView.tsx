@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   User, Settings as SettingsIcon, ShieldCheck, Database, Sliders, Download, Upload,
-  LogOut, Sun, Moon, Monitor, Smartphone, Cloud, RefreshCw, Users,
+  LogOut, Sun, Moon, Monitor, Smartphone, Cloud, RefreshCw, Users, MessageSquare,
 } from "lucide-react";
 import { useFinance, accountBalance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
@@ -14,6 +14,8 @@ import { HouseholdTab } from "./HouseholdTab";
 import { convert } from "@/lib/currency";
 import { toast } from "sonner";
 import JSZip from "jszip";
+import { useServerFn } from "@tanstack/react-start";
+import { submitFeedback } from "@/lib/feedback.functions";
 
 type Tab = "account" | "family" | "preferences" | "security" | "data" | "general";
 
