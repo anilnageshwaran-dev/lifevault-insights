@@ -265,6 +265,31 @@ export function EssentialsView() {
         </div>
       </GlassCard>
 
+      {/* Shared household basics — common across all regions */}
+      <GlassCard>
+        <SectionTitle title="About You" subtitle="Shared across every region" />
+        <div className="grid grid-cols-2 gap-x-5 gap-y-4 max-w-md">
+          <div>
+            <FieldLabel>Age</FieldLabel>
+            <NumberInput value={state.age} onChange={(n) => update("age", n)} placeholder="30" />
+          </div>
+          <div>
+            <FieldLabel>Dependents</FieldLabel>
+            <NumberInput
+              value={state.dependents}
+              onChange={(n) => {
+                update("dependents", n);
+                // Keep per-region health-insurance recommendations in sync
+                setState((s) => ({
+                  ...s,
+                  regions: s.regions.map((r) => ({ ...r, dependents: n })),
+                }));
+              }}
+            />
+          </div>
+        </div>
+      </GlassCard>
+
       {/* Region tabs */}
       <GlassCard className="!p-3">
         <div className="flex items-center gap-2 flex-wrap">
@@ -361,14 +386,6 @@ export function EssentialsView() {
                 value={region.currency}
                 onChange={(c) => updateRegion(region.id, { currency: c, flag: flagFor(c) })}
               />
-            </div>
-            <div>
-              <FieldLabel>Age</FieldLabel>
-              <NumberInput value={state.age} onChange={(n) => update("age", n)} placeholder="30" />
-            </div>
-            <div>
-              <FieldLabel>Dependents (this region)</FieldLabel>
-              <NumberInput value={region.dependents} onChange={(n) => updateRegion(region.id, { dependents: n })} />
             </div>
             <div>
               <FieldLabel>Monthly Income ({ccy})</FieldLabel>
