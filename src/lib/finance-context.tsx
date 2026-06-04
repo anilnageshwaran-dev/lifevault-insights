@@ -65,6 +65,9 @@ export interface Transaction {
   amount: number;
   accountId?: string;
   currency?: string;
+  /** When set, this transaction is part of an account-to-account transfer
+   *  and should be excluded from income/expense/investment totals. */
+  transferId?: string;
 }
 export interface RecurringTemplate {
   id: string;
