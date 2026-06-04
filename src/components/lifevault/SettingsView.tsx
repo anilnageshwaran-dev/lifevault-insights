@@ -858,7 +858,7 @@ function FeedbackCard() {
           category,
           message: trimmed,
           rating,
-          appVersion: "1.2.0",
+          appVersion: APP_VERSION,
           userAgent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 512) : undefined,
         },
       });
