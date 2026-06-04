@@ -1,14 +1,18 @@
 import * as React from "react";
-import { Users, UserPlus, Copy, Trash2, LogOut as LogOutIcon, Crown, Loader2 } from "lucide-react";
+import { Users, UserPlus, Copy, Trash2, LogOut as LogOutIcon, Crown, Loader2, RefreshCw, TrendingUp, Wallet, Target, ShieldCheck } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
+import { useFinance, buildSharedSummary } from "@/lib/finance-context";
+import { formatMoney } from "@/lib/currency";
 import {
   listHouseholds, createHousehold, renameHousehold, deleteHousehold,
   listMembers, listInvites, inviteMember, revokeInvite,
   removeMember, leaveHousehold,
 } from "@/lib/households.functions";
+import { upsertSharedSnapshot, listSharedSnapshots } from "@/lib/shared-snapshot.functions";
+
 
 function getOrigin() {
   if (typeof window === "undefined") return "";
