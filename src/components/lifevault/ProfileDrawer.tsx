@@ -9,7 +9,7 @@ import {
   Settings as SettingsIcon,
   Sun,
   Moon,
-  Lock,
+  
   LogOut,
   RefreshCw,
   Wallet,
@@ -255,15 +255,6 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
             className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm hover:bg-accent transition-colors"
           >
             <SettingsIcon className="h-4 w-4" /> Settings
-          </button>
-          <button
-            onClick={() => {
-              onOpenChange(false);
-              lock();
-            }}
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm hover:bg-accent transition-colors"
-          >
-            <Lock className="h-4 w-4" /> Lock
           </button>
           <button
             onClick={() => {
