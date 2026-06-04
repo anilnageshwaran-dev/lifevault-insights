@@ -141,7 +141,8 @@ export function LifeVaultApp() {
             className="flex items-center gap-2 rounded-lg hover:bg-accent p-1 -m-1 transition-colors text-left"
             aria-label="Open profile"
           >
-            <LifeVaultIcon className="h-8 w-8" />
+            <UserAvatar user={user} size={32} />
+            <LifeVaultIcon className="h-6 w-6" />
             <div>
               <div className="font-display text-base leading-none">LifeVault</div>
               <div className="text-[10px] text-muted-foreground mt-0.5">{activeLabel}</div>
