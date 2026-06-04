@@ -127,6 +127,7 @@ const CATS: Category[] = [
       { key: "willLocation", label: "Will / Nominee Documents Location" },
       { key: "notes", label: "Notes", multiline: true },
     ],
+  },
   {
     id: "nominees", name: "Nominees", emoji: "👨\u200d👩\u200d👧", titleField: "asset", subtitleField: "name",
     fields: [
