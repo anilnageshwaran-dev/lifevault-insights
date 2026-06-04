@@ -198,29 +198,73 @@ type Ctx = {
 const FinanceContext = React.createContext<Ctx | null>(null);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
+  const { key } = useLock();
   const [state, setState] = React.useState<FinanceState>(initialState);
   const [hydrated, setHydrated] = React.useState(false);
+  const [syncStatus, setSyncStatus] = React.useState<"idle" | "saving" | "synced" | "error">(
+    "idle",
+  );
 
+  // Load on mount or when key changes
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setState({ ...initialState, ...parsed });
-      }
-    } catch {}
-    setHydrated(true);
-  }, []);
+    let cancelled = false;
+    (async () => {
+      try {
+        // Migrate legacy plaintext data once
+        const legacy = localStorage.getItem(STORAGE_KEY_PLAIN);
+        if (legacy && key) {
+          try {
+            const parsed = JSON.parse(legacy);
+            const enc = await encryptWithKey(parsed, key);
+            localStorage.setItem(STORAGE_KEY_ENC, enc);
+            localStorage.removeItem(STORAGE_KEY_PLAIN);
+            if (!cancelled) setState({ ...initialState, ...parsed });
+            setHydrated(true);
+            return;
+          } catch {}
+        }
+        const encRaw = localStorage.getItem(STORAGE_KEY_ENC);
+        if (encRaw && key) {
+          try {
+            const parsed = await decryptWithKey<FinanceState>(encRaw, key);
+            if (!cancelled) setState({ ...initialState, ...parsed });
+          } catch {
+            if (!cancelled) setState(initialState);
+          }
+        } else if (legacy && !key) {
+          // Backward compat: plaintext only
+          try {
+            const parsed = JSON.parse(legacy);
+            if (!cancelled) setState({ ...initialState, ...parsed });
+          } catch {}
+        }
+      } catch {}
+      if (!cancelled) setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
 
+  // Encrypted save with 800ms debounce
   React.useEffect(() => {
     if (!hydrated) return;
-    const t = setTimeout(() => {
+    setSyncStatus("saving");
+    const t = setTimeout(async () => {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch {}
-    }, 500);
+        if (key) {
+          const enc = await encryptWithKey(state, key);
+          localStorage.setItem(STORAGE_KEY_ENC, enc);
+        } else {
+          localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(state));
+        }
+        setSyncStatus("synced");
+      } catch {
+        setSyncStatus("error");
+      }
+    }, 800);
     return () => clearTimeout(t);
-  }, [state, hydrated]);
+  }, [state, hydrated, key]);
 
   const update = React.useCallback(
     <K extends keyof FinanceState>(key: K, value: FinanceState[K]) => {
