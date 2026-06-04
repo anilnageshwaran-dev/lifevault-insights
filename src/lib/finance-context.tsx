@@ -358,11 +358,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   );
   const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(null);
   const [fx, setFx] = React.useState<FxCache | null>(null);
+  const [driveReady, setDriveReady] = React.useState(false);
   const driveFileIdRef = React.useRef<string | null>(null);
   const driveModifiedRef = React.useRef<string | null>(null);
   const driveLoadedRef = React.useRef<boolean>(false);
   const syncStatusRef = React.useRef<"idle" | "saving" | "synced" | "error">("idle");
   const suppressNextSaveRef = React.useRef<boolean>(false);
+  const skippedInitialAutoSaveRef = React.useRef<boolean>(false);
   React.useEffect(() => {
     syncStatusRef.current = syncStatus;
   }, [syncStatus]);
@@ -378,6 +380,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     driveRef.current = drive;
   }, [drive]);
+
+  React.useEffect(() => {
+    if (!drive.connected) {
+      driveLoadedRef.current = false;
+      driveModifiedRef.current = null;
+      setDriveReady(false);
+    }
+  }, [drive.connected]);
 
   // Load FX on mount
   React.useEffect(() => {
@@ -447,6 +457,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const file = await findAppFile();
         if (!file) {
           driveLoadedRef.current = true;
+          setDriveReady(true);
           return;
         }
         driveFileIdRef.current = file.id;
@@ -467,6 +478,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           // PIN-encrypted blob from a different PIN — ignore, keep local
         }
         driveLoadedRef.current = true;
+        setDriveReady(true);
       } catch (e) {
         const msg = (e as Error).message || "";
         if (msg.includes("403")) {
