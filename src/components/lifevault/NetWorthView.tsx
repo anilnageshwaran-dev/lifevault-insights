@@ -99,16 +99,12 @@ const SUBTYPES: Record<AssetCategory, string[]> = {
 export function NetWorthView() {
   const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
-  const totalAssets = sumAssets(state, fx, base);
-  const totalLiabs = sumLiabilities(state, fx, base);
-  const netWorth = totalAssets - totalLiabs;
-  const byCat = assetsByCategory(state, fx, base);
 
   const [openAdd, setOpenAdd] = React.useState<{ kind: "asset" | "liability"; category: string } | null>(null);
   const [scheduleFor, setScheduleFor] = React.useState<LiabilityItem | null>(null);
   const [refreshingPrices, setRefreshingPrices] = React.useState(false);
   const [hideValues, setHideValues] = React.useState(false);
-  const [showByCurrency, setShowByCurrency] = React.useState(false);
+  const [displayCcy, setDisplayCcy] = React.useState<string>(base);
   const refreshPricesFn = useServerFn(refreshInvestmentPrices);
 
   // Per-currency breakdown (native amounts, no FX conversion)
@@ -131,6 +127,18 @@ export function NetWorthView() {
       .map(([ccy, v]) => ({ ccy, ...v, net: v.assets - v.liabs }))
       .sort((a, b) => b.assets - a.assets);
   }, [state, base]);
+
+  // Currencies the user actually uses (for the display toggle)
+  const userCurrencies = React.useMemo(() => {
+    const set = new Set<string>([base, ...byCurrency.map((r) => r.ccy)]);
+    return Array.from(set);
+  }, [base, byCurrency]);
+
+  // Totals converted into the chosen display currency
+  const totalAssets = sumAssets(state, fx, displayCcy);
+  const totalLiabs = sumLiabilities(state, fx, displayCcy);
+  const netWorth = totalAssets - totalLiabs;
+  const byCat = assetsByCategory(state, fx, base);
 
   const takeSnapshot = () => {
     const snap: NetWorthSnapshot = {
