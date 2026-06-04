@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import JSZip from "jszip";
 import { useServerFn } from "@tanstack/react-start";
 import { submitFeedback } from "@/lib/feedback.functions";
+import { APP_VERSION } from "@/lib/changelog";
 
 type Tab = "account" | "family" | "preferences" | "security" | "data" | "general";
 
@@ -827,7 +828,7 @@ function GeneralTab() {
       <FeedbackCard />
       <Card>
         <h3 className="font-display text-xl mb-2">App Version</h3>
-        <div className="text-sm text-muted-foreground">LifeVault v1.2.0</div>
+        <div className="text-sm text-muted-foreground">LifeVault v{APP_VERSION}</div>
       </Card>
     </div>
   );
@@ -857,7 +858,7 @@ function FeedbackCard() {
           category,
           message: trimmed,
           rating,
-          appVersion: "1.2.0",
+          appVersion: APP_VERSION,
           userAgent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 512) : undefined,
         },
       });
