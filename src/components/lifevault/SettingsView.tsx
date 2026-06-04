@@ -399,8 +399,7 @@ function DataTab() {
 
   return (
     <div className="space-y-5">
-      <AccountCard />
-      <DriveSyncCard />
+
 
 
 
