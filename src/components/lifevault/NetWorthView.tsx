@@ -56,7 +56,7 @@ import {
   TrendingDown,
   Eye,
   EyeOff,
-  Coins,
+
 } from "lucide-react";
 import {
   PieChart,
@@ -99,16 +99,12 @@ const SUBTYPES: Record<AssetCategory, string[]> = {
 export function NetWorthView() {
   const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
-  const totalAssets = sumAssets(state, fx, base);
-  const totalLiabs = sumLiabilities(state, fx, base);
-  const netWorth = totalAssets - totalLiabs;
-  const byCat = assetsByCategory(state, fx, base);
 
   const [openAdd, setOpenAdd] = React.useState<{ kind: "asset" | "liability"; category: string } | null>(null);
   const [scheduleFor, setScheduleFor] = React.useState<LiabilityItem | null>(null);
   const [refreshingPrices, setRefreshingPrices] = React.useState(false);
   const [hideValues, setHideValues] = React.useState(false);
-  const [showByCurrency, setShowByCurrency] = React.useState(false);
+  const [displayCcy, setDisplayCcy] = React.useState<string>(base);
   const refreshPricesFn = useServerFn(refreshInvestmentPrices);
 
   // Per-currency breakdown (native amounts, no FX conversion)
@@ -131,6 +127,18 @@ export function NetWorthView() {
       .map(([ccy, v]) => ({ ccy, ...v, net: v.assets - v.liabs }))
       .sort((a, b) => b.assets - a.assets);
   }, [state, base]);
+
+  // Currencies the user actually uses (for the display toggle)
+  const userCurrencies = React.useMemo(() => {
+    const set = new Set<string>([base, ...byCurrency.map((r) => r.ccy)]);
+    return Array.from(set);
+  }, [base, byCurrency]);
+
+  // Totals converted into the chosen display currency
+  const totalAssets = sumAssets(state, fx, displayCcy);
+  const totalLiabs = sumLiabilities(state, fx, displayCcy);
+  const netWorth = totalAssets - totalLiabs;
+  const byCat = assetsByCategory(state, fx, base);
 
   const takeSnapshot = () => {
     const snap: NetWorthSnapshot = {
@@ -188,23 +196,37 @@ export function NetWorthView() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground">Total Assets</div>
-            <div className="font-display text-3xl tabular mt-1">{formatMoney(totalAssets, base)}</div>
+            <div className="font-display text-3xl tabular mt-1">{formatMoney(totalAssets, displayCcy)}</div>
           </div>
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground">Total Liabilities</div>
             <div className="font-display text-3xl tabular mt-1" style={{ color: "var(--color-danger)" }}>
-              {formatMoney(totalLiabs, base)}
+              {formatMoney(totalLiabs, displayCcy)}
             </div>
           </div>
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground">Net Worth</div>
             <div className="font-display text-4xl md:text-5xl tabular mt-1"
               style={{ color: netWorth >= 0 ? "var(--color-positive)" : "var(--color-danger)" }}>
-              {formatMoney(netWorth, base)}
+              {formatMoney(netWorth, displayCcy)}
             </div>
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+          {userCurrencies.length > 1 && (
+            <div className="inline-flex rounded-lg border border-border bg-white/[0.02] p-0.5">
+              {userCurrencies.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setDisplayCcy(c)}
+                  className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                    displayCcy === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
           <Button
             onClick={() => setHideValues((v) => !v)}
             variant="outline"
@@ -212,14 +234,6 @@ export function NetWorthView() {
             title={hideValues ? "Show values" : "Hide values"}>
             {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             <span className="hidden sm:inline">{hideValues ? "Show" : "Hide"} values</span>
-          </Button>
-          <Button
-            onClick={() => setShowByCurrency((v) => !v)}
-            variant={showByCurrency ? "default" : "outline"}
-            className="gap-2"
-            title="Breakdown by currency">
-            <Coins className="h-4 w-4" />
-            <span className="hidden sm:inline">By currency</span>
           </Button>
           <Button onClick={refreshPrices} disabled={refreshingPrices} variant="outline" className="gap-2">
             <RefreshCw className={`h-4 w-4 ${refreshingPrices ? "animate-spin" : ""}`} />
@@ -231,39 +245,6 @@ export function NetWorthView() {
         </div>
       </GlassCard>
 
-      {showByCurrency && (
-        <GlassCard>
-          <SectionTitle title="By Currency" subtitle="Native totals across your added currencies (no FX conversion)" />
-          {byCurrency.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No entries yet.</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {byCurrency.map((row) => (
-                <div key={row.ccy} className="rounded-xl border border-white/5 bg-white/[0.02] p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-display">{row.ccy}</div>
-                    <div className="tabular text-sm" style={{ color: row.net >= 0 ? "var(--color-positive)" : "var(--color-danger)" }}>
-                      {formatMoney(row.net, row.ccy)}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                    <div>
-                      <div>Assets</div>
-                      <div className="tabular text-sm text-foreground">{formatMoney(row.assets, row.ccy)}</div>
-                    </div>
-                    <div>
-                      <div>Liabilities</div>
-                      <div className="tabular text-sm" style={{ color: "var(--color-danger)" }}>
-                        {formatMoney(row.liabs, row.ccy)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </GlassCard>
-      )}
 
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
