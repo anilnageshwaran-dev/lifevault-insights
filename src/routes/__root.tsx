@@ -77,28 +77,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "LifeVault — Personal Finance Dashboard" },
-      {
-        name: "description",
-        content:
-          "LifeVault is a private, PIN-locked personal finance dashboard for tracking net worth, cash flow, goals, and household accounts with end-to-end encryption.",
-      },
+      { title: "LifeVault" },
+      { name: "description", content: "Premium personal finance dashboard" },
       { name: "author", content: "LifeVault" },
-      { property: "og:site_name", content: "LifeVault" },
-      { property: "og:title", content: "LifeVault — Personal Finance Dashboard" },
-      {
-        property: "og:description",
-        content:
-          "Track net worth, cash flow, goals, and household finances in one private, PIN-locked vault.",
-      },
+      { property: "og:title", content: "LifeVault" },
+      { property: "og:description", content: "Premium personal finance dashboard" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "LifeVault — Personal Finance Dashboard" },
-      {
-        name: "twitter:description",
-        content:
-          "Track net worth, cash flow, goals, and household finances in one private, PIN-locked vault.",
-      },
+      { name: "twitter:title", content: "LifeVault" },
+      { name: "twitter:description", content: "Premium personal finance dashboard" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/828e3bfe-1dc9-4b35-99f3-c8a988e5b92b" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/828e3bfe-1dc9-4b35-99f3-c8a988e5b92b" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -110,7 +99,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
     ],
   }),
-
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
