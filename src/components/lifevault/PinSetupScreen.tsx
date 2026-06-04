@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Vault, ShieldCheck } from "lucide-react";
+import { Vault } from "lucide-react";
 import { PinKeypad } from "./PinKeypad";
 import { useLock } from "@/lib/lock-context";
 import { LifeVaultIcon } from "./LifeVaultIcon";
