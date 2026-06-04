@@ -16,7 +16,7 @@ type TokenResponse = {
   expires_in?: number;
 };
 type TokenClient = {
-  requestAccessToken: (opts?: { prompt?: string }) => void;
+  requestAccessToken: (opts?: { prompt?: string; hint?: string; login_hint?: string }) => void;
   callback: (resp: TokenResponse) => void;
 };
 
@@ -82,7 +82,7 @@ async function ensureTokenClient(): Promise<TokenClient> {
   return tokenClient;
 }
 
-export async function requestToken(opts: { silent: boolean }): Promise<string> {
+export async function requestToken(opts: { silent: boolean; hint?: string }): Promise<string> {
   const client = await ensureTokenClient();
   return new Promise<string>((resolve, reject) => {
     client.callback = (resp) => {
@@ -94,7 +94,14 @@ export async function requestToken(opts: { silent: boolean }): Promise<string> {
       resolve(resp.access_token);
     };
     try {
-      client.requestAccessToken({ prompt: opts.silent ? "" : "consent" });
+      const args: { prompt: string; hint?: string; login_hint?: string } = {
+        prompt: opts.silent ? "" : "consent",
+      };
+      if (opts.hint) {
+        args.hint = opts.hint;
+        args.login_hint = opts.hint;
+      }
+      client.requestAccessToken(args);
     } catch (e) {
       reject(e as Error);
     }
