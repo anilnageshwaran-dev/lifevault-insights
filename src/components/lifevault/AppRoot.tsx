@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { FinanceProvider } from "@/lib/finance-context";
 import { LockProvider, useLock } from "@/lib/lock-context";
 import { ThemeProvider } from "@/lib/theme-context";
@@ -14,6 +15,18 @@ import { Loader2 } from "lucide-react";
 function Gate() {
   const { meta, key } = useLock();
   const { session, loading } = useAuth();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!session) return;
+    try {
+      const token = localStorage.getItem("lifevault_pending_invite");
+      if (token) {
+        localStorage.removeItem("lifevault_pending_invite");
+        navigate({ to: "/accept-invite", search: { token } });
+      }
+    } catch {}
+  }, [session, navigate]);
 
   if (!meta.onboardingComplete) return <OnboardingScreen />;
 
