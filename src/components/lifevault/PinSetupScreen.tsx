@@ -2,6 +2,7 @@ import * as React from "react";
 import { Vault, ShieldCheck } from "lucide-react";
 import { PinKeypad } from "./PinKeypad";
 import { useLock } from "@/lib/lock-context";
+import { LifeVaultIcon } from "./LifeVaultIcon";
 
 export function PinSetupScreen() {
   const { setupPin } = useLock();
@@ -33,9 +34,7 @@ export function PinSetupScreen() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center mb-4">
-            <ShieldCheck className="h-7 w-7 text-primary" />
-          </div>
+          <LifeVaultIcon className="mx-auto h-14 w-14 mb-4" />
           <h1 className="font-display text-2xl text-foreground">
             {step === "create" ? "Create your 4-digit vault PIN" : "Confirm your PIN"}
           </h1>
