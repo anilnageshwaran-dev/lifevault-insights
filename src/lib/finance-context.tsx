@@ -613,7 +613,62 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Pull latest from Drive if remote file changed. Skips while a save is in-flight.
-  const pullIfRemoteNewer = React.useCallback(async (): Promise<boolean> => {
+  const inspectDrive = React.useCallback(async (): Promise<void> => {
+    const k = keyRef.current;
+    const d = driveRef.current;
+    setSyncDiagnostics((diag) => ({
+      ...diag,
+      checkedAt: Date.now(),
+      local: countFinanceState(stateRef.current),
+      remote: { status: d.connected ? "checking" : "not_connected" },
+    }));
+    if (!k || !d.connected) return;
+    try {
+      const token = await d.ensureToken();
+      if (!token) throw new Error("Drive is not authorized on this device");
+      const file = await findAppFile();
+      if (!file) {
+        setSyncDiagnostics((diag) => ({
+          ...diag,
+          checkedAt: Date.now(),
+          remote: { status: "missing", message: "No LifeVault data file found in this Google Drive account." },
+        }));
+        return;
+      }
+      const blob = await downloadAppFile(file.id);
+      try {
+        const parsed = await decryptWithKey<FinanceState>(blob, k);
+        const remoteState = ensureRegions({ ...initialState, ...parsed });
+        setSyncDiagnostics((diag) => ({
+          ...diag,
+          checkedAt: Date.now(),
+          remote: {
+            status: "available",
+            modifiedTime: file.modifiedTime,
+            counts: countFinanceState(remoteState),
+          },
+        }));
+      } catch {
+        setSyncDiagnostics((diag) => ({
+          ...diag,
+          checkedAt: Date.now(),
+          remote: {
+            status: "locked",
+            modifiedTime: file.modifiedTime,
+            message: "A Drive file exists, but this PIN cannot decrypt it.",
+          },
+        }));
+      }
+    } catch (e) {
+      setSyncDiagnostics((diag) => ({
+        ...diag,
+        checkedAt: Date.now(),
+        remote: { status: "error", message: (e as Error).message || "Drive check failed" },
+      }));
+    }
+  }, []);
+
+  const pullIfRemoteNewer = React.useCallback(async (force = false): Promise<boolean> => {
     const k = keyRef.current;
     const d = driveRef.current;
     if (!k || !d.connected) return false;
@@ -624,7 +679,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const file = await findAppFile();
       if (!file) return false;
       const remoteMod = file.modifiedTime ?? null;
-      if (remoteMod && remoteMod === driveModifiedRef.current) return false;
+      if (!force && remoteMod && remoteMod === driveModifiedRef.current) return false;
       driveFileIdRef.current = file.id;
       try {
         localStorage.setItem("lifevault_drive_fileid", file.id);
@@ -632,12 +687,19 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const blob = await downloadAppFile(file.id);
       try {
         const parsed = await decryptWithKey<FinanceState>(blob, k);
+        const remoteState = ensureRegions({ ...initialState, ...parsed });
         driveModifiedRef.current = remoteMod;
         driveWriteBlockedRef.current = false;
         suppressNextSaveRef.current = true;
-        setState(ensureRegions({ ...initialState, ...parsed }));
+        setState(remoteState);
         setSyncStatus("synced");
         setLastSyncedAt(Date.now());
+        setSyncDiagnostics((diag) => ({
+          ...diag,
+          checkedAt: Date.now(),
+          local: countFinanceState(remoteState),
+          remote: { status: "available", modifiedTime: file.modifiedTime, counts: countFinanceState(remoteState) },
+        }));
         return true;
       } catch {
         // Different PIN on the other device — can't decrypt, keep local and never overwrite it.
