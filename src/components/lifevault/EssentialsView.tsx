@@ -89,9 +89,11 @@ function flagFor(currency: string): string {
 }
 
 export function EssentialsView() {
-  const { state, setState, update, fx } = useFinance();
+  const { state, setState, update, fx, refreshFx } = useFinance();
   const base = state.baseCurrency || "INR";
   const score = computeHealthScore(state, fx);
+  const [refreshingFx, setRefreshingFx] = React.useState(false);
+
 
   // Active region tab
   const [activeId, setActiveId] = React.useState<string | null>(null);
@@ -133,8 +135,16 @@ export function EssentialsView() {
       toast.error("Keep at least one region");
       return;
     }
+    const target = state.regions.find((r) => r.id === id);
+    if (!target) return;
+    const linkedGoals = state.goals.filter((g) => g.name?.endsWith(`· ${target.name}`)).length;
+    const msg = linkedGoals > 0
+      ? `${target.name} has ${linkedGoals} linked goal${linkedGoals > 1 ? "s" : ""}. Delete the region anyway? Linked goals will remain in the Goals tab.`
+      : `Delete the ${target.name} region? Its baseline, emergency fund and insurance numbers will be removed.`;
+    if (!confirm(msg)) return;
     setState((s) => ({ ...s, regions: s.regions.filter((r) => r.id !== id) }));
   };
+
 
   if (!region) {
     return (
@@ -218,6 +228,24 @@ export function EssentialsView() {
           <p className="text-sm text-muted-foreground mt-1">
             Aggregated across all regions and converted to {base}.
           </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+            <span>
+              FX rates {fx ? `as of ${new Date(fx.ts).toLocaleString()}` : "unavailable"}
+            </span>
+            <button
+              disabled={refreshingFx}
+              onClick={async () => {
+                setRefreshingFx(true);
+                try { await refreshFx(true); toast.success("FX rates refreshed"); }
+                catch { toast.error("Couldn't refresh rates"); }
+                finally { setRefreshingFx(false); }
+              }}
+              className="underline hover:text-foreground disabled:opacity-50"
+            >
+              {refreshingFx ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-3 mt-5">
             {[
               { label: "Emergency", val: score.emergency, max: 30 },

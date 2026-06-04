@@ -78,6 +78,12 @@ function AccountTab() {
     user?.email ||
     "Signed in";
 
+  const provider =
+    (user?.app_metadata as { provider?: string } | undefined)?.provider ??
+    user?.identities?.[0]?.provider;
+  const isGoogleSignIn = provider === "google";
+
+
   const statusLabel = !drive.connected
     ? "Not connected"
     : syncStatus === "saving" || syncing
@@ -115,18 +121,37 @@ function AccountTab() {
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
             {!drive.connected ? (
-              <button
-                disabled={busy || drive.connecting}
-                onClick={async () => {
-                  setBusy(true);
-                  try { await drive.connect(); toast.success("Connected to Google Drive"); }
-                  catch (e) { toast.error((e as Error).message || "Sign-in cancelled"); }
-                  finally { setBusy(false); }
-                }}
-                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
-              >
-                {busy || drive.connecting ? "Connecting…" : "Connect Drive"}
-              </button>
+              isGoogleSignIn ? (
+                <span className="text-xs text-muted-foreground italic">
+                  {drive.connecting ? "Linking Drive…" : "Drive will auto-link from your Google account"}
+                  {!drive.connecting && (
+                    <button
+                      onClick={async () => {
+                        setBusy(true);
+                        try { await drive.connect(); toast.success("Connected to Google Drive"); }
+                        catch (e) { toast.error((e as Error).message || "Sign-in cancelled"); }
+                        finally { setBusy(false); }
+                      }}
+                      className="ml-2 underline hover:text-foreground"
+                    >
+                      Retry
+                    </button>
+                  )}
+                </span>
+              ) : (
+                <button
+                  disabled={busy || drive.connecting}
+                  onClick={async () => {
+                    setBusy(true);
+                    try { await drive.connect(); toast.success("Connected to Google Drive"); }
+                    catch (e) { toast.error((e as Error).message || "Sign-in cancelled"); }
+                    finally { setBusy(false); }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
+                >
+                  {busy || drive.connecting ? "Connecting…" : "Connect Drive"}
+                </button>
+              )
             ) : (
               <>
                 <button
@@ -158,6 +183,7 @@ function AccountTab() {
                 </button>
               </>
             )}
+
             <button
               disabled={busy}
               onClick={async () => {
@@ -417,10 +443,21 @@ function DataTab() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
             <Download className="h-4 w-4" /> Export CSVs (zip)
           </button>
+          <button onClick={async () => {
+              try {
+                const { generateFinancialReport } = await import("@/lib/pdf-report");
+                generateFinancialReport(state, fx);
+                toast.success("Report downloaded");
+              } catch (e) { toast.error((e as Error).message || "PDF export failed"); }
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
+            <Download className="h-4 w-4" /> Export PDF Report
+          </button>
           <button onClick={() => fileRef.current?.click()}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent">
             <Upload className="h-4 w-4" /> Import JSON
           </button>
+
           <input ref={fileRef} type="file" accept="application/json" className="hidden"
             onChange={async (e) => {
               const f = e.target.files?.[0]; if (!f) return;

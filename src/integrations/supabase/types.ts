@@ -84,6 +84,71 @@ export type Database = {
           },
         ]
       }
+      household_shared_snapshots: {
+        Row: {
+          account_count: number
+          base_currency: string
+          created_at: string
+          display_name: string | null
+          emergency_fund: number
+          goal_count: number
+          health_score: number
+          household_id: string
+          id: string
+          monthly_expenses: number
+          monthly_income: number
+          net_worth: number
+          total_assets: number
+          total_liabilities: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_count?: number
+          base_currency?: string
+          created_at?: string
+          display_name?: string | null
+          emergency_fund?: number
+          goal_count?: number
+          health_score?: number
+          household_id: string
+          id?: string
+          monthly_expenses?: number
+          monthly_income?: number
+          net_worth?: number
+          total_assets?: number
+          total_liabilities?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_count?: number
+          base_currency?: string
+          created_at?: string
+          display_name?: string | null
+          emergency_fund?: number
+          goal_count?: number
+          health_score?: number
+          household_id?: string
+          id?: string
+          monthly_expenses?: number
+          monthly_income?: number
+          net_worth?: number
+          total_assets?: number
+          total_liabilities?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_shared_snapshots_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       households: {
         Row: {
           created_at: string
