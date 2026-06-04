@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /accept-invite
+
+Sitemap: https://lifevaultapp.lovable.app/sitemap.xml

@@ -11,7 +11,27 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/accept-invite")({
   validateSearch: (s) => z.object({ token: z.string().optional() }).parse(s),
-  head: () => ({ meta: [{ title: "Accept Invite — LifeVault" }] }),
+  head: () => ({
+    meta: [
+      { title: "Accept Household Invite — LifeVault" },
+      {
+        name: "description",
+        content:
+          "Accept your invite to join a household on LifeVault and start sharing net worth, cash flow, and goals privately.",
+      },
+      { property: "og:title", content: "Accept Household Invite — LifeVault" },
+      {
+        property: "og:description",
+        content:
+          "Join a LifeVault household to share net worth, cash flow, and goals privately.",
+      },
+      { property: "og:url", content: "https://lifevaultapp.lovable.app/accept-invite" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://lifevaultapp.lovable.app/accept-invite" },
+    ],
+  }),
   component: () => (
     <AuthProvider>
       <AcceptInvitePage />
@@ -19,6 +39,7 @@ export const Route = createFileRoute("/accept-invite")({
     </AuthProvider>
   ),
 });
+
 
 function AcceptInvitePage() {
   const { token } = Route.useSearch();

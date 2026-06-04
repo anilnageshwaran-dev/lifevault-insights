@@ -70,11 +70,14 @@ export function AuthScreen() {
     <div className="min-h-screen flex items-center justify-center px-6 bg-background">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="font-display text-3xl mb-2">LifeVault</div>
+          <h1 className="font-display text-3xl mb-2">
+            {mode === "signin" ? "Sign in to LifeVault" : "Create your LifeVault account"}
+          </h1>
           <p className="text-muted-foreground text-sm">
-            {mode === "signin" ? "Welcome back" : "Create your account"}
+            {mode === "signin" ? "Welcome back" : "Your private personal finance vault"}
           </p>
         </div>
+
 
         <button
           onClick={google}
