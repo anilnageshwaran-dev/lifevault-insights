@@ -80,7 +80,7 @@ export function LifeVaultApp() {
                     : "text-muted-foreground hover:text-foreground hover:bg-white/[0.03]"
                 }`}
               >
-                <Icon className="h-4.5 w-4.5" />
+                <Icon className="h-4 w-4" />
                 <span>{t.label}</span>
               </button>
             );
