@@ -49,8 +49,8 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-10">
             Securely track your net worth, manage cash flow, set financial goals,
-            and store sensitive credentials — all encrypted and stored in your
-            own Google Drive.
+            and store sensitive credentials — all encrypted with your PIN and
+            stored in our secure cloud vault.
           </p>
           <div className="flex flex-col items-center gap-3">
             <button
@@ -83,9 +83,9 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
           </h2>
           <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
             LifeVault is a zero-knowledge personal finance app. All your
-            financial data is encrypted with your personal PIN and stored
-            exclusively in your own Google Drive. We never store or transmit
-            your data in plaintext — not even we can read it.
+            financial data is encrypted with your personal PIN on your device,
+            then stored as ciphertext in our secure cloud vault. We never store
+            or transmit your data in plaintext — not even we can read it.
           </p>
         </div>
       </section>
@@ -102,9 +102,9 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
             },
             {
               icon: Cloud,
-              title: "Your Data in Your Drive",
+              title: "Encrypted Cloud Vault",
               body:
-                "LifeVault stores one encrypted file in your Google Drive. You own it completely — download or delete it anytime.",
+                "LifeVault stores one encrypted file per account in our secure cloud vault. You can export or delete it anytime from Settings.",
             },
             {
               icon: LineChart,
@@ -136,10 +136,10 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
             What Google permissions does LifeVault use?
           </h2>
           <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
-            LifeVault requests access to Google Drive (drive.file scope)
-            exclusively to save and load your encrypted vault file. We can only
-            access files that LifeVault itself creates — we cannot see any other
-            files in your Drive.
+            LifeVault uses Google sign-in only to identify your account
+            (your name and email). We do not request access to Gmail, Drive,
+            Calendar, or any other Google service — sign-in is the only
+            permission used.
           </p>
         </div>
       </section>
@@ -161,7 +161,7 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
               Terms of Service
             </a>
           </div>
-          <div>LifeVault — Your data, your drive, your control.</div>
+          <div>LifeVault — Your data, your PIN, your control.</div>
         </div>
       </footer>
     </div>
