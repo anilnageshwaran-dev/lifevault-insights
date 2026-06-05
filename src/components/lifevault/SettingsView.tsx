@@ -713,7 +713,7 @@ function DataTab() {
             <h4 className="font-medium">Reset Device &amp; PIN</h4>
             <p className="text-sm text-muted-foreground mt-1 mb-3">
               Wipes the encrypted cache and PIN from <strong>this device only</strong>. Other
-              devices and the Drive backup are untouched — sign back in to restore.
+              devices and the cloud backup are untouched — sign back in to restore.
             </p>
             <button onClick={() => {
                 if (!confirm("Reset device PIN and wipe local cache on this device only?")) return;
