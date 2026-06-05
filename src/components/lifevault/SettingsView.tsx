@@ -830,7 +830,7 @@ function GeneralTab() {
         <h3 className="font-display text-xl mb-2">About</h3>
         <div className="text-sm text-muted-foreground mb-3">LifeVault v{APP_VERSION}</div>
         <a
-          href="/privacy"
+          href="https://lifevaultapp.lovable.app/privacy"
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm text-primary hover:underline"
