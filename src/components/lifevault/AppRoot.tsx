@@ -3,7 +3,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { FinanceProvider } from "@/lib/finance-context";
 import { LockProvider, useLock } from "@/lib/lock-context";
 import { ThemeProvider } from "@/lib/theme-context";
-import { DriveProvider } from "@/lib/drive-context";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LifeVaultApp } from "./LifeVaultApp";
 import { OnboardingScreen } from "./OnboardingScreen";
@@ -59,9 +58,7 @@ export function AppRoot() {
     <ThemeProvider>
       <AuthProvider>
         <LockProvider>
-          <DriveProvider>
-            <Gate />
-          </DriveProvider>
+          <Gate />
         </LockProvider>
       </AuthProvider>
     </ThemeProvider>
