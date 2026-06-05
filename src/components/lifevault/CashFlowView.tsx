@@ -31,9 +31,22 @@ import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
 
 const BANKS = [
+  // India
   "HDFC", "SBI", "ICICI", "Axis", "Kotak", "Yes Bank", "IndusInd",
-  "PNB", "BOB", "Canara", "Federal", "RBL", "HSBC",
-  "Standard Chartered", "DBS",
+  "PNB", "BOB", "Canara", "Federal", "RBL", "IDFC First", "Bandhan",
+  // UK
+  "Barclays", "HSBC UK", "Lloyds", "NatWest", "Halifax", "Santander UK",
+  "Nationwide", "Monzo", "Starling", "Revolut", "Chase UK", "First Direct",
+  "TSB", "Metro Bank", "Co-operative Bank", "Virgin Money",
+  // US
+  "Chase", "Bank of America", "Wells Fargo", "Citi", "Capital One",
+  "US Bank", "PNC", "Ally", "SoFi",
+  // EU / Global
+  "HSBC", "Standard Chartered", "DBS", "Deutsche Bank", "BNP Paribas",
+  "ING", "N26", "Wise",
+  // UAE
+  "Emirates NBD", "ADCB", "FAB", "Mashreq",
+  "Other",
 ];
 
 const ACCOUNT_COLORS = [
@@ -506,7 +519,9 @@ function AccountFormDialog({ account, onClose, base }:
               <div>
                 <FieldLabel>{isCC ? "Issuer / Bank *" : "Bank Name *"}</FieldLabel>
                 <input className="underline-input" list="bank-list" value={form.bank || ""}
+                  placeholder="Type or pick (e.g. Barclays, HDFC)"
                   onChange={(e) => setForm({ ...form, bank: e.target.value })} />
+                <p className="text-[11px] text-muted-foreground mt-1">Free text — type any bank name if not listed.</p>
                 <datalist id="bank-list">
                   {BANKS.map((b) => <option key={b} value={b} />)}
                 </datalist>
