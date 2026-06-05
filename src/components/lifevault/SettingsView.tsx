@@ -13,7 +13,6 @@ import {
 import { useFinance, accountBalance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
 import { useTheme } from "@/lib/theme-context";
-import { useDrive } from "@/lib/drive-context";
 import { useAuth } from "@/lib/auth-context";
 import { PinKeypad } from "./PinKeypad";
 import { CurrencySelect } from "./CurrencySelect";
@@ -112,7 +111,6 @@ function CountList({
 function AccountTab() {
   const { meta, updateMeta, resetAll } = useLock();
   const { user, signOut } = useAuth();
-  const drive = useDrive();
   const { syncStatus, lastSyncedAt, syncNow, syncDiagnostics, inspectDrive, pullFromDrive, pushToDrive } = useFinance();
   const [name, setName] = React.useState(meta.displayName);
   const [busy, setBusy] = React.useState(false);
@@ -124,24 +122,18 @@ function AccountTab() {
     user?.email ||
     "Signed in";
 
-  const provider =
-    (user?.app_metadata as { provider?: string } | undefined)?.provider ??
-    user?.identities?.[0]?.provider;
-  const isGoogleSignIn = provider === "google";
+  const cloudConnected = !!user;
 
-
-  const statusLabel = !drive.connected
-    ? "Not connected"
+  const statusLabel = !cloudConnected
+    ? "Not signed in"
     : syncStatus === "saving" || syncing
       ? "Saving…"
       : syncDiagnostics.remote.status === "locked"
         ? "PIN mismatch"
-      : syncDiagnostics.remote.status === "missing"
-        ? "No Drive file"
       : syncStatus === "error"
         ? "Offline — working from cache"
         : "Synced";
-  const statusDot = !drive.connected
+  const statusDot = !cloudConnected
     ? "bg-foreground/30"
     : syncStatus === "saving" || syncing
       ? "bg-warning animate-pulse"
@@ -168,96 +160,64 @@ function AccountTab() {
             <Cloud className="h-3.5 w-3.5 text-muted-foreground" />
             <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${statusDot}`} />
             <span className="min-w-0 break-words text-muted-foreground">
-              Drive · {statusLabel}
-              {lastLabel && drive.connected && <> · last {lastLabel}</>}
+              Cloud · {statusLabel}
+              {lastLabel && cloudConnected && <> · last {lastLabel}</>}
             </span>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {!drive.connected ? (
-              <button
-                disabled={busy || drive.connecting}
-                onClick={async () => {
-                  setBusy(true);
-                  try { await drive.connect(); toast.success("Connected to Google Drive"); }
-                  catch (e) { toast.error((e as Error).message || "Sign-in cancelled"); }
-                  finally { setBusy(false); }
-                }}
-                className="min-w-0 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
-              >
-                {busy || drive.connecting
-                  ? (isGoogleSignIn ? "Linking Drive…" : "Connecting…")
-                  : (isGoogleSignIn ? "Link Google Drive" : "Connect Drive")}
-              </button>
-            ) : (
-              <>
-                <button
-                  disabled={syncing || syncStatus === "saving"}
-                  onClick={async () => {
-                    setSyncing(true);
-                    try {
-                      if (!drive.user) await drive.connect();
-                      await syncNow();
-                      toast.success("Synced to Google Drive");
-                    } catch (e) { toast.error((e as Error).message || "Sync failed"); }
-                    finally { setSyncing(false); }
-                  }}
-                  className="min-w-0 px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
-                >
-                  {syncing ? "Syncing…" : "Sync now"}
-                </button>
-                <button
-                  disabled={syncing || syncStatus === "saving"}
-                  onClick={async () => {
-                    setSyncing(true);
-                    try { await inspectDrive(); toast.success("Drive checked"); }
-                    catch (e) { toast.error((e as Error).message || "Drive check failed"); }
-                    finally { setSyncing(false); }
-                  }}
-                  className="min-w-0 px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
-                >
-                  Check Drive
-                </button>
-                <button
-                  disabled={syncing || syncStatus === "saving"}
-                  onClick={async () => {
-                    setSyncing(true);
-                    try {
-                      const pulled = await pullFromDrive();
-                      toast.success(pulled ? "Pulled latest Drive data" : "No newer Drive data found");
-                    } catch (e) { toast.error((e as Error).message || "Pull failed"); }
-                    finally { setSyncing(false); }
-                  }}
-                  className="min-w-0 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
-                >
-                  Pull from Drive
-                </button>
-                <button
-                  disabled={syncing || syncStatus === "saving" || syncDiagnostics.remote.status === "locked"}
-                  onClick={async () => {
-                    if (!confirm("Upload this device's current data to Google Drive? This can overwrite the Drive copy.")) return;
-                    setSyncing(true);
-                    try { await pushToDrive(); toast.success("Uploaded this device to Drive"); }
-                    catch (e) { toast.error((e as Error).message || "Upload failed"); }
-                    finally { setSyncing(false); }
-                  }}
-                  className="min-w-0 px-3 py-2 rounded-lg border border-warning/50 text-warning text-xs hover:bg-warning/10 disabled:opacity-50"
-                >
-                  Push this device
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={async () => {
-                    if (!confirm("Disconnect Google Drive? Your local data stays on this device.")) return;
-                    setBusy(true);
-                    try { await drive.disconnect(); toast.success("Disconnected"); }
-                    finally { setBusy(false); }
-                  }}
-                  className="min-w-0 px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
-                >
-                  Disconnect Drive
-                </button>
-              </>
-            )}
+            <button
+              disabled={syncing || syncStatus === "saving"}
+              onClick={async () => {
+                setSyncing(true);
+                try {
+                  await syncNow();
+                  toast.success("Synced to cloud");
+                } catch (e) { toast.error((e as Error).message || "Sync failed"); }
+                finally { setSyncing(false); }
+              }}
+              className="min-w-0 px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
+            >
+              {syncing ? "Syncing…" : "Sync now"}
+            </button>
+            <button
+              disabled={syncing || syncStatus === "saving"}
+              onClick={async () => {
+                setSyncing(true);
+                try { await inspectDrive(); toast.success("Cloud checked"); }
+                catch (e) { toast.error((e as Error).message || "Cloud check failed"); }
+                finally { setSyncing(false); }
+              }}
+              className="min-w-0 px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent disabled:opacity-50"
+            >
+              Check cloud
+            </button>
+            <button
+              disabled={syncing || syncStatus === "saving"}
+              onClick={async () => {
+                setSyncing(true);
+                try {
+                  const pulled = await pullFromDrive();
+                  toast.success(pulled ? "Pulled latest cloud data" : "No newer cloud data found");
+                } catch (e) { toast.error((e as Error).message || "Pull failed"); }
+                finally { setSyncing(false); }
+              }}
+              className="min-w-0 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs disabled:opacity-50"
+            >
+              Pull from cloud
+            </button>
+            <button
+              disabled={syncing || syncStatus === "saving" || syncDiagnostics.remote.status === "locked"}
+              onClick={async () => {
+                if (!confirm("Upload this device's current data to the cloud? This will overwrite the cloud copy.")) return;
+                setSyncing(true);
+                try { await pushToDrive(); toast.success("Uploaded this device to cloud"); }
+                catch (e) { toast.error((e as Error).message || "Upload failed"); }
+                finally { setSyncing(false); }
+              }}
+              className="min-w-0 px-3 py-2 rounded-lg border border-warning/50 text-warning text-xs hover:bg-warning/10 disabled:opacity-50"
+            >
+              Push this device
+            </button>
 
             <button
               disabled={busy}
@@ -273,17 +233,17 @@ function AccountTab() {
             </button>
           </div>
           <p className="break-words text-xs text-muted-foreground mt-3">
-            Your encrypted vault syncs to your private Google Drive
-            <code className="mx-1 break-all">appDataFolder</code>. Data stays end-to-end
-            encrypted with your PIN — Google cannot read it.
+            Your encrypted vault is stored in secure cloud storage scoped to your
+            account. Data stays end-to-end encrypted with your PIN — only your PIN
+            can decrypt it.
           </p>
-          {drive.connected && (
+          {cloudConnected && (
             <div className="mt-3 min-w-0 rounded-lg border border-border bg-background/50 p-3 text-xs text-muted-foreground space-y-2">
               <div className="font-medium text-foreground">Sync diagnostics</div>
               <div className="grid gap-2 sm:grid-cols-2">
                 <CountList title="This device" counts={syncDiagnostics.local} />
                 <CountList
-                  title="Google Drive"
+                  title="Cloud vault"
                   counts={syncDiagnostics.remote.counts}
                   fallback={
                     syncDiagnostics.remote.status === "checking"
@@ -293,7 +253,7 @@ function AccountTab() {
                 />
               </div>
               <div className="break-words">
-                Drive file: {remoteLabel ?? "not verified yet"}
+                Cloud file: {remoteLabel ?? "not verified yet"}
                 {syncDiagnostics.checkedAt && <> · checked {new Date(syncDiagnostics.checkedAt).toLocaleTimeString()}</>}
               </div>
             </div>
