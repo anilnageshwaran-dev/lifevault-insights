@@ -58,13 +58,30 @@ export async function uploadVault(
   userId: string,
   encrypted: string,
 ): Promise<RemoteVaultInfo> {
+  const path = vaultPath(userId);
+  console.log("[vault] Saving vault for user:", userId);
+  console.log("[vault] Upload path:", path);
+  const { data: { session } } = await supabase.auth.getSession();
+  console.log("[vault] Session active:", !!session);
+  console.log("[vault] Session user id:", session?.user?.id);
+  if (!session) {
+    throw new Error("Cannot upload vault: no active Supabase session");
+  }
+  if (session.user?.id !== userId) {
+    throw new Error(
+      `Vault upload aborted: session user (${session.user?.id}) does not match vault user (${userId})`,
+    );
+  }
   const blob = new Blob([encrypted], { type: "application/json" });
   const { error } = await supabase.storage
     .from(VAULT_BUCKET)
-    .upload(vaultPath(userId), blob, {
+    .upload(path, blob, {
       upsert: true,
       contentType: "application/json",
     });
+  console.log("[vault] Upload result:", error ? error.message : "ok", {
+    bytes: encrypted.length,
+  });
   if (error) throw new Error(error.message || "Vault upload failed");
   return (await statVault(userId)) ?? { modifiedTime: null };
 }
