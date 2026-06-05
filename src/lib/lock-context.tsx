@@ -171,7 +171,7 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
 
   const encryptSyncData = React.useCallback(async (data: unknown): Promise<string> => {
     const pin = pinRef.current;
-    if (!pin) throw new Error("Unlock LifeVault before syncing Drive data");
+    if (!pin) throw new Error("Unlock LifeVault before syncing cloud data");
     const salt = randomSalt();
     const syncKey = await deriveKey(pin, salt);
     const envelope: VaultEnvelope = {
@@ -189,7 +189,7 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
     try {
       const parsed = JSON.parse(trimmed) as Partial<VaultEnvelope>;
       if (parsed?.v === 1 && parsed.salt && parsed.data && parsed.pinHash) {
-        if (!pin) throw new Error("Unlock LifeVault before syncing Drive data");
+        if (!pin) throw new Error("Unlock LifeVault before syncing cloud data");
         const expected = await pinHash(pin, parsed.salt);
         if (expected !== parsed.pinHash) throw new Error("PIN mismatch");
         const syncKey = await deriveKey(pin, parsed.salt);
@@ -200,11 +200,11 @@ export function LockProvider({ children }: { children: React.ReactNode }) {
     }
 
     const localKey = keyRef.current;
-    if (!localKey) throw new Error("Unlock LifeVault before syncing Drive data");
+    if (!localKey) throw new Error("Unlock LifeVault before syncing cloud data");
     try {
       return await decryptWithKey<T>(trimmed, localKey);
     } catch {
-      throw new Error("This older Drive sync file was encrypted by another device. Open that device after publishing, then tap Sync now once.");
+      throw new Error("This older cloud sync file was encrypted by another device. Open that device after signing in, then tap Sync now once.");
     }
   }, []);
 
