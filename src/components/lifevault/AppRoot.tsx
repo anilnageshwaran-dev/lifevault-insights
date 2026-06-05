@@ -10,12 +10,14 @@ import { OnboardingScreen } from "./OnboardingScreen";
 import { PinSetupScreen } from "./PinSetupScreen";
 import { PinLockScreen } from "./PinLockScreen";
 import { AuthScreen } from "./AuthScreen";
+import { LandingScreen } from "./LandingScreen";
 import { Loader2 } from "lucide-react";
 
 function Gate() {
   const { meta, key } = useLock();
   const { session, loading } = useAuth();
   const navigate = useNavigate();
+  const [showAuth, setShowAuth] = React.useState(false);
 
   React.useEffect(() => {
     if (!session) return;
@@ -28,8 +30,6 @@ function Gate() {
     } catch {}
   }, [session, navigate]);
 
-  if (!meta.onboardingComplete) return <OnboardingScreen />;
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -38,7 +38,12 @@ function Gate() {
     );
   }
 
-  if (!session) return <AuthScreen />;
+  if (!session) {
+    if (showAuth) return <AuthScreen />;
+    return <LandingScreen onUseEmail={() => setShowAuth(true)} />;
+  }
+
+  if (!meta.onboardingComplete) return <OnboardingScreen />;
   if (!meta.pinHash) return <PinSetupScreen />;
   if (!key) return <PinLockScreen />;
 
