@@ -696,7 +696,7 @@ function DataTab() {
               Permanently deletes all transactions, accounts, assets, liabilities, snapshots,
               goals, bills, budgets, vault records, and allocation targets. Your PIN and
               biometric unlock are preserved. <strong>This change syncs to every device</strong>
-              connected to the same Google Drive vault.
+              signed in to the same LifeVault account.
             </p>
             <button onClick={async () => {
                 if (!confirm("Permanently delete ALL your financial data? This will also wipe data on every linked device.")) return;
