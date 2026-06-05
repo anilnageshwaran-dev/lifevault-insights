@@ -2,14 +2,9 @@ import * as React from "react";
 import { uid } from "./finance-utils";
 import { decryptWithKey, encryptWithKey } from "./crypto";
 import { useLock } from "./lock-context";
+import { useAuth } from "./auth-context";
 import { fetchFxRates, type FxCache, convert } from "./currency";
-import { useDrive } from "./drive-context";
-import {
-  createAppFile,
-  downloadAppFile,
-  findAppFile,
-  updateAppFile,
-} from "./drive-sync";
+import { downloadVault, uploadVault, statVault } from "./supabase-storage";
 import { toast } from "sonner";
 
 export type AssetCategory =
