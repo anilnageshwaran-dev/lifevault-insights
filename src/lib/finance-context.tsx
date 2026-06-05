@@ -380,12 +380,18 @@ type Ctx = {
   reset: () => void;
   exportData: () => void;
   importData: (file: File) => Promise<void>;
+  /** "idle" before first save, "saving" while uploading, "synced" after a
+   *  successful upload, "error" when offline / upload failed (we keep working
+   *  from the local encrypted cache and retry on reconnect). */
   syncStatus: "idle" | "saving" | "synced" | "error";
   lastSyncedAt: number | null;
   syncDiagnostics: SyncDiagnostics;
   syncNow: () => Promise<void>;
+  /** Re-check the remote vault file metadata. */
   inspectDrive: () => Promise<void>;
+  /** Force a pull from cloud (overwrites local with remote). */
   pullFromDrive: () => Promise<boolean>;
+  /** Force a push to cloud (overwrites remote with local). */
   pushToDrive: () => Promise<void>;
   fx: FxCache | null;
   refreshFx: (force?: boolean) => Promise<void>;
@@ -395,7 +401,7 @@ const FinanceContext = React.createContext<Ctx | null>(null);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const { key, encryptSyncData, decryptSyncData } = useLock();
-  const drive = useDrive();
+  const { user } = useAuth();
   const [state, setState] = React.useState<FinanceState>(initialState);
   const [hydrated, setHydrated] = React.useState(false);
   const [syncStatus, setSyncStatus] = React.useState<"idle" | "saving" | "synced" | "error">(
@@ -408,20 +414,20 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     remote: { status: "not_connected" },
   });
   const [fx, setFx] = React.useState<FxCache | null>(null);
-  const [driveReady, setDriveReady] = React.useState(false);
-  const driveFileIdRef = React.useRef<string | null>(null);
-  const driveModifiedRef = React.useRef<string | null>(null);
-  const driveLoadedRef = React.useRef<boolean>(false);
+  const [cloudReady, setCloudReady] = React.useState(false);
+
+  const remoteModifiedRef = React.useRef<string | null>(null);
+  const cloudLoadedRef = React.useRef<boolean>(false);
   const syncStatusRef = React.useRef<"idle" | "saving" | "synced" | "error">("idle");
   const suppressNextSaveRef = React.useRef<boolean>(false);
   const skippedInitialAutoSaveRef = React.useRef<boolean>(false);
-  const driveWriteBlockedRef = React.useRef<boolean>(false);
+  const cloudWriteBlockedRef = React.useRef<boolean>(false);
   React.useEffect(() => {
     syncStatusRef.current = syncStatus;
   }, [syncStatus]);
   const stateRef = React.useRef<FinanceState>(state);
   const keyRef = React.useRef<CryptoKey | null>(key);
-  const driveRef = React.useRef(drive);
+  const userIdRef = React.useRef<string | null>(user?.id ?? null);
   React.useEffect(() => {
     stateRef.current = state;
     setSyncDiagnostics((d) => ({ ...d, local: countFinanceState(state) }));
@@ -430,18 +436,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     keyRef.current = key;
   }, [key]);
   React.useEffect(() => {
-    driveRef.current = drive;
-  }, [drive]);
-
-  React.useEffect(() => {
-    if (!drive.connected) {
-      driveLoadedRef.current = false;
-      driveModifiedRef.current = null;
-      driveWriteBlockedRef.current = false;
-      setDriveReady(false);
+    userIdRef.current = user?.id ?? null;
+    if (!user) {
+      cloudLoadedRef.current = false;
+      remoteModifiedRef.current = null;
+      cloudWriteBlockedRef.current = false;
+      setCloudReady(false);
       setSyncDiagnostics((d) => ({ ...d, remote: { status: "not_connected" } }));
     }
-  }, [drive.connected]);
+  }, [user]);
 
   // Load FX on mount
   React.useEffect(() => {
@@ -456,7 +459,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (r) setFx(r);
   }, []);
 
-  // 1) Local hydration
+  // 1) Local hydration from encrypted cache
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -488,11 +491,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
       } catch {}
-      // Restore Drive fileId
-      try {
-        const fid = localStorage.getItem("lifevault_drive_fileid");
-        if (fid) driveFileIdRef.current = fid;
-      } catch {}
       if (!cancelled) setHydrated(true);
     })();
     return () => {
@@ -500,85 +498,80 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     };
   }, [key]);
 
-  // 2) Drive: pull-on-connect (once per session)
+  // 2) Cloud: pull-on-sign-in (once per session)
   React.useEffect(() => {
-    if (!hydrated || !key || !drive.connected || driveLoadedRef.current) return;
+    if (!hydrated || !key || !user || cloudLoadedRef.current) return;
     let cancelled = false;
     (async () => {
       try {
-        const token = await drive.ensureToken();
-        if (!token) return;
-        const file = await findAppFile();
-        if (!file) {
-          driveLoadedRef.current = true;
-          setDriveReady(true);
+        const result = await downloadVault(user.id);
+        if (cancelled) return;
+        if (!result) {
+          cloudLoadedRef.current = true;
+          setCloudReady(true);
           setSyncDiagnostics((diag) => ({
             ...diag,
             checkedAt: Date.now(),
-            remote: { status: "missing", message: "No LifeVault data file found in this Google Drive account." },
+            remote: { status: "missing", message: "No cloud vault file yet — your first save will create it." },
           }));
           return;
         }
-        driveFileIdRef.current = file.id;
-        driveModifiedRef.current = file.modifiedTime ?? null;
+        remoteModifiedRef.current = result.info.modifiedTime;
         try {
-          localStorage.setItem("lifevault_drive_fileid", file.id);
-        } catch {}
-        const blob = await downloadAppFile(file.id);
-        try {
-          const parsed = await decryptSyncData<FinanceState>(blob);
-          if (!cancelled) {
-            const remoteState = ensureRegions({ ...initialState, ...parsed });
-            if (!isSyncEnvelopeBlob(blob)) {
-              const migrated = await encryptSyncData(remoteState);
-              await updateAppFile(file.id, migrated);
-              try {
-                const fresh = await findAppFile();
-                driveModifiedRef.current = fresh?.modifiedTime ?? file.modifiedTime ?? null;
-              } catch {}
-            }
-            suppressNextSaveRef.current = true;
-            setState(remoteState);
-            setSyncStatus("synced");
-            setLastSyncedAt(Date.now());
-            setSyncDiagnostics((diag) => ({
-              ...diag,
-              checkedAt: Date.now(),
-              local: countFinanceState(remoteState),
-              remote: { status: "available", modifiedTime: file.modifiedTime, counts: countFinanceState(remoteState) },
-            }));
+          const parsed = await decryptSyncData<FinanceState>(result.content);
+          if (cancelled) return;
+          const remoteState = ensureRegions({ ...initialState, ...parsed });
+          if (!isSyncEnvelopeBlob(result.content)) {
+            const migrated = await encryptSyncData(remoteState);
+            const info = await uploadVault(user.id, migrated);
+            remoteModifiedRef.current = info.modifiedTime;
           }
+          suppressNextSaveRef.current = true;
+          setState(remoteState);
+          setSyncStatus("synced");
+          setLastSyncedAt(Date.now());
+          setSyncDiagnostics((diag) => ({
+            ...diag,
+            checkedAt: Date.now(),
+            local: countFinanceState(remoteState),
+            remote: {
+              status: "available",
+              modifiedTime: result.info.modifiedTime ?? undefined,
+              counts: countFinanceState(remoteState),
+            },
+          }));
         } catch (error) {
-          // PIN-encrypted blob from a different PIN — do not overwrite the Drive copy.
+          // PIN-encrypted blob from a different PIN — do not overwrite the cloud copy.
           setSyncStatus("error");
-          toast.error((error as Error).message || "Drive data could not be unlocked. Use the same PIN on this device.");
-          driveWriteBlockedRef.current = true;
-          driveLoadedRef.current = true;
+          toast.error((error as Error).message || "Cloud vault could not be unlocked. Use the same PIN on this device.");
+          cloudWriteBlockedRef.current = true;
+          cloudLoadedRef.current = true;
           setSyncDiagnostics((diag) => ({
             ...diag,
             checkedAt: Date.now(),
             remote: {
               status: "locked",
-              modifiedTime: file.modifiedTime,
-              message: (error as Error).message || "A Drive file exists, but this PIN cannot decrypt it.",
+              modifiedTime: result.info.modifiedTime ?? undefined,
+              message: (error as Error).message || "A cloud vault exists, but this PIN cannot decrypt it.",
             },
           }));
           return;
         }
-        driveLoadedRef.current = true;
-        setDriveReady(true);
+        cloudLoadedRef.current = true;
+        setCloudReady(true);
       } catch (e) {
-        const msg = (e as Error).message || "";
-        if (msg.includes("403")) {
-          toast.error("Drive access denied — check permissions");
-        }
         setSyncStatus("error");
+        setSyncDiagnostics((diag) => ({
+          ...diag,
+          checkedAt: Date.now(),
+          remote: { status: "error", message: (e as Error).message || "Cloud check failed" },
+        }));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [hydrated, key, drive.connected, drive, decryptSyncData, encryptSyncData]);
+  }, [hydrated, key, user, decryptSyncData, encryptSyncData]);
 
   const persistLocal = React.useCallback(async (): Promise<void> => {
     const k = keyRef.current;
@@ -595,19 +588,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Core writer — persists locally and pushes to Drive when connected.
+  // Core writer — persists locally and pushes to Supabase Storage when signed in.
   const writeAndPush = React.useCallback(async (force = false): Promise<void> => {
     const k = keyRef.current;
     const s = stateRef.current;
-    const d = driveRef.current;
+    const uid = userIdRef.current;
     setSyncStatus("saving");
-    let enc: string | null = null;
-    let driveEnc: string | null = null;
+    let cloudEnc: string | null = null;
     try {
       if (k) {
-        enc = await encryptWithKey(s, k);
+        const enc = await encryptWithKey(s, k);
         localStorage.setItem(STORAGE_KEY_ENC, enc);
-        driveEnc = await encryptSyncData(s);
+        cloudEnc = await encryptSyncData(s);
       } else {
         localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(s));
       }
@@ -615,34 +607,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus("error");
       return;
     }
-    if (d.connected && driveEnc) {
-      if (driveWriteBlockedRef.current) {
+    if (uid && cloudEnc) {
+      if (cloudWriteBlockedRef.current) {
         setSyncStatus("error");
         return;
       }
       try {
-        const token = await d.ensureToken();
-        if (!token) throw new Error("no token");
-        if (driveFileIdRef.current) {
-          await updateAppFile(driveFileIdRef.current, driveEnc);
-        } else {
-          const id = await createAppFile(driveEnc);
-          driveFileIdRef.current = id;
-          try {
-            localStorage.setItem("lifevault_drive_fileid", id);
-          } catch {}
-        }
-        // Refresh our known modifiedTime so the live-poll doesn't re-pull our own write.
-        try {
-          const fresh = await findAppFile();
-          if (fresh) driveModifiedRef.current = fresh.modifiedTime ?? null;
-        } catch {}
+        const info = await uploadVault(uid, cloudEnc);
+        remoteModifiedRef.current = info.modifiedTime;
         setSyncStatus("synced");
         setLastSyncedAt(Date.now());
       } catch (e) {
-        const msg = (e as Error).message || "";
-        if (msg.includes("403")) toast.error("Drive access denied — check permissions");
-        else if (force) toast.error("Sync failed — working from cache");
+        if (force) toast.error((e as Error).message || "Cloud sync failed — working from cache");
         setSyncStatus("error");
       }
     } else {
@@ -651,47 +627,41 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [encryptSyncData]);
 
-  // Pull latest from Drive if remote file changed. Skips while a save is in-flight.
+  // Re-check remote vault file metadata + counts.
   const inspectDrive = React.useCallback(async (): Promise<void> => {
     const k = keyRef.current;
-    const d = driveRef.current;
+    const uid = userIdRef.current;
     setSyncDiagnostics((diag) => ({
       ...diag,
       checkedAt: Date.now(),
       local: countFinanceState(stateRef.current),
-      remote: { status: d.connected ? "checking" : "not_connected" },
+      remote: { status: uid ? "checking" : "not_connected" },
     }));
-    if (!k || !d.connected) return;
+    if (!k || !uid) return;
     try {
-      const token = await d.ensureToken();
-      if (!token) throw new Error("Drive is not authorized on this device");
-      const file = await findAppFile();
-      if (!file) {
+      const result = await downloadVault(uid);
+      if (!result) {
         setSyncDiagnostics((diag) => ({
           ...diag,
           checkedAt: Date.now(),
-          remote: { status: "missing", message: "No LifeVault data file found in this Google Drive account." },
+          remote: { status: "missing", message: "No cloud vault file yet." },
         }));
         return;
       }
-      const blob = await downloadAppFile(file.id);
       try {
-        const parsed = await decryptSyncData<FinanceState>(blob);
+        const parsed = await decryptSyncData<FinanceState>(result.content);
         const remoteState = ensureRegions({ ...initialState, ...parsed });
-        if (!isSyncEnvelopeBlob(blob)) {
+        if (!isSyncEnvelopeBlob(result.content)) {
           const migrated = await encryptSyncData(remoteState);
-          await updateAppFile(file.id, migrated);
-          try {
-            const fresh = await findAppFile();
-            if (fresh) driveModifiedRef.current = fresh.modifiedTime ?? null;
-          } catch {}
+          const info = await uploadVault(uid, migrated);
+          remoteModifiedRef.current = info.modifiedTime;
         }
         setSyncDiagnostics((diag) => ({
           ...diag,
           checkedAt: Date.now(),
           remote: {
             status: "available",
-            modifiedTime: file.modifiedTime,
+            modifiedTime: result.info.modifiedTime ?? undefined,
             counts: countFinanceState(remoteState),
           },
         }));
@@ -701,8 +671,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           checkedAt: Date.now(),
           remote: {
             status: "locked",
-            modifiedTime: file.modifiedTime,
-            message: (error as Error).message || "A Drive file exists, but this PIN cannot decrypt it.",
+            modifiedTime: result.info.modifiedTime ?? undefined,
+            message: (error as Error).message || "A cloud vault exists, but this PIN cannot decrypt it.",
           },
         }));
       }
@@ -710,42 +680,34 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setSyncDiagnostics((diag) => ({
         ...diag,
         checkedAt: Date.now(),
-        remote: { status: "error", message: (e as Error).message || "Drive check failed" },
+        remote: { status: "error", message: (e as Error).message || "Cloud check failed" },
       }));
     }
   }, [decryptSyncData, encryptSyncData]);
 
   const pullIfRemoteNewer = React.useCallback(async (force = false): Promise<boolean> => {
     const k = keyRef.current;
-    const d = driveRef.current;
-    if (!k || !d.connected) return false;
+    const uid = userIdRef.current;
+    if (!k || !uid) return false;
     if (syncStatusRef.current === "saving") return false;
     try {
-      const token = await d.ensureToken();
-      if (!token) return false;
-      const file = await findAppFile();
-      if (!file) return false;
-      const remoteMod = file.modifiedTime ?? null;
-      if (!force && remoteMod && remoteMod === driveModifiedRef.current) return false;
-      driveFileIdRef.current = file.id;
+      const info = await statVault(uid);
+      if (!info) return false;
+      const remoteMod = info.modifiedTime;
+      if (!force && remoteMod && remoteMod === remoteModifiedRef.current) return false;
+      const result = await downloadVault(uid);
+      if (!result) return false;
       try {
-        localStorage.setItem("lifevault_drive_fileid", file.id);
-      } catch {}
-      const blob = await downloadAppFile(file.id);
-      try {
-        const parsed = await decryptSyncData<FinanceState>(blob);
+        const parsed = await decryptSyncData<FinanceState>(result.content);
         const remoteState = ensureRegions({ ...initialState, ...parsed });
-        let appliedRemoteMod = remoteMod;
-        if (!isSyncEnvelopeBlob(blob)) {
+        let appliedRemoteMod = result.info.modifiedTime ?? remoteMod;
+        if (!isSyncEnvelopeBlob(result.content)) {
           const migrated = await encryptSyncData(remoteState);
-          await updateAppFile(file.id, migrated);
-          try {
-            const fresh = await findAppFile();
-            appliedRemoteMod = fresh?.modifiedTime ?? remoteMod;
-          } catch {}
+          const upInfo = await uploadVault(uid, migrated);
+          appliedRemoteMod = upInfo.modifiedTime ?? appliedRemoteMod;
         }
-        driveModifiedRef.current = appliedRemoteMod;
-        driveWriteBlockedRef.current = false;
+        remoteModifiedRef.current = appliedRemoteMod;
+        cloudWriteBlockedRef.current = false;
         suppressNextSaveRef.current = true;
         setState(remoteState);
         setSyncStatus("synced");
@@ -754,25 +716,28 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           ...diag,
           checkedAt: Date.now(),
           local: countFinanceState(remoteState),
-          remote: { status: "available", modifiedTime: file.modifiedTime, counts: countFinanceState(remoteState) },
+          remote: {
+            status: "available",
+            modifiedTime: result.info.modifiedTime ?? undefined,
+            counts: countFinanceState(remoteState),
+          },
         }));
         return true;
       } catch (error) {
-        // Different PIN on the other device — can't decrypt, keep local and never overwrite it.
-        driveWriteBlockedRef.current = true;
+        cloudWriteBlockedRef.current = true;
         setSyncStatus("error");
         setSyncDiagnostics((diag) => ({
           ...diag,
           checkedAt: Date.now(),
           remote: {
             status: "locked",
-            modifiedTime: file.modifiedTime,
-            message: (error as Error).message || "A Drive file exists, but this PIN cannot decrypt it.",
+            modifiedTime: result.info.modifiedTime ?? undefined,
+            message: (error as Error).message || "A cloud vault exists, but this PIN cannot decrypt it.",
           },
         }));
       }
     } catch {
-      // Network/Drive blip — try again next tick.
+      // Network blip — try again next tick.
     }
     return false;
   }, [decryptSyncData, encryptSyncData]);
@@ -780,7 +745,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   // 3) Debounced auto-save on every state change (skip if we just applied a remote pull)
   React.useEffect(() => {
     if (!hydrated) return;
-    if (drive.connected && !driveReady) {
+    if (user && !cloudReady) {
+      // Defer cloud writes until the initial pull completes; still keep local cache fresh.
       skippedInitialAutoSaveRef.current = true;
       const t = setTimeout(() => {
         void persistLocal();
@@ -799,11 +765,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       void writeAndPush(false);
     }, 800);
     return () => clearTimeout(t);
-  }, [state, hydrated, key, drive.connected, driveReady, persistLocal, writeAndPush]);
+  }, [state, hydrated, key, user, cloudReady, persistLocal, writeAndPush]);
 
-  // 3b) Live auto-pull from Drive: every 20s, on tab focus, and on reconnect.
+  // 3b) Live auto-pull: every 20s while tab is visible, on focus, on reconnect.
   React.useEffect(() => {
-    if (!hydrated || !key || !drive.connected) return;
+    if (!hydrated || !key || !user) return;
     const tick = () => {
       if (document.visibilityState !== "visible") return;
       void pullIfRemoteNewer();
@@ -813,7 +779,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     };
     const onFocus = () => void pullIfRemoteNewer();
     const onOnline = () => void pullIfRemoteNewer();
-    // Kick once shortly after wiring up so a fresh tab catches up quickly.
     const kick = setTimeout(() => void pullIfRemoteNewer(), 1500);
     const id = setInterval(tick, 20_000);
     document.addEventListener("visibilitychange", onVis);
@@ -826,7 +791,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("online", onOnline);
     };
-  }, [hydrated, key, drive.connected, pullIfRemoteNewer]);
+  }, [hydrated, key, user, pullIfRemoteNewer]);
 
   // 4) Flush on tab hide / before unload / when coming back online
   React.useEffect(() => {
