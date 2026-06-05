@@ -228,8 +228,9 @@ export function VaultView() {
       <div className="rounded-2xl border border-border bg-card p-4 flex items-start gap-3">
         <Lock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
         <p className="text-sm text-muted-foreground">
-          All vault records are encrypted with your PIN. Your data is stored locally
-          and (when connected) in your Google Drive — never transmitted in plaintext.
+          🔒 All vault records are encrypted with your PIN using AES-256-GCM
+          encryption. Your encrypted data is stored securely in the cloud. Only
+          your PIN can decrypt it — we cannot read your data.
         </p>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">

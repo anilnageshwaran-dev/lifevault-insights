@@ -14,9 +14,9 @@ const SLIDES = [
   },
   {
     icon: Cloud,
-    title: "Your Data, Your Drive",
+    title: "Encrypted Cloud Sync",
     body:
-      "LifeVault stores everything locally and can sync to your own Google Drive. You own your data — always.",
+      "LifeVault stores an encrypted copy of your data in secure cloud storage so it follows you across devices. We can never decrypt it — only your PIN can.",
     color: "text-positive",
     bg: "bg-positive/15",
   },
