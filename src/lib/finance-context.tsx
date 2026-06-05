@@ -608,7 +608,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (uid && cloudEnc) {
+      console.log("[vault] Triggering vault save:", uid, {
+        force,
+        blocked: cloudWriteBlockedRef.current,
+        bytes: cloudEnc.length,
+      });
       if (cloudWriteBlockedRef.current) {
+        console.warn("[vault] Cloud write blocked (PIN mismatch with remote)");
         setSyncStatus("error");
         return;
       }
@@ -618,10 +624,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus("synced");
         setLastSyncedAt(Date.now());
       } catch (e) {
+        console.error("[vault] Upload failed:", e);
         if (force) toast.error((e as Error).message || "Cloud sync failed — working from cache");
         setSyncStatus("error");
       }
     } else {
+      console.log("[vault] Skipping cloud push — no user or no encryption key", {
+        hasUser: !!uid,
+        hasCloudEnc: !!cloudEnc,
+      });
       setSyncStatus("synced");
       if (force) setLastSyncedAt(Date.now());
     }
