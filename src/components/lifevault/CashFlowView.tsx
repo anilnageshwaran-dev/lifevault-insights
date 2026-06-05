@@ -519,7 +519,9 @@ function AccountFormDialog({ account, onClose, base }:
               <div>
                 <FieldLabel>{isCC ? "Issuer / Bank *" : "Bank Name *"}</FieldLabel>
                 <input className="underline-input" list="bank-list" value={form.bank || ""}
+                  placeholder="Type or pick (e.g. Barclays, HDFC)"
                   onChange={(e) => setForm({ ...form, bank: e.target.value })} />
+                <p className="text-[11px] text-muted-foreground mt-1">Free text — type any bank name if not listed.</p>
                 <datalist id="bank-list">
                   {BANKS.map((b) => <option key={b} value={b} />)}
                 </datalist>
