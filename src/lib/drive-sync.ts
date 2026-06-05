@@ -3,8 +3,11 @@
 export const GOOGLE_CLIENT_ID =
   "244566667720-r1m69sp9eurfg2iguo8p7le0qqamcbvq.apps.googleusercontent.com";
 
+// drive.file is a non-restricted scope: Google only requires a brand review
+// (logo, privacy policy, homepage) to publish — no CASA security assessment.
+// The app can only see files it creates itself, so user privacy is preserved.
 export const DRIVE_SCOPES =
-  "openid email profile https://www.googleapis.com/auth/drive.appdata";
+  "openid email profile https://www.googleapis.com/auth/drive.file";
 
 export const DRIVE_FILE_NAME = "lifevault_data.json";
 
@@ -168,9 +171,10 @@ async function authedFetch(
 }
 
 export async function findAppFile(): Promise<{ id: string; modifiedTime?: string } | null> {
-  const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}'`);
+  // With drive.file scope we can only see files this app created.
+  const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
   const r = await authedFetch(
-    `${DRIVE_API}/files?spaces=appDataFolder&q=${q}&fields=files(id,name,modifiedTime)`,
+    `${DRIVE_API}/files?q=${q}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`,
   );
   if (!r.ok) throw new Error(`Drive list failed: ${r.status}`);
   const j = (await r.json()) as { files?: Array<{ id: string; modifiedTime?: string }> };
@@ -185,7 +189,9 @@ export async function downloadAppFile(fileId: string): Promise<string> {
 
 export async function createAppFile(content: string): Promise<string> {
   const boundary = "lvbnd_" + Math.random().toString(36).slice(2);
-  const meta = { name: DRIVE_FILE_NAME, parents: ["appDataFolder"] };
+  // No parents → file is created in the user's "My Drive" root. They can move
+  // it into any folder later; we still find it by name via drive.file scope.
+  const meta = { name: DRIVE_FILE_NAME };
   const body =
     `--${boundary}\r\n` +
     `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
