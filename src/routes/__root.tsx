@@ -78,6 +78,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "google-site-verification", content: "1di9pUrGnr9HuoAJUy_AmvepEuFFHNrUQbRUetMlvAg" },
+      { name: "google-site-verification", content: "zwrN8FBMY_M7kNZJmRbZXh-H-FukmJ5mTdxRyjgmaoQ" },
       { title: "LifeVault" },
       { name: "description", content: "Premium personal finance dashboard" },
       { name: "author", content: "LifeVault" },
