@@ -26,7 +26,7 @@ import {
 import {
   Plus, Trash2, Receipt, AlertTriangle, Wallet, CreditCard, Banknote,
   ChevronLeft, ChevronRight, Search, CalendarClock, CheckCircle2, Repeat,
-  TrendingUp,
+  TrendingUp, Upload, FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
@@ -34,6 +34,9 @@ import {
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
+import { StatementImportDialog } from "./StatementImportDialog";
+import { generateAnnualReport } from "@/lib/reports-pdf";
+import { useAuth } from "@/lib/auth-context";
 
 const BANKS = [
   // India
@@ -116,6 +119,7 @@ function TransactionsTab() {
   const [catFilter, setCatFilter] = React.useState<string>("all");
   const [minAmt, setMinAmt] = React.useState<string>("");
   const [maxAmt, setMaxAmt] = React.useState<string>("");
+  const [importOpen, setImportOpen] = React.useState(false);
 
   const now = new Date();
   const viewing = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -175,7 +179,16 @@ function TransactionsTab() {
 
   return (
     <GlassCard>
-      <SectionTitle title="Transactions" subtitle={`${filtered.length} ${allTime ? "entries (all time)" : "entries this month"}`} />
+      <SectionTitle
+        title="Transactions"
+        subtitle={`${filtered.length} ${allTime ? "entries (all time)" : "entries this month"}`}
+        right={
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="gap-1.5">
+            <Upload className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Import Statement</span>
+          </Button>
+        }
+      />
+      <StatementImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <button onClick={() => setMonthOffset((o) => o - 1)} disabled={allTime}
@@ -736,8 +749,20 @@ function BudgetTab() {
 
 function InsightsTab() {
   const { state, fx } = useFinance();
+  const { user } = useAuth();
   const base = state.baseCurrency || "INR";
   const [period, setPeriod] = React.useState<"thisMonth" | "lastMonth" | "3m" | "6m" | "12m" | "ytd">("thisMonth");
+
+  const ownerName =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email || "Account holder";
+  const exportAnnual = () => {
+    try {
+      generateAnnualReport(state, fx, ownerName, new Date().getFullYear());
+      toast.success("Annual report downloaded");
+    } catch (e) { toast.error((e as Error).message || "Report failed"); }
+  };
 
   const { start, end, months } = React.useMemo(() => {
     const now = new Date();
@@ -807,7 +832,15 @@ function InsightsTab() {
 
   return (
     <GlassCard>
-      <SectionTitle title="Cash Flow Insights" subtitle="Compare income, spending, investing" />
+      <SectionTitle
+        title="Cash Flow Insights"
+        subtitle="Compare income, spending, investing"
+        right={
+          <Button variant="outline" size="sm" onClick={exportAnnual} className="gap-1.5">
+            <FileDown className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Annual Report</span>
+          </Button>
+        }
+      />
       <div className="flex gap-1 p-1 rounded-lg bg-white/[0.04] w-fit mb-3 flex-wrap">
         {([
           { id: "thisMonth", label: "This Month" },

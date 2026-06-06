@@ -8,6 +8,20 @@ export interface ChangelogEntry {
 // Only major user-visible changes — keep this list curated.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.5.0",
+    date: "2026-06-06",
+    title: "Emergency page, milestones & calculators",
+    highlights: [
+      "New 'In Case of Emergency' page in your Vault with PIN re-verification and PDF export",
+      "Net-worth milestone celebrations with confetti and shareable cards",
+      "SIP calculator with goal-based mode at /calculators/sip",
+      "Net Worth & Annual & Goals PDF reports with watermark and optional password",
+      "Broker import (Zerodha / Groww / generic CSV) for equity holdings",
+      "Bank statement import with auto-categorisation and duplicate detection",
+      "First-time app tour and Help dialog with FAQ",
+    ],
+  },
+  {
     version: "1.4.0",
     date: "2026-06-04",
     title: "Profile drawer & quick access",

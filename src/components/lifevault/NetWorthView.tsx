@@ -56,7 +56,8 @@ import {
   TrendingDown,
   Eye,
   EyeOff,
-
+  Download,
+  FileDown,
 } from "lucide-react";
 import {
   PieChart,
@@ -74,6 +75,12 @@ import { CurrencySelect } from "./CurrencySelect";
 import { amortize } from "@/lib/loan-utils";
 import { useServerFn } from "@tanstack/react-start";
 import { refreshInvestmentPrices } from "@/lib/investment-prices.functions";
+import { detectNewMilestones, type MilestoneAchieved } from "@/lib/milestones";
+import { MilestoneCelebration } from "./MilestoneCelebration";
+import { MilestonesRow } from "./MilestonesRow";
+import { BrokerImportDialog } from "./BrokerImportDialog";
+import { generateNetWorthReport } from "@/lib/reports-pdf";
+import { useAuth } from "@/lib/auth-context";
 
 const ASSET_CATS: AssetCategory[] = ["cash", "equity", "debt", "gold", "realestate", "crypto"];
 const LIAB_CATS: LiabilityCategory[] = ["home", "vehicle", "personal", "credit", "other"];
@@ -98,6 +105,7 @@ const SUBTYPES: Record<AssetCategory, string[]> = {
 
 export function NetWorthView() {
   const { state, setState, fx } = useFinance();
+  const { user } = useAuth();
   const base = state.baseCurrency || "INR";
 
   const [openAdd, setOpenAdd] = React.useState<{ kind: "asset" | "liability"; category: string } | null>(null);
@@ -105,6 +113,8 @@ export function NetWorthView() {
   const [refreshingPrices, setRefreshingPrices] = React.useState(false);
   const [hideValues, setHideValues] = React.useState(false);
   const [displayCcy, setDisplayCcy] = React.useState<string>(base);
+  const [celebrate, setCelebrate] = React.useState<MilestoneAchieved | null>(null);
+  const [brokerOpen, setBrokerOpen] = React.useState(false);
   const refreshPricesFn = useServerFn(refreshInvestmentPrices);
 
   // Per-currency breakdown (native amounts, no FX conversion)
@@ -140,6 +150,8 @@ export function NetWorthView() {
   const netWorth = totalAssets - totalLiabs;
   const byCat = assetsByCategory(state, fx, base);
 
+  const achieved = state.milestonesAchieved ?? [];
+
   const takeSnapshot = () => {
     const snap: NetWorthSnapshot = {
       id: uid(),
@@ -149,8 +161,40 @@ export function NetWorthView() {
       netWorth,
       assetBreakdown: byCat,
     };
-    setState((s) => ({ ...s, snapshots: [...s.snapshots, snap] }));
+    // Detect newly crossed milestones (in INR baseline regardless of display ccy)
+    const nwInBase = sumAssets(state, fx, base) - sumLiabilities(state, fx, base);
+    const newOnes = detectNewMilestones(nwInBase, achieved);
+    const additions: MilestoneAchieved[] = newOnes.map((m) => ({
+      amount: m.amount,
+      label: m.label,
+      emoji: m.emoji,
+      date: snap.date,
+      netWorth: nwInBase,
+    }));
+    setState((s) => ({
+      ...s,
+      snapshots: [...s.snapshots, snap],
+      milestonesAchieved: [...(s.milestonesAchieved ?? []), ...additions],
+    }));
     toast.success("Snapshot saved");
+    // Celebrate the highest new milestone
+    if (additions.length > 0) {
+      setCelebrate(additions[additions.length - 1]);
+    }
+  };
+
+  const ownerName =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email || "Account holder";
+
+  const exportReport = () => {
+    try {
+      generateNetWorthReport(state, fx, ownerName);
+      toast.success("Report downloaded");
+    } catch (e) {
+      toast.error((e as Error).message || "Report failed");
+    }
   };
 
   const refreshPrices = async () => {
@@ -239,13 +283,19 @@ export function NetWorthView() {
             <RefreshCw className={`h-4 w-4 ${refreshingPrices ? "animate-spin" : ""}`} />
             {refreshingPrices ? "Refreshing…" : "Refresh Market Prices"}
           </Button>
+          <Button onClick={() => setBrokerOpen(true)} variant="outline" className="gap-2">
+            <Download className="h-4 w-4" /> Import from Broker
+          </Button>
+          <Button onClick={exportReport} variant="outline" className="gap-2">
+            <FileDown className="h-4 w-4" /> Report
+          </Button>
           <Button onClick={takeSnapshot} className="gap-2">
             <Camera className="h-4 w-4" /> Take Snapshot
           </Button>
         </div>
       </GlassCard>
 
-
+      <MilestonesRow achieved={achieved} netWorth={netWorth} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <GlassCard>
@@ -479,6 +529,8 @@ export function NetWorthView() {
       {scheduleFor && (
         <LoanScheduleDialog liability={scheduleFor} onClose={() => setScheduleFor(null)} />
       )}
+      <BrokerImportDialog open={brokerOpen} onClose={() => setBrokerOpen(false)} />
+      <MilestoneCelebration milestone={celebrate} onClose={() => setCelebrate(null)} />
     </div>
   );
 }

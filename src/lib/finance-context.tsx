@@ -6,6 +6,7 @@ import { useAuth } from "./auth-context";
 import { fetchFxRates, type FxCache, convert } from "./currency";
 import { downloadVault, uploadVault, statVault } from "./supabase-storage";
 import { toast } from "sonner";
+import type { MilestoneAchieved } from "./milestones";
 
 export type AssetCategory =
   | "cash"
@@ -250,6 +251,11 @@ export interface FinanceState {
 
   baseCurrency: string;
   lastUsedAccountId?: string;
+
+  /** Net-worth milestone celebrations already achieved. */
+  milestonesAchieved?: MilestoneAchieved[];
+  /** Free-text "message to family" for the Emergency page. */
+  emergencyNote?: string;
 }
 
 const initialState: FinanceState = {
@@ -281,6 +287,8 @@ const initialState: FinanceState = {
   accounts: [],
   bills: [],
   baseCurrency: "INR",
+  milestonesAchieved: [],
+  emergencyNote: "",
 };
 
 /** Ensure at least one region exists; migrates legacy top-level fields into a seeded region.

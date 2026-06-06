@@ -13,10 +13,19 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Target, Plus, Trash2, Pencil, Calculator, X,
+  Target, Plus, Trash2, Pencil, Calculator, X, TrendingUp, FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
+import {
+  Dialog as SipDialog,
+  DialogContent as SipDialogContent,
+  DialogHeader as SipDialogHeader,
+  DialogTitle as SipDialogTitle,
+} from "@/components/ui/dialog";
+import { SipCalculator } from "./SipCalculator";
+import { generateGoalsReport } from "@/lib/reports-pdf";
+import { useAuth } from "@/lib/auth-context";
 
 interface Template { name: string; icon: string; inflation: number; }
 const TEMPLATES: Record<string, Template> = {
@@ -41,10 +50,24 @@ function computeGoal(g: Goal) {
 
 export function GoalsView() {
   const { state, setState } = useFinance();
+  const { user } = useAuth();
   const base = state.baseCurrency || "INR";
   const [open, setOpen] = React.useState(false);
   const [calcOpen, setCalcOpen] = React.useState(false);
+  const [sipOpen, setSipOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Goal | null>(null);
+
+  const ownerName =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email || "Account holder";
+
+  const exportReport = () => {
+    try {
+      generateGoalsReport(state, ownerName);
+      toast.success("Goals report downloaded");
+    } catch (e) { toast.error((e as Error).message || "Report failed"); }
+  };
 
   const blank: Goal = {
     id: "", name: "", type: "Home Purchase", currentCost: 0,
@@ -78,11 +101,17 @@ export function GoalsView() {
       <GlassCard>
         <SectionTitle title="Your Goals" subtitle="Future-priced and tracked monthly"
           right={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCalcOpen(true)} className="gap-1">
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => setSipOpen(true)} className="gap-1">
+                <TrendingUp className="h-4 w-4" /> <span className="hidden sm:inline">SIP Calc</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setCalcOpen(true)} className="gap-1">
                 <Calculator className="h-4 w-4" /> <span className="hidden sm:inline">Inflation</span>
               </Button>
-              <Button onClick={startNew} className="gap-1"><Plus className="h-4 w-4" /> Add Goal</Button>
+              <Button variant="outline" size="sm" onClick={exportReport} className="gap-1">
+                <FileDown className="h-4 w-4" /> <span className="hidden sm:inline">Report</span>
+              </Button>
+              <Button size="sm" onClick={startNew} className="gap-1"><Plus className="h-4 w-4" /> Add Goal</Button>
             </div>
           } />
         {state.goals.length === 0 ? (
@@ -158,6 +187,15 @@ export function GoalsView() {
       </GlassCard>
 
       {calcOpen && <InflationPanel onClose={() => setCalcOpen(false)} />}
+
+      <SipDialog open={sipOpen} onOpenChange={setSipOpen}>
+        <SipDialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <SipDialogHeader>
+            <SipDialogTitle className="sr-only">SIP Calculator</SipDialogTitle>
+          </SipDialogHeader>
+          <SipCalculator />
+        </SipDialogContent>
+      </SipDialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">

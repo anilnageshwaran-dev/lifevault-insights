@@ -14,6 +14,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CalculatorsSipRouteImport } from './routes/calculators.sip'
 
 const WhatsNewRoute = WhatsNewRouteImport.update({
   id: '/whats-new',
@@ -40,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalculatorsSipRoute = CalculatorsSipRouteImport.update({
+  id: '/calculators/sip',
+  path: '/calculators/sip',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/whats-new': typeof WhatsNewRoute
+  '/calculators/sip': typeof CalculatorsSipRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/whats-new': typeof WhatsNewRoute
+  '/calculators/sip': typeof CalculatorsSipRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,12 +70,25 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/whats-new': typeof WhatsNewRoute
+  '/calculators/sip': typeof CalculatorsSipRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/accept-invite' | '/privacy' | '/sitemap.xml' | '/whats-new'
+  fullPaths:
+    | '/'
+    | '/accept-invite'
+    | '/privacy'
+    | '/sitemap.xml'
+    | '/whats-new'
+    | '/calculators/sip'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/accept-invite' | '/privacy' | '/sitemap.xml' | '/whats-new'
+  to:
+    | '/'
+    | '/accept-invite'
+    | '/privacy'
+    | '/sitemap.xml'
+    | '/whats-new'
+    | '/calculators/sip'
   id:
     | '__root__'
     | '/'
@@ -75,6 +96,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/sitemap.xml'
     | '/whats-new'
+    | '/calculators/sip'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -83,6 +105,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   WhatsNewRoute: typeof WhatsNewRoute
+  CalculatorsSipRoute: typeof CalculatorsSipRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -122,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calculators/sip': {
+      id: '/calculators/sip'
+      path: '/calculators/sip'
+      fullPath: '/calculators/sip'
+      preLoaderRoute: typeof CalculatorsSipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -131,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   WhatsNewRoute: WhatsNewRoute,
+  CalculatorsSipRoute: CalculatorsSipRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
