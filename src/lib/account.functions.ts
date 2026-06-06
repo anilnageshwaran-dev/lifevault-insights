@@ -32,6 +32,6 @@ export const deleteAccount = createServerFn({ method: "POST" })
     }
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { ok: true };
   });

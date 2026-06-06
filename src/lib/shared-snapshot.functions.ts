@@ -41,7 +41,7 @@ export const upsertSharedSnapshot = createServerFn({ method: "POST" })
     const { error } = await supabase
       .from("household_shared_snapshots")
       .upsert(row, { onConflict: "household_id,user_id" });
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { ok: true };
   });
 
@@ -57,7 +57,7 @@ export const listSharedSnapshots = createServerFn({ method: "POST" })
       .select("*")
       .eq("household_id", data.householdId)
       .order("updated_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { snapshots: rows ?? [] };
   });
 
@@ -73,6 +73,6 @@ export const deleteMySharedSnapshot = createServerFn({ method: "POST" })
       .delete()
       .eq("household_id", data.householdId)
       .eq("user_id", userId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { ok: true };
   });

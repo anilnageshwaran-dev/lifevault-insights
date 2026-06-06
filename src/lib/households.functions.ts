@@ -16,7 +16,7 @@ export const listHouseholds = createServerFn({ method: "GET" })
       .from("household_members")
       .select("household_id, role, joined_at")
       .eq("user_id", userId);
-    if (mErr) throw new Error(mErr.message);
+    if (mErr) { console.error("[server] db error:", mErr); throw new Error("An internal error occurred. Please try again."); }
     if (!memberships || memberships.length === 0) return { households: [] };
 
     const ids = memberships.map((m) => m.household_id);
@@ -24,7 +24,7 @@ export const listHouseholds = createServerFn({ method: "GET" })
       .from("households")
       .select("id, name, owner_id, created_at")
       .in("id", ids);
-    if (hErr) throw new Error(hErr.message);
+    if (hErr) { console.error("[server] db error:", hErr); throw new Error("An internal error occurred. Please try again."); }
 
     const map = new Map(memberships.map((m) => [m.household_id, m]));
     return {
@@ -48,13 +48,13 @@ export const createHousehold = createServerFn({ method: "POST" })
       .insert({ name: data.name, owner_id: userId })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     const { error: mErr } = await supabaseAdmin.from("household_members").insert({
       household_id: hh.id,
       user_id: userId,
       role: "owner",
     });
-    if (mErr) throw new Error(mErr.message);
+    if (mErr) { console.error("[server] db error:", mErr); throw new Error("An internal error occurred. Please try again."); }
     return { household: hh };
   });
 
@@ -70,7 +70,7 @@ export const renameHousehold = createServerFn({ method: "POST" })
       .from("households")
       .update({ name: data.name })
       .eq("id", data.householdId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { ok: true };
   });
 
@@ -84,7 +84,7 @@ export const deleteHousehold = createServerFn({ method: "POST" })
       .from("households")
       .delete()
       .eq("id", data.householdId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { ok: true };
   });
 
@@ -99,7 +99,7 @@ export const listMembers = createServerFn({ method: "GET" })
       .from("household_members")
       .select("user_id, role, joined_at")
       .eq("household_id", data.householdId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     const ids = (members ?? []).map((m) => m.user_id);
     let profiles: { id: string; display_name: string | null; avatar_url: string | null }[] = [];
     if (ids.length) {
@@ -132,7 +132,7 @@ export const listInvites = createServerFn({ method: "GET" })
       .eq("household_id", data.householdId)
       .is("accepted_at", null)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { invites: invites ?? [] };
   });
 
@@ -159,7 +159,7 @@ export const inviteMember = createServerFn({ method: "POST" })
       })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { invite: inv };
   });
 
