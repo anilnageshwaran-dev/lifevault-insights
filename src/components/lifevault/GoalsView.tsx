@@ -101,11 +101,17 @@ export function GoalsView() {
       <GlassCard>
         <SectionTitle title="Your Goals" subtitle="Future-priced and tracked monthly"
           right={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCalcOpen(true)} className="gap-1">
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => setSipOpen(true)} className="gap-1">
+                <TrendingUp className="h-4 w-4" /> <span className="hidden sm:inline">SIP Calc</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setCalcOpen(true)} className="gap-1">
                 <Calculator className="h-4 w-4" /> <span className="hidden sm:inline">Inflation</span>
               </Button>
-              <Button onClick={startNew} className="gap-1"><Plus className="h-4 w-4" /> Add Goal</Button>
+              <Button variant="outline" size="sm" onClick={exportReport} className="gap-1">
+                <FileDown className="h-4 w-4" /> <span className="hidden sm:inline">Report</span>
+              </Button>
+              <Button size="sm" onClick={startNew} className="gap-1"><Plus className="h-4 w-4" /> Add Goal</Button>
             </div>
           } />
         {state.goals.length === 0 ? (
