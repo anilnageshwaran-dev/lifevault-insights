@@ -136,7 +136,7 @@ function AccountTab() {
         ? "Offline — working from cache"
       : syncStatus === "synced"
         ? "Synced"
-        : "Synced";
+        : "Ready";
   const statusDot = !cloudConnected
     ? "bg-foreground/30"
     : syncStatus === "saving" || syncing
