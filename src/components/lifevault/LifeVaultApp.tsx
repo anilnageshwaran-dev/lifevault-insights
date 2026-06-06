@@ -176,6 +176,8 @@ export function LifeVaultApp() {
           </div>
         </div>
 
+        <RemindersBanner />
+
         <div
           key={animKey}
           className="px-3 sm:px-4 md:px-8 py-4 md:py-5 pb-28 md:pb-12 animate-[fadeUp_200ms_ease-out]"
