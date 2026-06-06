@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock,
-  Settings as SettingsIcon, ChevronLeft, ChevronRight, LayoutDashboard,
+  Settings as SettingsIcon, ChevronLeft, ChevronRight, LayoutDashboard, HelpCircle,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
@@ -18,6 +18,7 @@ import { LifeVaultIcon } from "./LifeVaultIcon";
 import { ProfileDrawer } from "./ProfileDrawer";
 import { RemindersBanner } from "./RemindersBanner";
 import { FeedbackButton } from "./FeedbackButton";
+import { HelpAndTour } from "./HelpAndTour";
 
 type TabId = "home" | "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
 
@@ -40,10 +41,16 @@ export function LifeVaultApp() {
   const { syncStatus } = useFinance();
   const { lock } = useLock();
   const { user } = useAuth();
-  
+  const [showHelp, setShowHelp] = React.useState(false);
+  const [showTour, setShowTour] = React.useState(false);
 
   React.useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
+    try {
+      if (localStorage.getItem("lifevault_tour_completed") !== "true") {
+        setShowTour(true);
+      }
+    } catch {}
   }, []);
   const toggleCollapse = () => {
     const v = !collapsed;
@@ -154,6 +161,13 @@ export function LifeVaultApp() {
           </button>
           <div className="flex items-center gap-1">
             <SyncDot status={syncStatus} compact />
+            <button
+              onClick={() => setShowHelp(true)}
+              className="p-2 rounded-lg text-muted-foreground hover:bg-accent"
+              aria-label="Help"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
             <button onClick={lock} className="p-2 rounded-lg text-muted-foreground hover:bg-accent" aria-label="Lock">
               <Lock className="h-4 w-4" />
             </button>
@@ -168,6 +182,14 @@ export function LifeVaultApp() {
           </div>
           <div className="flex items-center gap-2">
             <SyncDot status={syncStatus} />
+            <button
+              onClick={() => setShowHelp(true)}
+              className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              aria-label="Help"
+              title="Help"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
             <button
               onClick={lock}
               className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -227,6 +249,16 @@ export function LifeVaultApp() {
 
       <InstallBanner />
       <FeedbackButton />
+
+      <HelpAndTour
+        showHelp={showHelp}
+        showTour={showTour}
+        onCloseHelp={() => setShowHelp(false)}
+        onCloseTour={() => {
+          setShowTour(false);
+          try { localStorage.setItem("lifevault_tour_completed", "true"); } catch {}
+        }}
+      />
 
       <style>{`
         @keyframes fadeUp {
