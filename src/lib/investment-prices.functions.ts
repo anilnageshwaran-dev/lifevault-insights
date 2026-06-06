@@ -3,6 +3,7 @@
 // returns null and we skip that holding.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const HoldingSchema = z.object({
   id: z.string().min(1).max(64),
@@ -25,6 +26,7 @@ export interface PriceResult {
 }
 
 export const refreshInvestmentPrices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input) => InputSchema.parse(input))
   .handler(async ({ data }): Promise<{ results: PriceResult[]; error: string | null }> => {
     const apiKey = process.env.LOVABLE_API_KEY;
