@@ -11,6 +11,8 @@ import {
   Save,
   Lock,
   AlertTriangle,
+  AlertCircle,
+  ChevronRight,
   X,
 } from "lucide-react";
 import { useFinance, type VaultRecord } from "@/lib/finance-context";
@@ -20,6 +22,7 @@ import { EmptyState } from "./primitives";
 import { computeExpiryAlerts, isDismissed, dismissAlert, type ExpiryAlert } from "@/lib/vault-expiry";
 import { evaluatePasswords, type PasswordHealthSummary } from "@/lib/password-health";
 import { ShieldCheck, ShieldAlert, ChevronDown } from "lucide-react";
+import { EmergencyView } from "./EmergencyView";
 
 interface Field {
   key: string;
@@ -206,6 +209,11 @@ export function VaultView() {
   const [openCat, setOpenCat] = React.useState<Category | null>(null);
   const [openRecord, setOpenRecord] = React.useState<VaultRecord | null>(null);
   const [creating, setCreating] = React.useState(false);
+  const [emergencyOpen, setEmergencyOpen] = React.useState(false);
+
+  if (emergencyOpen) {
+    return <EmergencyView onBack={() => setEmergencyOpen(false)} />;
+  }
 
   if (openCat && (openRecord || creating)) {
     return (
@@ -230,6 +238,21 @@ export function VaultView() {
 
   return (
     <div className="space-y-5">
+      {/* Emergency CTA */}
+      <button
+        onClick={() => setEmergencyOpen(true)}
+        className="w-full text-left rounded-2xl border-2 border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/15 transition-colors p-4 flex items-center gap-3"
+      >
+        <div className="h-10 w-10 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0">
+          <AlertCircle className="h-5 w-5 text-rose-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-foreground">🆘 In Case of Emergency</div>
+          <div className="text-xs text-muted-foreground">Everything your family needs in one place — PIN required</div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+      </button>
+
       <ExpiryAttentionCard vault={state.vault ?? {}} onOpenCategory={(catId) => {
         const c = CATS.find((x) => x.id === catId);
         if (c) setOpenCat(c);
