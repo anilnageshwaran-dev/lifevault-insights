@@ -589,7 +589,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Core writer — persists locally and pushes to Supabase Storage when signed in.
-  const writeAndPush = React.useCallback(async (force = false): Promise<void> => {
+  const writeAndPush = React.useCallback(async (force = false): Promise<"synced" | "cached"> => {
     const k = keyRef.current;
     const s = stateRef.current;
     const uid = userIdRef.current;
@@ -616,17 +616,20 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (cloudWriteBlockedRef.current) {
         console.warn("[vault] Cloud write blocked (PIN mismatch with remote)");
         setSyncStatus("cached");
-        return;
+        if (force) throw new Error("Cloud write blocked — the cloud vault uses a different PIN");
+        return "cached";
       }
       try {
         const info = await uploadVault(uid, cloudEnc);
         remoteModifiedRef.current = info.modifiedTime;
         setSyncStatus("synced");
         setLastSyncedAt(Date.now());
+        return "synced";
       } catch (e) {
         console.error("[vault] Upload failed:", e);
-        if (force) toast.error((e as Error).message || "Cloud sync failed — working from cache");
         setSyncStatus("cached");
+        if (force) throw e;
+        return "cached";
       }
     } else {
       console.log("[vault] Skipping cloud push — no user or no encryption key", {
@@ -634,6 +637,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         hasCloudEnc: !!cloudEnc,
       });
       setSyncStatus("cached");
+      if (force) throw new Error("Cloud upload skipped — sign in and unlock LifeVault first");
+      return "cached";
     }
   }, [encryptSyncData]);
 
