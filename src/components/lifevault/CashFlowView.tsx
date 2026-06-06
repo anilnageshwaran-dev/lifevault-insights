@@ -26,7 +26,7 @@ import {
 import {
   Plus, Trash2, Receipt, AlertTriangle, Wallet, CreditCard, Banknote,
   ChevronLeft, ChevronRight, Search, CalendarClock, CheckCircle2, Repeat,
-  TrendingUp,
+  TrendingUp, Upload, FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
@@ -34,6 +34,9 @@ import {
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
+import { StatementImportDialog } from "./StatementImportDialog";
+import { generateAnnualReport } from "@/lib/reports-pdf";
+import { useAuth } from "@/lib/auth-context";
 
 const BANKS = [
   // India
@@ -116,6 +119,7 @@ function TransactionsTab() {
   const [catFilter, setCatFilter] = React.useState<string>("all");
   const [minAmt, setMinAmt] = React.useState<string>("");
   const [maxAmt, setMaxAmt] = React.useState<string>("");
+  const [importOpen, setImportOpen] = React.useState(false);
 
   const now = new Date();
   const viewing = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -175,7 +179,16 @@ function TransactionsTab() {
 
   return (
     <GlassCard>
-      <SectionTitle title="Transactions" subtitle={`${filtered.length} ${allTime ? "entries (all time)" : "entries this month"}`} />
+      <SectionTitle
+        title="Transactions"
+        subtitle={`${filtered.length} ${allTime ? "entries (all time)" : "entries this month"}`}
+        right={
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="gap-1.5">
+            <Upload className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Import Statement</span>
+          </Button>
+        }
+      />
+      <StatementImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <button onClick={() => setMonthOffset((o) => o - 1)} disabled={allTime}
