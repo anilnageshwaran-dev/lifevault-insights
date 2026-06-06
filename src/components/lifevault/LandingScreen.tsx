@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Loader2, Shield, Cloud, LineChart } from "lucide-react";
+import { Loader2, Shield, Cloud, LineChart, Lock, Server, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { lovable } from "@/integrations/lovable/index";
@@ -126,6 +126,57 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
               </p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Bank-Grade Security */}
+      <section className="px-6 py-16 border-t border-border">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="font-display text-3xl sm:text-4xl mb-3">Bank-Grade Security</h2>
+            <p className="text-base sm:text-lg text-muted-foreground">
+              Your data is protected by multiple layers of security
+            </p>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {[
+              {
+                icon: Lock,
+                tone: "text-emerald-500 bg-emerald-500/10",
+                title: "AES-256-GCM Encryption",
+                body: "Military-grade encryption before your data leaves your device",
+              },
+              {
+                icon: Shield,
+                tone: "text-indigo-500 bg-indigo-500/10",
+                title: "Zero-Knowledge",
+                body: "We cannot read your data. Only your PIN can decrypt it",
+              },
+              {
+                icon: Server,
+                tone: "text-amber-500 bg-amber-500/10",
+                title: "Isolated Storage",
+                body: "Your vault is completely separate from other users",
+              },
+              {
+                icon: Eye,
+                tone: "text-rose-500 bg-rose-500/10",
+                title: "No Data Selling",
+                body: "We never sell or share your personal data",
+              },
+            ].map(({ icon: Icon, tone, title, body }) => (
+              <div
+                key={title}
+                className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm flex flex-col items-start"
+              >
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center mb-4 ${tone}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-base sm:text-lg mb-1.5 leading-tight">{title}</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
