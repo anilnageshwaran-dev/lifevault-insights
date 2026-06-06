@@ -14,6 +14,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FamilyViewOwnerIdRouteImport } from './routes/family-view.$ownerId'
 import { Route as CalculatorsSipRouteImport } from './routes/calculators.sip'
 
 const WhatsNewRoute = WhatsNewRouteImport.update({
@@ -41,6 +42,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FamilyViewOwnerIdRoute = FamilyViewOwnerIdRouteImport.update({
+  id: '/family-view/$ownerId',
+  path: '/family-view/$ownerId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CalculatorsSipRoute = CalculatorsSipRouteImport.update({
   id: '/calculators/sip',
   path: '/calculators/sip',
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/whats-new': typeof WhatsNewRoute
   '/calculators/sip': typeof CalculatorsSipRoute
+  '/family-view/$ownerId': typeof FamilyViewOwnerIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/whats-new': typeof WhatsNewRoute
   '/calculators/sip': typeof CalculatorsSipRoute
+  '/family-view/$ownerId': typeof FamilyViewOwnerIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/whats-new': typeof WhatsNewRoute
   '/calculators/sip': typeof CalculatorsSipRoute
+  '/family-view/$ownerId': typeof FamilyViewOwnerIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/whats-new'
     | '/calculators/sip'
+    | '/family-view/$ownerId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/whats-new'
     | '/calculators/sip'
+    | '/family-view/$ownerId'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/whats-new'
     | '/calculators/sip'
+    | '/family-view/$ownerId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +118,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   WhatsNewRoute: typeof WhatsNewRoute
   CalculatorsSipRoute: typeof CalculatorsSipRoute
+  FamilyViewOwnerIdRoute: typeof FamilyViewOwnerIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -145,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/family-view/$ownerId': {
+      id: '/family-view/$ownerId'
+      path: '/family-view/$ownerId'
+      fullPath: '/family-view/$ownerId'
+      preLoaderRoute: typeof FamilyViewOwnerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calculators/sip': {
       id: '/calculators/sip'
       path: '/calculators/sip'
@@ -162,7 +182,18 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   WhatsNewRoute: WhatsNewRoute,
   CalculatorsSipRoute: CalculatorsSipRoute,
+  FamilyViewOwnerIdRoute: FamilyViewOwnerIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
