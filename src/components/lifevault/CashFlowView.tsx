@@ -749,8 +749,20 @@ function BudgetTab() {
 
 function InsightsTab() {
   const { state, fx } = useFinance();
+  const { user } = useAuth();
   const base = state.baseCurrency || "INR";
   const [period, setPeriod] = React.useState<"thisMonth" | "lastMonth" | "3m" | "6m" | "12m" | "ytd">("thisMonth");
+
+  const ownerName =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email || "Account holder";
+  const exportAnnual = () => {
+    try {
+      generateAnnualReport(state, fx, ownerName, new Date().getFullYear());
+      toast.success("Annual report downloaded");
+    } catch (e) { toast.error((e as Error).message || "Report failed"); }
+  };
 
   const { start, end, months } = React.useMemo(() => {
     const now = new Date();
@@ -820,7 +832,15 @@ function InsightsTab() {
 
   return (
     <GlassCard>
-      <SectionTitle title="Cash Flow Insights" subtitle="Compare income, spending, investing" />
+      <SectionTitle
+        title="Cash Flow Insights"
+        subtitle="Compare income, spending, investing"
+        right={
+          <Button variant="outline" size="sm" onClick={exportAnnual} className="gap-1.5">
+            <FileDown className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Annual Report</span>
+          </Button>
+        }
+      />
       <div className="flex gap-1 p-1 rounded-lg bg-white/[0.04] w-fit mb-3 flex-wrap">
         {([
           { id: "thisMonth", label: "This Month" },
