@@ -188,6 +188,15 @@ export function GoalsView() {
 
       {calcOpen && <InflationPanel onClose={() => setCalcOpen(false)} />}
 
+      <SipDialog open={sipOpen} onOpenChange={setSipOpen}>
+        <SipDialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <SipDialogHeader>
+            <SipDialogTitle className="sr-only">SIP Calculator</SipDialogTitle>
+          </SipDialogHeader>
+          <SipCalculator />
+        </SipDialogContent>
+      </SipDialog>
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
