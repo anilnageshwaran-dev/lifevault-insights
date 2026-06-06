@@ -10,11 +10,14 @@ import {
   Pencil,
   Save,
   Lock,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { useFinance, type VaultRecord } from "@/lib/finance-context";
 import { uid } from "@/lib/finance-utils";
 import { toast } from "sonner";
 import { EmptyState } from "./primitives";
+import { computeExpiryAlerts, isDismissed, dismissAlert, type ExpiryAlert } from "@/lib/vault-expiry";
 
 interface Field {
   key: string;
@@ -225,6 +228,10 @@ export function VaultView() {
 
   return (
     <div className="space-y-5">
+      <ExpiryAttentionCard vault={state.vault ?? {}} onOpenCategory={(catId) => {
+        const c = CATS.find((x) => x.id === catId);
+        if (c) setOpenCat(c);
+      }} />
       <div className="rounded-2xl border border-border bg-card p-4 flex items-start gap-3">
         <Lock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
         <p className="text-sm text-muted-foreground">
@@ -526,6 +533,65 @@ function RecordEditor({
           Last modified: {new Date(record.updatedAt).toLocaleString()}
         </div>
       )}
+    </div>
+  );
+}
+
+function ExpiryAttentionCard({
+  vault,
+  onOpenCategory,
+}: {
+  vault: Record<string, VaultRecord[]>;
+  onOpenCategory: (catId: string) => void;
+}) {
+  const [tick, setTick] = React.useState(0);
+  const alerts = React.useMemo(
+    () => computeExpiryAlerts(vault).filter((a) => !isDismissed(a)),
+    [vault, tick],
+  );
+  if (alerts.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <AlertTriangle className="h-4 w-4 text-warning" />
+        <h3 className="font-display text-lg">Documents Needing Attention</h3>
+      </div>
+      <div className="space-y-2">
+        {alerts.slice(0, 8).map((a, idx) => {
+          const chip =
+            a.severity === "critical" ? "text-danger bg-danger/10 border-danger/20"
+            : a.severity === "warning" ? "text-warning bg-warning/10 border-warning/20"
+            : "text-primary bg-primary/10 border-primary/20";
+          const days = a.daysLeft;
+          return (
+            <div key={`${a.categoryId}:${a.record.id}:${a.field}:${idx}`} className="flex items-center gap-3 rounded-lg bg-background/60 p-2.5">
+              <div className="text-lg shrink-0">{a.emoji}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm truncate">{a.record.title || a.categoryName}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {a.fieldLabel} · {a.date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                </div>
+              </div>
+              <span className={`shrink-0 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md border tabular ${chip}`}>
+                {days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? "Today" : `${days}d`}
+              </span>
+              <button
+                onClick={() => onOpenCategory(a.categoryId)}
+                className="text-xs text-primary hover:underline shrink-0"
+              >
+                View
+              </button>
+              <button
+                onClick={() => { dismissAlert(a); setTick((n) => n + 1); }}
+                className="text-muted-foreground hover:text-foreground shrink-0"
+                aria-label="Dismiss"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
