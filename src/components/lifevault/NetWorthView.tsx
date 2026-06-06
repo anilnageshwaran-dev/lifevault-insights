@@ -487,10 +487,39 @@ function LoanScheduleDialog({ liability, onClose }: { liability: LiabilityItem; 
   const { state, setState } = useFinance();
   const base = state.baseCurrency || "INR";
   const ccy = liability.currency || base;
-  const result = React.useMemo(
+  const [extra, setExtra] = React.useState<number>(0);
+  const [investRate, setInvestRate] = React.useState<number>(10);
+
+  const baseResult = React.useMemo(
     () => amortize(liability.principal, liability.rate, liability.emi),
     [liability.principal, liability.rate, liability.emi],
   );
+  const fastResult = React.useMemo(
+    () => amortize(liability.principal, liability.rate, liability.emi + Math.max(0, extra)),
+    [liability.principal, liability.rate, liability.emi, extra],
+  );
+
+  const monthsSaved = isFinite(baseResult.months) && isFinite(fastResult.months)
+    ? Math.max(0, baseResult.months - fastResult.months) : 0;
+  const interestSaved = isFinite(baseResult.totalInterest) && isFinite(fastResult.totalInterest)
+    ? Math.max(0, baseResult.totalInterest - fastResult.totalInterest) : 0;
+
+  // Prepay-vs-invest comparison.
+  // If we direct `extra` every month either to (a) prepayment or (b) invest at investRate
+  // for `months` (base loan duration), compare outcomes.
+  const monthlyInv = (investRate / 100) / 12;
+  const horizonMonths = isFinite(baseResult.months) ? baseResult.months : 0;
+  // Future value of monthly contribution `extra` for horizonMonths
+  const investFV = monthlyInv === 0
+    ? extra * horizonMonths
+    : extra * ((Math.pow(1 + monthlyInv, horizonMonths) - 1) / monthlyInv);
+  // Prepay benefit ≈ interest saved + (extra contributions stopped after early payoff,
+  // then invested at investRate until horizonMonths)
+  const idleMonths = Math.max(0, horizonMonths - (isFinite(fastResult.months) ? fastResult.months : 0));
+  const idleFV = monthlyInv === 0
+    ? (liability.emi + extra) * idleMonths
+    : (liability.emi + extra) * ((Math.pow(1 + monthlyInv, idleMonths) - 1) / monthlyInv);
+  const prepayNet = interestSaved + idleFV;
 
   const recordPayment = () => {
     const amt = Number(prompt("Payment amount", String(liability.emi)));
@@ -519,17 +548,16 @@ function LoanScheduleDialog({ liability, onClose }: { liability: LiabilityItem; 
     onClose();
   };
 
-  const monthsLabel = result.months === Infinity
-    ? "EMI too low — loan never amortizes"
-    : result.months === 0
-      ? "Already paid off"
-      : `${result.months} months (${Math.floor(result.months / 12)}y ${result.months % 12}m)`;
+  const monthsLabel = (m: number) =>
+    m === Infinity ? "Never amortizes"
+    : m === 0 ? "Paid off"
+    : `${m} mo (${Math.floor(m / 12)}y ${m % 12}m)`;
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">{liability.name} · Schedule</DialogTitle>
+          <DialogTitle className="font-display text-2xl">{liability.name} · Payoff Planner</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 text-sm">
           <div>
@@ -538,20 +566,90 @@ function LoanScheduleDialog({ liability, onClose }: { liability: LiabilityItem; 
           </div>
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Months left</div>
-            <div className="font-display text-lg">{monthsLabel}</div>
+            <div className="font-display text-lg">{monthsLabel(baseResult.months)}</div>
           </div>
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Interest</div>
             <div className="tabular font-display text-lg" style={{ color: "var(--color-danger)" }}>
-              {isFinite(result.totalInterest) ? formatMoney(result.totalInterest, ccy) : "—"}
+              {isFinite(baseResult.totalInterest) ? formatMoney(baseResult.totalInterest, ccy) : "—"}
             </div>
           </div>
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Payoff Date</div>
-            <div className="font-display text-lg">{result.payoffDate ?? "—"}</div>
+            <div className="font-display text-lg">{baseResult.payoffDate ?? "—"}</div>
           </div>
         </div>
-        <div className="flex gap-2 pb-3">
+
+        <div className="rounded-xl border border-border bg-background/40 p-3 space-y-3">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Extra payment planner</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="text-xs text-muted-foreground">
+              Extra per month ({ccy})
+              <input
+                type="number" min={0}
+                value={extra || ""}
+                onChange={(e) => setExtra(Math.max(0, Number(e.target.value) || 0))}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground tabular"
+              />
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Investment return for comparison (% / yr)
+              <input
+                type="number" min={0} step="0.1"
+                value={investRate}
+                onChange={(e) => setInvestRate(Math.max(0, Number(e.target.value) || 0))}
+                className="mt-1 w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground tabular"
+              />
+            </label>
+          </div>
+          {extra > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm pt-1">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">New duration</div>
+                <div className="font-display text-base">{monthsLabel(fastResult.months)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Months saved</div>
+                <div className="font-display text-base text-positive tabular">{monthsSaved}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Interest saved</div>
+                <div className="font-display text-base text-positive tabular">{formatMoney(interestSaved, ccy)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">New payoff</div>
+                <div className="font-display text-base">{fastResult.payoffDate ?? "—"}</div>
+              </div>
+            </div>
+          )}
+          {extra > 0 && horizonMonths > 0 && (
+            <div className="rounded-lg border border-border bg-card/60 p-3 mt-2">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                Prepay vs Invest — over {Math.floor(horizonMonths / 12)}y {horizonMonths % 12}m
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Prepay path net benefit</div>
+                  <div className="font-display text-lg tabular" style={{ color: "var(--color-positive)" }}>
+                    {formatMoney(prepayNet, ccy)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Invest path final value</div>
+                  <div className="font-display text-lg tabular">{formatMoney(investFV, ccy)}</div>
+                </div>
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-2">
+                {prepayNet > investFV
+                  ? `Prepaying wins by ${formatMoney(prepayNet - investFV, ccy)}.`
+                  : `Investing wins by ${formatMoney(investFV - prepayNet, ccy)}.`}
+                {" "}Estimates assume the same monthly cash flow either way.
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 py-3">
           <Button size="sm" onClick={recordPayment}>Record EMI Payment</Button>
         </div>
         <div className="overflow-auto border border-white/5 rounded-lg">
@@ -567,7 +665,7 @@ function LoanScheduleDialog({ liability, onClose }: { liability: LiabilityItem; 
               </tr>
             </thead>
             <tbody>
-              {result.schedule.map((row) => (
+              {(extra > 0 ? fastResult : baseResult).schedule.map((row) => (
                 <tr key={row.month} className="border-t border-white/5">
                   <td className="px-3 py-1.5">{row.month}</td>
                   <td className="px-3 py-1.5">{row.date}</td>
@@ -577,7 +675,7 @@ function LoanScheduleDialog({ liability, onClose }: { liability: LiabilityItem; 
                   <td className="px-3 py-1.5 text-right">{formatMoney(row.balance, ccy)}</td>
                 </tr>
               ))}
-              {result.schedule.length === 0 && (
+              {baseResult.schedule.length === 0 && (
                 <tr><td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">No schedule to display.</td></tr>
               )}
             </tbody>

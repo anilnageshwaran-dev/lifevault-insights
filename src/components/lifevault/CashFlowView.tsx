@@ -26,9 +26,14 @@ import {
 import {
   Plus, Trash2, Receipt, AlertTriangle, Wallet, CreditCard, Banknote,
   ChevronLeft, ChevronRight, Search, CalendarClock, CheckCircle2, Repeat,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
+import {
+  LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip,
+  PieChart, Pie, Cell, Legend,
+} from "recharts";
 
 const BANKS = [
   // India
@@ -903,7 +908,208 @@ function InsightsTab() {
           </div>
         </div>
       )}
+
+      <SpendingAnalytics
+        accById={accById}
+        acctFilter={acctFilter}
+        ccyFilter={ccyFilter}
+      />
     </GlassCard>
+  );
+}
+
+// ────────────────────────────────────────────── SPENDING ANALYTICS
+
+const DONUT_COLORS = [
+  "#14B8A6", "#3B82F6", "#A855F7", "#F59E0B", "#EF4444",
+  "#10B981", "#6366F1", "#EC4899", "#06B6D4", "#84CC16",
+];
+
+function SpendingAnalytics({
+  accById,
+  acctFilter,
+  ccyFilter,
+}: {
+  accById: Record<string, Account>;
+  acctFilter: string;
+  ccyFilter: string;
+}) {
+  const { state, fx } = useFinance();
+  const base = state.baseCurrency || "INR";
+
+  const toBase = React.useCallback((t: Transaction) => {
+    const ccy = t.currency || (t.accountId ? accById[t.accountId]?.currency : base) || base;
+    return convert(t.amount, ccy, base, fx);
+  }, [accById, base, fx]);
+
+  const matchesFilters = React.useCallback((t: Transaction) => {
+    if (t.transferId) return false;
+    if (acctFilter !== "all" && t.accountId !== acctFilter) return false;
+    const ccy = t.currency || (t.accountId ? accById[t.accountId]?.currency : base) || base;
+    if (ccyFilter !== "all" && ccy !== ccyFilter) return false;
+    return true;
+  }, [accById, acctFilter, ccyFilter, base]);
+
+  // ── 6-month trend (income vs expense) ──
+  const trend = React.useMemo(() => {
+    const now = new Date();
+    const buckets: { key: string; label: string; start: Date; end: Date; income: number; expense: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const s = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const e = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+      buckets.push({
+        key: `${s.getFullYear()}-${s.getMonth()}`,
+        label: s.toLocaleDateString(undefined, { month: "short" }),
+        start: s, end: e, income: 0, expense: 0,
+      });
+    }
+    state.transactions.forEach((t) => {
+      if (!matchesFilters(t)) return;
+      const d = new Date(t.date);
+      const b = buckets.find((x) => d >= x.start && d <= x.end);
+      if (!b) return;
+      const v = toBase(t);
+      if (t.type === "income") b.income += v;
+      else if (t.type === "expense") b.expense += v;
+    });
+    return buckets.map((b) => ({
+      label: b.label,
+      income: Math.round(b.income),
+      expense: Math.round(b.expense),
+    }));
+  }, [state.transactions, matchesFilters, toBase]);
+
+  // ── Current month category breakdown + unusual spend (>30% over 3m avg) ──
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const threeMoStart = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  const threeMoEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+  const { donut, unusual } = React.useMemo(() => {
+    const thisMonth = new Map<string, number>();
+    const prior = new Map<string, number>();
+    state.transactions.forEach((t) => {
+      if (!matchesFilters(t)) return;
+      if (t.type !== "expense") return;
+      const d = new Date(t.date);
+      const v = toBase(t);
+      const cat = t.category || "Uncategorized";
+      if (d >= monthStart) {
+        thisMonth.set(cat, (thisMonth.get(cat) ?? 0) + v);
+      } else if (d >= threeMoStart && d <= threeMoEnd) {
+        prior.set(cat, (prior.get(cat) ?? 0) + v);
+      }
+    });
+    const donut = Array.from(thisMonth.entries())
+      .map(([name, value]) => ({ name, value: Math.round(value) }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+    const unusual: { category: string; current: number; avg: number; deltaPct: number }[] = [];
+    thisMonth.forEach((cur, cat) => {
+      const avg = (prior.get(cat) ?? 0) / 3;
+      if (avg <= 0) return;
+      const deltaPct = ((cur - avg) / avg) * 100;
+      if (deltaPct >= 30 && cur >= 100) {
+        unusual.push({ category: cat, current: cur, avg, deltaPct });
+      }
+    });
+    unusual.sort((a, b) => b.deltaPct - a.deltaPct);
+    return { donut, unusual };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.transactions, matchesFilters, toBase]);
+
+  const totalDonut = donut.reduce((s, x) => s + x.value, 0);
+
+  return (
+    <div className="mt-6 space-y-5">
+      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="h-4 w-4 text-primary" />
+          <h4 className="font-display text-lg">6-Month Trend</h4>
+        </div>
+        <div className="h-48 w-full">
+          <ResponsiveContainer>
+            <LineChart data={trend} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={48} />
+              <Tooltip
+                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number, name: string) => [formatMoney(v, base), name === "income" ? "Income" : "Expense"]}
+              />
+              <Line type="monotone" dataKey="income" stroke="var(--color-positive)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="expense" stroke="var(--color-danger)" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+          <h4 className="font-display text-lg mb-2">This Month by Category</h4>
+          {donut.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No expenses logged this month yet.</p>
+          ) : (
+            <>
+              <div className="h-56 w-full">
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={donut} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                      {donut.map((_, i) => (
+                        <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} stroke="var(--background)" strokeWidth={1.5} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: number, n: string) => [formatMoney(v, base), n]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-1">
+                {donut.map((d, i) => (
+                  <div key={d.name} className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                      <span className="truncate">{d.name}</span>
+                    </span>
+                    <span className="tabular text-muted-foreground shrink-0">
+                      {formatMoney(d.value, base)} · {totalDonut ? Math.round((d.value / totalDonut) * 100) : 0}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <h4 className="font-display text-lg">Unusual Spending</h4>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3">
+            Categories more than 30% above your 3-month average.
+          </p>
+          {unusual.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nothing out of the ordinary this month.</p>
+          ) : (
+            <div className="space-y-2">
+              {unusual.slice(0, 6).map((u) => (
+                <div key={u.category} className="rounded-lg border border-warning/20 bg-warning/5 p-2.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="truncate">{u.category}</span>
+                    <span className="tabular text-warning font-medium">+{Math.round(u.deltaPct)}%</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground tabular mt-0.5">
+                    {formatMoney(u.current, base)} this month · avg {formatMoney(u.avg, base)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

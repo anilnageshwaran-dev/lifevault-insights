@@ -18,6 +18,8 @@ import { uid } from "@/lib/finance-utils";
 import { toast } from "sonner";
 import { EmptyState } from "./primitives";
 import { computeExpiryAlerts, isDismissed, dismissAlert, type ExpiryAlert } from "@/lib/vault-expiry";
+import { evaluatePasswords, type PasswordHealthSummary } from "@/lib/password-health";
+import { ShieldCheck, ShieldAlert, ChevronDown } from "lucide-react";
 
 interface Field {
   key: string;
@@ -240,6 +242,13 @@ export function VaultView() {
           your PIN can decrypt it — we cannot read your data.
         </p>
       </div>
+      <PasswordHealthCard
+        records={state.vault?.passwords ?? []}
+        onOpen={() => {
+          const c = CATS.find((x) => x.id === "passwords");
+          if (c) setOpenCat(c);
+        }}
+      />
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {CATS.map((c) => {
           const count = state.vault[c.id]?.length ?? 0;
@@ -592,6 +601,123 @@ function ExpiryAttentionCard({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function PasswordHealthCard({
+  records,
+  onOpen,
+}: {
+  records: VaultRecord[];
+  onOpen: () => void;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+  const summary: PasswordHealthSummary = React.useMemo(
+    () => evaluatePasswords(records),
+    [records],
+  );
+  if (summary.total === 0) return null;
+
+  const score = summary.avgScore;
+  const ringColor =
+    score >= 75 ? "var(--color-positive)" :
+    score >= 45 ? "var(--color-warning)" :
+    "var(--color-danger)";
+  const label =
+    score >= 75 ? "Strong" : score >= 45 ? "Fair" : "Needs work";
+
+  // SVG circular gauge
+  const R = 32;
+  const C = 2 * Math.PI * R;
+  const dash = (score / 100) * C;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center gap-4">
+        <div className="relative h-20 w-20 shrink-0">
+          <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90">
+            <circle cx="40" cy="40" r={R} stroke="var(--border)" strokeWidth="7" fill="none" />
+            <circle
+              cx="40" cy="40" r={R}
+              stroke={ringColor}
+              strokeWidth="7"
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={`${dash} ${C}`}
+              style={{ transition: "stroke-dasharray .6s ease" }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="font-display text-xl tabular">{score}</span>
+          </div>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {score >= 75 ? (
+              <ShieldCheck className="h-4 w-4 text-positive" />
+            ) : (
+              <ShieldAlert className="h-4 w-4 text-warning" />
+            )}
+            <h3 className="font-display text-lg">Password Health · {label}</h3>
+          </div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {summary.total} password{summary.total === 1 ? "" : "s"} ·{" "}
+            <span className="text-danger">{summary.weak} weak</span> ·{" "}
+            <span className="text-warning">{summary.fair} fair</span> ·{" "}
+            <span className="text-positive">{summary.strong} strong</span>
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            {summary.reused} reused · {summary.missing2FA} without 2FA
+          </div>
+        </div>
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="p-2 rounded-lg hover:bg-accent shrink-0"
+          aria-label="Toggle issues"
+        >
+          <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="mt-3 space-y-2">
+          {summary.issues.filter((i) => i.severity !== "strong").slice(0, 8).map((i) => {
+            const chip =
+              i.severity === "weak" ? "text-danger bg-danger/10 border-danger/20"
+              : "text-warning bg-warning/10 border-warning/20";
+            return (
+              <div key={i.recordId} className="rounded-lg border border-border bg-background/40 p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm truncate">{i.site}</div>
+                    {i.username && (
+                      <div className="text-[11px] text-muted-foreground truncate">{i.username}</div>
+                    )}
+                  </div>
+                  <span className={`shrink-0 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md border tabular ${chip}`}>
+                    {i.score}
+                  </span>
+                </div>
+                {i.issues.length > 0 && (
+                  <ul className="mt-1.5 text-[11px] text-muted-foreground list-disc list-inside space-y-0.5">
+                    {i.issues.slice(0, 3).map((x, idx) => <li key={idx}>{x}</li>)}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+          {summary.issues.filter((i) => i.severity !== "strong").length === 0 && (
+            <div className="text-xs text-muted-foreground">All passwords look strong — nice work.</div>
+          )}
+          <button
+            onClick={onOpen}
+            className="mt-1 text-xs text-primary hover:underline"
+          >
+            Open Passwords vault →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
