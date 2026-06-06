@@ -795,6 +795,16 @@ function GeneralTab() {
   return (
     <div className="space-y-5">
       <Card>
+        <h3 className="font-display text-xl mb-2">What's New</h3>
+        <p className="text-sm text-muted-foreground mb-3">See the latest features and improvements.</p>
+        <a
+          href="/whats-new"
+          className="inline-block px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent"
+        >
+          Open changelog
+        </a>
+      </Card>
+      <Card>
         <h3 className="font-display text-xl mb-4">Theme</h3>
         <div className="grid grid-cols-3 gap-2">
           {([
