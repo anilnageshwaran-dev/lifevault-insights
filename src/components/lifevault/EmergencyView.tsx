@@ -68,17 +68,12 @@ function EmergencyContent({ onBack }: Props) {
   const { state, setState, fx } = useFinance();
   const { user } = useAuth();
   const base = state.baseCurrency || "INR";
-  // Use vault state's special key for emergency note (no schema change required).
-  const noteFromState = (state.vault as Record<string, unknown>)["__emergency_note"] as string | undefined;
-  const [note, setNote] = React.useState<string>(noteFromState ?? "");
+  const [note, setNote] = React.useState<string>(state.emergencyNote ?? "");
   const [savingNote, setSavingNote] = React.useState(false);
 
   const saveNote = () => {
     setSavingNote(true);
-    setState((s) => ({
-      ...s,
-      vault: { ...s.vault, ["__emergency_note" as string]: note as unknown as never },
-    }));
+    setState((s) => ({ ...s, emergencyNote: note }));
     setTimeout(() => { setSavingNote(false); toast.success("Note saved"); }, 200);
   };
 
