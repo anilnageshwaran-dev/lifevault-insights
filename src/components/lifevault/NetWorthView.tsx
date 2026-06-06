@@ -283,13 +283,19 @@ export function NetWorthView() {
             <RefreshCw className={`h-4 w-4 ${refreshingPrices ? "animate-spin" : ""}`} />
             {refreshingPrices ? "Refreshing…" : "Refresh Market Prices"}
           </Button>
+          <Button onClick={() => setBrokerOpen(true)} variant="outline" className="gap-2">
+            <Download className="h-4 w-4" /> Import from Broker
+          </Button>
+          <Button onClick={exportReport} variant="outline" className="gap-2">
+            <FileDown className="h-4 w-4" /> Report
+          </Button>
           <Button onClick={takeSnapshot} className="gap-2">
             <Camera className="h-4 w-4" /> Take Snapshot
           </Button>
         </div>
       </GlassCard>
 
-
+      <MilestonesRow achieved={achieved} netWorth={netWorth} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <GlassCard>
