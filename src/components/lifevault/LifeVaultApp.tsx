@@ -1,11 +1,12 @@
 import * as React from "react";
 import {
   ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock,
-  Settings as SettingsIcon, ChevronLeft, ChevronRight,
+  Settings as SettingsIcon, ChevronLeft, ChevronRight, LayoutDashboard,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
 import { useAuth } from "@/lib/auth-context";
+import { HomeView } from "./HomeView";
 import { EssentialsView } from "./EssentialsView";
 import { NetWorthView } from "./NetWorthView";
 import { CashFlowView, QuickAddFab } from "./CashFlowView";
@@ -16,10 +17,12 @@ import { InstallBanner } from "./InstallBanner";
 import { LifeVaultIcon } from "./LifeVaultIcon";
 import { ProfileDrawer } from "./ProfileDrawer";
 import { RemindersBanner } from "./RemindersBanner";
+import { FeedbackButton } from "./FeedbackButton";
 
-type TabId = "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
+type TabId = "home" | "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
 
 const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "home", label: "Home", icon: LayoutDashboard },
   { id: "essentials", label: "Essentials", icon: ShieldCheck },
   { id: "networth", label: "Net Worth", icon: BarChart3 },
   { id: "cashflow", label: "Cash Flow", icon: ArrowLeftRight },
@@ -30,7 +33,7 @@ const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: 
 const COLLAPSE_KEY = "lifevault_sidebar_collapsed";
 
 export function LifeVaultApp() {
-  const [tab, setTab] = React.useState<TabId>("essentials");
+  const [tab, setTab] = React.useState<TabId>("home");
   const [animKey, setAnimKey] = React.useState(0);
   const [collapsed, setCollapsed] = React.useState(false);
   const [profileOpen, setProfileOpen] = React.useState(false);
