@@ -185,6 +185,7 @@ export function LifeVaultApp() {
           key={animKey}
           className="px-3 sm:px-4 md:px-8 py-4 md:py-5 pb-28 md:pb-12 animate-[fadeUp_200ms_ease-out]"
         >
+          {tab === "home" && <HomeView onNavigate={(t) => setTabAnimated(t)} />}
           {tab === "essentials" && <EssentialsView />}
           {tab === "networth" && <NetWorthView />}
           {tab === "cashflow" && <CashFlowView />}
@@ -196,7 +197,7 @@ export function LifeVaultApp() {
 
       {/* Mobile bottom tab bar */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t border-border bg-background/95 backdrop-blur-md">
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-6">
           {TABS.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
@@ -225,6 +226,7 @@ export function LifeVaultApp() {
       />
 
       <InstallBanner />
+      <FeedbackButton />
 
       <style>{`
         @keyframes fadeUp {
