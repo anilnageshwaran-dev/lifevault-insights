@@ -66,7 +66,15 @@ export const renameHousehold = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: hh } = await supabaseAdmin
+      .from("households")
+      .select("owner_id")
+      .eq("id", data.householdId)
+      .maybeSingle();
+    if (!hh || hh.owner_id !== userId) throw new Error("Forbidden");
+    const { error } = await supabaseAdmin
       .from("households")
       .update({ name: data.name })
       .eq("id", data.householdId);
@@ -80,13 +88,22 @@ export const deleteHousehold = createServerFn({ method: "POST" })
     z.object({ householdId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: hh } = await supabaseAdmin
+      .from("households")
+      .select("owner_id")
+      .eq("id", data.householdId)
+      .maybeSingle();
+    if (!hh || hh.owner_id !== userId) throw new Error("Forbidden");
+    const { error } = await supabaseAdmin
       .from("households")
       .delete()
       .eq("id", data.householdId);
     if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { ok: true };
   });
+
 
 export const listMembers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
