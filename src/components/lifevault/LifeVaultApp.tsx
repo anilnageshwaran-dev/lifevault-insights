@@ -15,6 +15,7 @@ import { SettingsView } from "./SettingsView";
 import { InstallBanner } from "./InstallBanner";
 import { LifeVaultIcon } from "./LifeVaultIcon";
 import { ProfileDrawer } from "./ProfileDrawer";
+import { RemindersBanner } from "./RemindersBanner";
 
 type TabId = "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
 
@@ -174,6 +175,8 @@ export function LifeVaultApp() {
             </button>
           </div>
         </div>
+
+        <RemindersBanner />
 
         <div
           key={animKey}
