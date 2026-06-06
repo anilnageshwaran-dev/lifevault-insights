@@ -242,6 +242,13 @@ export function VaultView() {
           your PIN can decrypt it — we cannot read your data.
         </p>
       </div>
+      <PasswordHealthCard
+        records={state.vault?.passwords ?? []}
+        onOpen={() => {
+          const c = CATS.find((x) => x.id === "passwords");
+          if (c) setOpenCat(c);
+        }}
+      />
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {CATS.map((c) => {
           const count = state.vault[c.id]?.length ?? 0;
