@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      family_access: {
+        Row: {
+          allowed_sections: string[]
+          granted_at: string
+          id: string
+          member_id: string
+          owner_id: string
+          role: string
+        }
+        Insert: {
+          allowed_sections?: string[]
+          granted_at?: string
+          id?: string
+          member_id: string
+          owner_id: string
+          role: string
+        }
+        Update: {
+          allowed_sections?: string[]
+          granted_at?: string
+          id?: string
+          member_id?: string
+          owner_id?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      family_invites: {
+        Row: {
+          accepted_at: string | null
+          allowed_sections: string[]
+          id: string
+          invited_at: string
+          invitee_email: string
+          invitee_id: string | null
+          invitee_name: string
+          owner_id: string
+          personal_message: string | null
+          role: string
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          allowed_sections?: string[]
+          id?: string
+          invited_at?: string
+          invitee_email: string
+          invitee_id?: string | null
+          invitee_name: string
+          owner_id: string
+          personal_message?: string | null
+          role?: string
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          allowed_sections?: string[]
+          id?: string
+          invited_at?: string
+          invitee_email?: string
+          invitee_id?: string | null
+          invitee_name?: string
+          owner_id?: string
+          personal_message?: string | null
+          role?: string
+          status?: string
+          token?: string
+        }
+        Relationships: []
+      }
       feedback: {
         Row: {
           app_version: string | null
