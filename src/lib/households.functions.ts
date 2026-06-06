@@ -143,7 +143,15 @@ export const listInvites = createServerFn({ method: "GET" })
     z.object({ householdId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: invites, error } = await context.supabase
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: hh } = await supabaseAdmin
+      .from("households")
+      .select("owner_id")
+      .eq("id", data.householdId)
+      .maybeSingle();
+    if (!hh || hh.owner_id !== userId) throw new Error("Forbidden");
+    const { data: invites, error } = await supabaseAdmin
       .from("household_invites")
       .select("id, email, token, accepted_at, expires_at, created_at")
       .eq("household_id", data.householdId)
@@ -164,9 +172,16 @@ export const inviteMember = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: hh } = await supabaseAdmin
+      .from("households")
+      .select("owner_id")
+      .eq("id", data.householdId)
+      .maybeSingle();
+    if (!hh || hh.owner_id !== userId) throw new Error("Forbidden");
     const token = randomToken();
-    const { data: inv, error } = await supabase
+    const { data: inv, error } = await supabaseAdmin
       .from("household_invites")
       .insert({
         household_id: data.householdId,
