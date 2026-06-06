@@ -1030,10 +1030,10 @@ function SpendingAnalytics({
         <div className="h-48 w-full">
           <ResponsiveContainer>
             <LineChart data={trend} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={48} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={48} />
               <Tooltip
-                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                 formatter={(v: number, name: string) => [formatMoney(v, base), name === "income" ? "Income" : "Expense"]}
               />
               <Line type="monotone" dataKey="income" stroke="var(--color-positive)" strokeWidth={2} dot={false} />
@@ -1055,11 +1055,11 @@ function SpendingAnalytics({
                   <PieChart>
                     <Pie data={donut} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
                       {donut.map((_, i) => (
-                        <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} stroke="hsl(var(--background))" strokeWidth={1.5} />
+                        <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} stroke="var(--background)" strokeWidth={1.5} />
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                      contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                       formatter={(v: number, n: string) => [formatMoney(v, base), n]}
                     />
                   </PieChart>
