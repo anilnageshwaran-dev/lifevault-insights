@@ -25,6 +25,6 @@ export const submitFeedback = createServerFn({ method: "POST" })
       app_version: data.appVersion ?? null,
       user_agent: data.userAgent ?? null,
     });
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { ok: true };
   });
