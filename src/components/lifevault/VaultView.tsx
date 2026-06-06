@@ -18,6 +18,8 @@ import { uid } from "@/lib/finance-utils";
 import { toast } from "sonner";
 import { EmptyState } from "./primitives";
 import { computeExpiryAlerts, isDismissed, dismissAlert, type ExpiryAlert } from "@/lib/vault-expiry";
+import { evaluatePasswords, type PasswordHealthSummary } from "@/lib/password-health";
+import { ShieldCheck, ShieldAlert, ChevronDown } from "lucide-react";
 
 interface Field {
   key: string;
