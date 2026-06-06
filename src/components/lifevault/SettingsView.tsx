@@ -739,6 +739,41 @@ function DataTab() {
           </div>
         </div>
       </Card>
+
+      <Card>
+        <div className="border-l-2 border-danger pl-4 space-y-3">
+          <h4 className="font-medium text-danger">Delete Account</h4>
+          <p className="text-sm text-muted-foreground">
+            Permanently deletes your LifeVault account, encrypted cloud vault, household
+            memberships, and all data stored on our servers. This action <strong>cannot
+            be undone</strong>. Consider exporting an encrypted backup first.
+          </p>
+          <button
+            disabled={deletingAccount}
+            onClick={async () => {
+              if (!confirm("Permanently delete your account and ALL cloud data? This cannot be undone.")) return;
+              const typed = prompt('Type "DELETE" to confirm permanent account deletion:');
+              if (typed !== "DELETE") { toast.error("Deletion cancelled"); return; }
+              setDeletingAccount(true);
+              try {
+                await deleteAccountFn();
+                resetFinance();
+                resetAll();
+                try { await signOut(); } catch {}
+                toast.success("Account deleted");
+                if (typeof window !== "undefined") window.location.href = "/";
+              } catch (e) {
+                toast.error((e as Error).message || "Account deletion failed");
+              } finally {
+                setDeletingAccount(false);
+              }
+            }}
+            className="px-4 py-2 rounded-lg bg-danger text-white text-sm disabled:opacity-50"
+          >
+            {deletingAccount ? "Deleting…" : "Delete My Account"}
+          </button>
+        </div>
+      </Card>
     </div>
   );
 }
