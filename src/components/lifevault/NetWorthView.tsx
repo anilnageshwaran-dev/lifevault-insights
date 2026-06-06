@@ -529,6 +529,8 @@ export function NetWorthView() {
       {scheduleFor && (
         <LoanScheduleDialog liability={scheduleFor} onClose={() => setScheduleFor(null)} />
       )}
+      <BrokerImportDialog open={brokerOpen} onClose={() => setBrokerOpen(false)} />
+      <MilestoneCelebration milestone={celebrate} onClose={() => setCelebrate(null)} />
     </div>
   );
 }
