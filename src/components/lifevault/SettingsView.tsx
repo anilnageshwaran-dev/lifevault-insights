@@ -130,6 +130,8 @@ function AccountTab() {
       ? "Saving…"
       : syncDiagnostics.remote.status === "locked"
         ? "PIN mismatch"
+      : syncStatus === "cached"
+        ? "Cached only"
       : syncStatus === "error"
         ? "Offline — working from cache"
         : "Synced";
@@ -137,6 +139,8 @@ function AccountTab() {
     ? "bg-foreground/30"
     : syncStatus === "saving" || syncing
       ? "bg-warning animate-pulse"
+      : syncStatus === "cached"
+        ? "bg-danger"
       : syncStatus === "error"
         ? "bg-danger"
         : "bg-positive";
