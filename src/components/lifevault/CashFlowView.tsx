@@ -26,9 +26,14 @@ import {
 import {
   Plus, Trash2, Receipt, AlertTriangle, Wallet, CreditCard, Banknote,
   ChevronLeft, ChevronRight, Search, CalendarClock, CheckCircle2, Repeat,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
+import {
+  LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip,
+  PieChart, Pie, Cell, Legend,
+} from "recharts";
 
 const BANKS = [
   // India
