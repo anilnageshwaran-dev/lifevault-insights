@@ -637,7 +637,7 @@ function PasswordHealthCard({
       <div className="flex items-center gap-4">
         <div className="relative h-20 w-20 shrink-0">
           <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90">
-            <circle cx="40" cy="40" r={R} stroke="hsl(var(--muted))" strokeWidth="7" fill="none" opacity="0.25" />
+            <circle cx="40" cy="40" r={R} stroke="var(--border)" strokeWidth="7" fill="none" />
             <circle
               cx="40" cy="40" r={R}
               stroke={ringColor}
