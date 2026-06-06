@@ -19,6 +19,9 @@ import { ProfileDrawer } from "./ProfileDrawer";
 import { RemindersBanner } from "./RemindersBanner";
 import { FeedbackButton } from "./FeedbackButton";
 import { HelpAndTour } from "./HelpAndTour";
+import { useServerFn } from "@tanstack/react-start";
+import { listRecentAcceptances } from "@/lib/family.functions";
+import { toast } from "sonner";
 
 type TabId = "home" | "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
 
@@ -44,6 +47,8 @@ export function LifeVaultApp() {
   const [showHelp, setShowHelp] = React.useState(false);
   const [showTour, setShowTour] = React.useState(false);
 
+  const checkAcceptances = useServerFn(listRecentAcceptances);
+
   React.useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
     try {
@@ -52,6 +57,27 @@ export function LifeVaultApp() {
       }
     } catch {}
   }, []);
+
+  // Family-access notifications: surface invites accepted since last seen.
+  React.useEffect(() => {
+    if (!user) return;
+    const key = `lifevault_family_accept_seen_${user.id}`;
+    const sinceIso = (() => {
+      try { return localStorage.getItem(key) || undefined; } catch { return undefined; }
+    })();
+    checkAcceptances({ data: sinceIso ? { sinceIso } : {} })
+      .then((r) => {
+        if (!r.acceptances || r.acceptances.length === 0) return;
+        for (const a of r.acceptances.slice(0, 3)) {
+          toast.success(
+            `${a.invitee_name} accepted your invitation and can now view your dashboard`,
+            { duration: 10000, description: a.role === "emergency" ? "Emergency Only access" : "Viewer access" },
+          );
+        }
+        try { localStorage.setItem(key, new Date().toISOString()); } catch {}
+      })
+      .catch(() => {});
+  }, [user, checkAcceptances]);
   const toggleCollapse = () => {
     const v = !collapsed;
     setCollapsed(v);
