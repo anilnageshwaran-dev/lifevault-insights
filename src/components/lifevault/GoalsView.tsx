@@ -13,10 +13,19 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Target, Plus, Trash2, Pencil, Calculator, X,
+  Target, Plus, Trash2, Pencil, Calculator, X, TrendingUp, FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
+import {
+  Dialog as SipDialog,
+  DialogContent as SipDialogContent,
+  DialogHeader as SipDialogHeader,
+  DialogTitle as SipDialogTitle,
+} from "@/components/ui/dialog";
+import { SipCalculator } from "./SipCalculator";
+import { generateGoalsReport } from "@/lib/reports-pdf";
+import { useAuth } from "@/lib/auth-context";
 
 interface Template { name: string; icon: string; inflation: number; }
 const TEMPLATES: Record<string, Template> = {
@@ -41,10 +50,24 @@ function computeGoal(g: Goal) {
 
 export function GoalsView() {
   const { state, setState } = useFinance();
+  const { user } = useAuth();
   const base = state.baseCurrency || "INR";
   const [open, setOpen] = React.useState(false);
   const [calcOpen, setCalcOpen] = React.useState(false);
+  const [sipOpen, setSipOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Goal | null>(null);
+
+  const ownerName =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email || "Account holder";
+
+  const exportReport = () => {
+    try {
+      generateGoalsReport(state, ownerName);
+      toast.success("Goals report downloaded");
+    } catch (e) { toast.error((e as Error).message || "Report failed"); }
+  };
 
   const blank: Goal = {
     id: "", name: "", type: "Home Purchase", currentCost: 0,
