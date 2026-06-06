@@ -129,3 +129,22 @@ export function AppTour({ open, onClose }: { open: boolean; onClose: () => void 
     </div>
   );
 }
+
+export function HelpAndTour({
+  showHelp,
+  showTour,
+  onCloseHelp,
+  onCloseTour,
+}: {
+  showHelp: boolean;
+  showTour: boolean;
+  onCloseHelp: () => void;
+  onCloseTour: () => void;
+}) {
+  return (
+    <>
+      <HelpDialog open={showHelp} onOpenChange={(v) => { if (!v) onCloseHelp(); }} />
+      <AppTour open={showTour} onClose={onCloseTour} />
+    </>
+  );
+}
