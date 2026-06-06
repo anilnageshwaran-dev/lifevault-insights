@@ -50,27 +50,32 @@ function AcceptInvitePage() {
 
   const [info, setInfo] = React.useState<{
     householdName: string | null;
-    email: string | null;
     status: "loading" | "valid" | "invalid" | "expired" | "used";
-  }>({ householdName: null, email: null, status: "loading" });
+  }>({ householdName: null, status: "loading" });
   const [accepting, setAccepting] = React.useState(false);
 
   React.useEffect(() => {
     if (!token) {
-      setInfo({ householdName: null, email: null, status: "invalid" });
+      setInfo({ householdName: null, status: "invalid" });
+      return;
+    }
+    // Lookup requires auth (prevents token enumeration / email harvest).
+    // Defer until the user is signed in; otherwise show a sign-in CTA.
+    if (!session) {
+      setInfo({ householdName: null, status: "valid" });
       return;
     }
     lookup({ data: { token } })
       .then((r) => {
-        if (!r.invite) return setInfo({ householdName: null, email: null, status: "invalid" });
+        if (!r.invite) return setInfo({ householdName: null, status: "invalid" });
         if (r.invite.accepted_at)
-          return setInfo({ householdName: r.householdName, email: r.invite.email, status: "used" });
+          return setInfo({ householdName: r.householdName, status: "used" });
         if (new Date(r.invite.expires_at) < new Date())
-          return setInfo({ householdName: r.householdName, email: r.invite.email, status: "expired" });
-        setInfo({ householdName: r.householdName, email: r.invite.email, status: "valid" });
+          return setInfo({ householdName: r.householdName, status: "expired" });
+        setInfo({ householdName: r.householdName, status: "valid" });
       })
-      .catch(() => setInfo({ householdName: null, email: null, status: "invalid" }));
-  }, [token, lookup]);
+      .catch(() => setInfo({ householdName: null, status: "invalid" }));
+  }, [token, lookup, session]);
 
   React.useEffect(() => {
     if (token) {
@@ -136,9 +141,6 @@ function AcceptInvitePage() {
                 You've been invited to join{" "}
                 <span className="font-medium text-foreground">{info.householdName ?? "a household"}</span>.
               </div>
-              {info.email && (
-                <div className="text-xs text-muted-foreground">Invite sent to {info.email}</div>
-              )}
             </div>
 
             {!session ? (
