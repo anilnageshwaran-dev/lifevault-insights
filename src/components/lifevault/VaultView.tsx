@@ -10,11 +10,14 @@ import {
   Pencil,
   Save,
   Lock,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { useFinance, type VaultRecord } from "@/lib/finance-context";
 import { uid } from "@/lib/finance-utils";
 import { toast } from "sonner";
 import { EmptyState } from "./primitives";
+import { computeExpiryAlerts, isDismissed, dismissAlert, type ExpiryAlert } from "@/lib/vault-expiry";
 
 interface Field {
   key: string;
@@ -225,6 +228,10 @@ export function VaultView() {
 
   return (
     <div className="space-y-5">
+      <ExpiryAttentionCard vault={state.vault ?? {}} onOpenCategory={(catId) => {
+        const c = CATS.find((x) => x.id === catId);
+        if (c) setOpenCat(c);
+      }} />
       <div className="rounded-2xl border border-border bg-card p-4 flex items-start gap-3">
         <Lock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
         <p className="text-sm text-muted-foreground">
