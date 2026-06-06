@@ -134,6 +134,8 @@ function AccountTab() {
         ? "Cached only"
       : syncStatus === "error"
         ? "Offline — working from cache"
+      : syncStatus === "synced"
+        ? "Synced"
         : "Synced";
   const statusDot = !cloudConnected
     ? "bg-foreground/30"
@@ -143,7 +145,9 @@ function AccountTab() {
         ? "bg-danger"
       : syncStatus === "error"
         ? "bg-danger"
-        : "bg-positive";
+      : syncStatus === "synced"
+        ? "bg-positive"
+        : "bg-foreground/30";
   const lastLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : null;
   const remoteLabel = syncDiagnostics.remote.status === "available" && syncDiagnostics.remote.modifiedTime
     ? new Date(syncDiagnostics.remote.modifiedTime).toLocaleString()
