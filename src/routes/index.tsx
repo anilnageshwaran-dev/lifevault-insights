@@ -5,22 +5,27 @@ import { Toaster } from "@/components/ui/sonner";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "LifeVault — Personal Finance, Beautifully" },
+      { title: "LifeVault — Personal Finance & Secure Vault for Indians" },
       {
         name: "description",
         content:
-          "Premium personal finance dashboard with zero-knowledge encryption, PIN lock, and a secure vault for credentials, accounts, and household finances.",
+          "Free personal finance app for Indians. Track net worth, manage cash flow, plan goals, and store bank details, passwords, and documents — all encrypted with zero-knowledge security.",
       },
-      { name: "theme-color", content: "#0A0F1E" },
+      {
+        name: "keywords",
+        content:
+          "personal finance india, net worth tracker, financial vault, encrypted finance app, free finance app india, zerodha import, mutual fund tracker, LifeVault",
+      },
+      { name: "theme-color", content: "#FFFFFF" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "LifeVault" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { property: "og:title", content: "LifeVault — Personal Finance, Beautifully" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { property: "og:title", content: "LifeVault — Personal Finance & Secure Vault for Indians" },
       {
         property: "og:description",
         content:
-          "Track net worth, budgets, and inflation-adjusted goals. PIN-locked, encrypted, yours.",
+          "Free personal finance app for Indians. Track net worth, manage cash flow, plan goals, and store credentials — all encrypted with zero-knowledge security.",
       },
       { property: "og:url", content: "https://lifevaultapp.lovable.app/" },
     ],
@@ -36,22 +41,14 @@ export const Route = createFileRoute("/")({
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
-          "@type": "WebSite",
+          "@type": "WebApplication",
           name: "LifeVault",
-          url: "https://lifevaultapp.lovable.app/",
           description:
-            "Private, PIN-locked personal finance dashboard for net worth, cash flow, goals, and household accounts with end-to-end encryption.",
-        }),
-      },
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "Organization",
-          name: "LifeVault",
+            "Free personal finance and secure vault app for Indians",
           url: "https://lifevaultapp.lovable.app/",
-          description:
-            "LifeVault builds private, encrypted personal finance tools for individuals and households.",
+          applicationCategory: "FinanceApplication",
+          operatingSystem: "Web, Android, iOS",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
         }),
       },
     ],
