@@ -18,7 +18,21 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
   }
 });
 
+const fnErrorMiddleware = createMiddleware({ type: "function" }).server(async ({ next }) => {
+  try {
+    return await next();
+  } catch (error) {
+    // Re-throw framework redirects / typed responses untouched.
+    if (error != null && typeof error === "object" && ("statusCode" in error || "isRedirect" in error)) {
+      throw error;
+    }
+    console.error("[serverFn]", error);
+    // Sanitise: never leak env var names, stack traces, or internal config to the client.
+    throw new Error("An internal error occurred. Please try again.");
+  }
+});
+
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  functionMiddleware: [attachSupabaseAuth, fnErrorMiddleware],
   requestMiddleware: [errorMiddleware],
 }));
