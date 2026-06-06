@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import JSZip from "jszip";
 import { useServerFn } from "@tanstack/react-start";
 import { submitFeedback } from "@/lib/feedback.functions";
+import { deleteAccount } from "@/lib/account.functions";
 import { APP_VERSION } from "@/lib/changelog";
 
 type Tab = "account" | "family" | "preferences" | "security" | "data" | "general";
@@ -503,6 +504,9 @@ function DataTab() {
   const { state, setState, exportData, importData, fx, reset: resetFinance, syncNow } = useFinance();
   const lock = useLock();
   const { resetAll } = lock;
+  const { signOut } = useAuth();
+  const deleteAccountFn = useServerFn(deleteAccount);
+  const [deletingAccount, setDeletingAccount] = React.useState(false);
 
   const fileRef = React.useRef<HTMLInputElement>(null);
   const encRef = React.useRef<HTMLInputElement>(null);
@@ -733,6 +737,41 @@ function DataTab() {
               Reset Device &amp; PIN
             </button>
           </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="border-l-2 border-danger pl-4 space-y-3">
+          <h4 className="font-medium text-danger">Delete Account</h4>
+          <p className="text-sm text-muted-foreground">
+            Permanently deletes your LifeVault account, encrypted cloud vault, household
+            memberships, and all data stored on our servers. This action <strong>cannot
+            be undone</strong>. Consider exporting an encrypted backup first.
+          </p>
+          <button
+            disabled={deletingAccount}
+            onClick={async () => {
+              if (!confirm("Permanently delete your account and ALL cloud data? This cannot be undone.")) return;
+              const typed = prompt('Type "DELETE" to confirm permanent account deletion:');
+              if (typed !== "DELETE") { toast.error("Deletion cancelled"); return; }
+              setDeletingAccount(true);
+              try {
+                await deleteAccountFn();
+                resetFinance();
+                resetAll();
+                try { await signOut(); } catch {}
+                toast.success("Account deleted");
+                if (typeof window !== "undefined") window.location.href = "/";
+              } catch (e) {
+                toast.error((e as Error).message || "Account deletion failed");
+              } finally {
+                setDeletingAccount(false);
+              }
+            }}
+            className="px-4 py-2 rounded-lg bg-danger text-white text-sm disabled:opacity-50"
+          >
+            {deletingAccount ? "Deleting…" : "Delete My Account"}
+          </button>
         </div>
       </Card>
     </div>
