@@ -503,6 +503,12 @@ function DataTab() {
   const { state, setState, exportData, importData, fx, reset: resetFinance, syncNow } = useFinance();
   const lock = useLock();
   const { resetAll } = lock;
+  const { signOut } = useAuth();
+  const deleteAccountFn = useServerFn(
+    // lazy import to keep bundle slim
+    (require("@/lib/account.functions") as typeof import("@/lib/account.functions")).deleteAccount,
+  );
+  const [deletingAccount, setDeletingAccount] = React.useState(false);
 
   const fileRef = React.useRef<HTMLInputElement>(null);
   const encRef = React.useRef<HTMLInputElement>(null);
