@@ -603,9 +603,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       } else {
         localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(s));
       }
-    } catch {
+    } catch (e) {
       setSyncStatus("error");
-      return;
+      if (force) throw e;
+      return "cached";
     }
     if (uid && cloudEnc) {
       console.log("[vault] Triggering vault save:", uid, {
