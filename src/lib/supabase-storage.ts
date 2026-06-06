@@ -64,8 +64,8 @@ export async function uploadVault(
   console.log("[vault] Upload path:", path);
   let { data: { user }, error: userError } = await supabase.auth.getUser();
   console.log("[vault] Auth user:", user?.id);
-  if (!user && userError) {
-    console.log("[vault] Auth user error:", userError.message);
+  if (!user) {
+    if (userError) console.log("[vault] Auth user error:", userError.message);
     const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
     console.log("[vault] Refresh session error:", refreshError);
     user = refreshData.user;
