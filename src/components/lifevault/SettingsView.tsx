@@ -16,7 +16,7 @@ import { useTheme } from "@/lib/theme-context";
 import { useAuth } from "@/lib/auth-context";
 import { PinKeypad } from "./PinKeypad";
 import { CurrencySelect } from "./CurrencySelect";
-import { HouseholdTab } from "./HouseholdTab";
+import { FamilyTab } from "./FamilyTab";
 import { convert } from "@/lib/currency";
 import { toast } from "sonner";
 import JSZip from "jszip";
@@ -59,7 +59,7 @@ export function SettingsView() {
       </nav>
       <div className="w-full max-w-2xl min-w-0 space-y-4 md:space-y-5">
         {tab === "account" && <AccountTab />}
-        {tab === "family" && <HouseholdTab />}
+        {tab === "family" && <FamilyTab />}
         {tab === "preferences" && <PreferencesTab />}
         {tab === "security" && <SecurityTab />}
         {tab === "data" && <DataTab />}
