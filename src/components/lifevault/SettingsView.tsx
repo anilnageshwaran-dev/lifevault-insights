@@ -130,16 +130,24 @@ function AccountTab() {
       ? "Saving…"
       : syncDiagnostics.remote.status === "locked"
         ? "PIN mismatch"
+      : syncStatus === "cached"
+        ? "Cached only"
       : syncStatus === "error"
         ? "Offline — working from cache"
-        : "Synced";
+      : syncStatus === "synced"
+        ? "Synced"
+        : "Ready";
   const statusDot = !cloudConnected
     ? "bg-foreground/30"
     : syncStatus === "saving" || syncing
       ? "bg-warning animate-pulse"
+      : syncStatus === "cached"
+        ? "bg-danger"
       : syncStatus === "error"
         ? "bg-danger"
-        : "bg-positive";
+      : syncStatus === "synced"
+        ? "bg-positive"
+        : "bg-foreground/30";
   const lastLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : null;
   const remoteLabel = syncDiagnostics.remote.status === "available" && syncDiagnostics.remote.modifiedTime
     ? new Date(syncDiagnostics.remote.modifiedTime).toLocaleString()

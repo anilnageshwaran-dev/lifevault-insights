@@ -381,9 +381,9 @@ type Ctx = {
   exportData: () => void;
   importData: (file: File) => Promise<void>;
   /** "idle" before first save, "saving" while uploading, "synced" after a
-   *  successful upload, "error" when offline / upload failed (we keep working
-   *  from the local encrypted cache and retry on reconnect). */
-  syncStatus: "idle" | "saving" | "synced" | "error";
+   *  confirmed cloud upload, "cached" when only local encrypted cache was
+   *  written, and "error" for blocking cloud read/decrypt failures. */
+  syncStatus: "idle" | "saving" | "synced" | "cached" | "error";
   lastSyncedAt: number | null;
   syncDiagnostics: SyncDiagnostics;
   syncNow: () => Promise<void>;
@@ -404,7 +404,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [state, setState] = React.useState<FinanceState>(initialState);
   const [hydrated, setHydrated] = React.useState(false);
-  const [syncStatus, setSyncStatus] = React.useState<"idle" | "saving" | "synced" | "error">(
+  const [syncStatus, setSyncStatus] = React.useState<"idle" | "saving" | "synced" | "cached" | "error">(
     "idle",
   );
   const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(null);
@@ -418,7 +418,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const remoteModifiedRef = React.useRef<string | null>(null);
   const cloudLoadedRef = React.useRef<boolean>(false);
-  const syncStatusRef = React.useRef<"idle" | "saving" | "synced" | "error">("idle");
+  const syncStatusRef = React.useRef<"idle" | "saving" | "synced" | "cached" | "error">("idle");
   const suppressNextSaveRef = React.useRef<boolean>(false);
   const skippedInitialAutoSaveRef = React.useRef<boolean>(false);
   const cloudWriteBlockedRef = React.useRef<boolean>(false);
@@ -589,7 +589,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Core writer — persists locally and pushes to Supabase Storage when signed in.
-  const writeAndPush = React.useCallback(async (force = false): Promise<void> => {
+  const writeAndPush = React.useCallback(async (force = false): Promise<"synced" | "cached"> => {
     const k = keyRef.current;
     const s = stateRef.current;
     const uid = userIdRef.current;
@@ -603,9 +603,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       } else {
         localStorage.setItem(STORAGE_KEY_PLAIN, JSON.stringify(s));
       }
-    } catch {
+    } catch (e) {
       setSyncStatus("error");
-      return;
+      if (force) throw e;
+      return "cached";
     }
     if (uid && cloudEnc) {
       console.log("[vault] Triggering vault save:", uid, {
@@ -615,26 +616,30 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       });
       if (cloudWriteBlockedRef.current) {
         console.warn("[vault] Cloud write blocked (PIN mismatch with remote)");
-        setSyncStatus("error");
-        return;
+        setSyncStatus("cached");
+        if (force) throw new Error("Cloud write blocked — the cloud vault uses a different PIN");
+        return "cached";
       }
       try {
         const info = await uploadVault(uid, cloudEnc);
         remoteModifiedRef.current = info.modifiedTime;
         setSyncStatus("synced");
         setLastSyncedAt(Date.now());
+        return "synced";
       } catch (e) {
         console.error("[vault] Upload failed:", e);
-        if (force) toast.error((e as Error).message || "Cloud sync failed — working from cache");
-        setSyncStatus("error");
+        setSyncStatus("cached");
+        if (force) throw e;
+        return "cached";
       }
     } else {
       console.log("[vault] Skipping cloud push — no user or no encryption key", {
         hasUser: !!uid,
         hasCloudEnc: !!cloudEnc,
       });
-      setSyncStatus("synced");
-      if (force) setLastSyncedAt(Date.now());
+      setSyncStatus("cached");
+      if (force) throw new Error("Cloud upload skipped — sign in and unlock LifeVault first");
+      return "cached";
     }
   }, [encryptSyncData]);
 

@@ -59,29 +59,35 @@ export async function uploadVault(
   encrypted: string,
 ): Promise<RemoteVaultInfo> {
   const path = vaultPath(userId);
+  console.log("[vault] Bucket:", VAULT_BUCKET);
   console.log("[vault] Saving vault for user:", userId);
   console.log("[vault] Upload path:", path);
-  const { data: { session } } = await supabase.auth.getSession();
-  console.log("[vault] Session active:", !!session);
-  console.log("[vault] Session user id:", session?.user?.id);
-  if (!session) {
-    throw new Error("Cannot upload vault: no active Supabase session");
+  let { data: { user }, error: userError } = await supabase.auth.getUser();
+  console.log("[vault] Auth user:", user?.id);
+  if (!user) {
+    if (userError) console.log("[vault] Auth user error:", userError.message);
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    console.log("[vault] Refresh session error:", refreshError);
+    user = refreshData.user;
+    console.log("[vault] Auth user after refresh:", user?.id);
   }
-  if (session.user?.id !== userId) {
+  if (!user) {
+    throw new Error("Cannot upload vault: no active authenticated user");
+  }
+  if (user.id !== userId) {
     throw new Error(
-      `Vault upload aborted: session user (${session.user?.id}) does not match vault user (${userId})`,
+      `Vault upload aborted: auth user (${user.id}) does not match vault user (${userId})`,
     );
   }
   const blob = new Blob([encrypted], { type: "application/json" });
-  const { error } = await supabase.storage
+  console.log("[vault] Attempting Supabase upload...");
+  const { data, error } = await supabase.storage
     .from(VAULT_BUCKET)
-    .upload(path, blob, {
-      upsert: true,
-      contentType: "application/json",
-    });
-  console.log("[vault] Upload result:", error ? error.message : "ok", {
-    bytes: encrypted.length,
-  });
+    .upload(path, blob, { upsert: true });
+  console.log("[vault] Upload data:", data);
+  console.log("[vault] Upload error:", error);
+  if (error) console.log("[vault] Full error:", JSON.stringify(error));
+  console.log("[vault] Upload result:", error ? error.message : "ok", { bytes: encrypted.length });
   if (error) throw new Error(error.message || "Vault upload failed");
   return (await statVault(userId)) ?? { modifiedTime: null };
 }

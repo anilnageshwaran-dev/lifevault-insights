@@ -263,12 +263,13 @@ function SyncDot({
   status,
   compact,
 }: {
-  status: "idle" | "saving" | "synced" | "error";
+  status: "idle" | "saving" | "synced" | "cached" | "error";
   compact?: boolean;
 }) {
   const map = {
     synced: { color: "bg-positive", label: "Synced" },
     saving: { color: "bg-warning animate-pulse", label: "Saving…" },
+    cached: { color: "bg-danger", label: "Cached" },
     error: { color: "bg-danger", label: "Offline" },
     idle: { color: "bg-foreground/30", label: "Ready" },
   } as const;
