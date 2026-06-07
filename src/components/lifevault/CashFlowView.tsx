@@ -1358,7 +1358,7 @@ export function QuickAddFab() {
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">
-            {mode === "transfer" ? "Transfer Between Accounts" : "Quick Add Transaction"}
+            {mode === "transfer" ? "Transfer Between Accounts" : mode === "bill" ? "Add Bill" : "Quick Add Transaction"}
           </DialogTitle>
         </DialogHeader>
 
