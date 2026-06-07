@@ -30,6 +30,7 @@ interface Field {
   secret?: boolean;
   multiline?: boolean;
   type?: "text" | "number" | "date";
+  options?: string[];
 }
 interface Category {
   id: string;
