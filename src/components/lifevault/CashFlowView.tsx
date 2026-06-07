@@ -7,7 +7,6 @@ import {
   type Transaction,
   type TxType,
   type Account,
-  type AccountType,
   type Bill,
   type BillFrequency,
 } from "@/lib/finance-context";
@@ -453,12 +452,41 @@ function AccountsTab() {
   );
 }
 
+function nextDueOnDay(day: number): string {
+  const today = new Date();
+  const d = Math.max(1, Math.min(31, day));
+  let target = new Date(today.getFullYear(), today.getMonth(), d);
+  // If date overflowed (e.g. Feb 30), clamp to last day of this month
+  if (target.getMonth() !== today.getMonth()) {
+    target = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  }
+  if (target < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+    target = new Date(today.getFullYear(), today.getMonth() + 1, d);
+    if (target.getMonth() !== (today.getMonth() + 1) % 12) {
+      target = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+    }
+  }
+  return target.toISOString().slice(0, 10);
+}
+
 function AccountFormDialog({ account, onClose, base }:
   { account: Account | null; onClose: () => void; base: string }) {
   const { state, setState } = useFinance();
   const isNew = !account;
 
-  const [type, setType] = React.useState<AccountType>(account?.type || "bank");
+  // UI "kind" splits the Card pill into Debit/Credit.
+  // Debit → stored as type "bank" with accountSubtype "Debit Card".
+  // Credit → stored as type "credit".
+  type Kind = "bank" | "debit" | "credit" | "cash" | "wallet" | "other";
+  const initialKind: Kind = account
+    ? account.type === "credit"
+      ? "credit"
+      : account.type === "bank" && account.accountSubtype === "Debit Card"
+        ? "debit"
+        : account.type
+    : "bank";
+
+  const [kind, setKind] = React.useState<Kind>(initialKind);
   const [form, setForm] = React.useState<Account>(
     account ?? {
       id: uid(),
@@ -478,44 +506,89 @@ function AccountFormDialog({ account, onClose, base }:
   );
 
   React.useEffect(() => {
-    setForm((f) => ({ ...f, type }));
-  }, [type]);
+    setForm((f) => {
+      if (kind === "credit") return { ...f, type: "credit" };
+      if (kind === "debit") return { ...f, type: "bank", accountSubtype: "Debit Card" };
+      if (kind === "bank") {
+        return { ...f, type: "bank", accountSubtype: f.accountSubtype === "Debit Card" ? "Savings" : (f.accountSubtype || "Savings") };
+      }
+      return { ...f, type: kind };
+    });
+  }, [kind]);
 
   const save = () => {
     if (!form.name) { toast.error("Name is required"); return; }
-    const finalForm = { ...form };
+    const finalForm: Account = { ...form };
+    if (kind !== "credit") {
+      finalForm.paymentDueDay = undefined;
+      finalForm.statementDay = undefined;
+      finalForm.creditLimit = undefined;
+    }
     if (isNew) {
-      // Create opening-balance transaction
-      const opening = finalForm.openingBalance || 0;
       setState((s) => {
         const next: Account = { ...finalForm, id: finalForm.id || uid() };
-        const newTx: Transaction[] = [];
-        if (opening !== 0) {
-          newTx.push({
+        const updated = { ...s, accounts: [...s.accounts, next] };
+        // Auto-create monthly payment bill for credit cards with a due day
+        if (kind === "credit" && next.paymentDueDay && next.paymentDueDay >= 1 && next.paymentDueDay <= 31) {
+          const bill: Bill = {
             id: uid(),
-            date: finalForm.asOf,
-            type: finalForm.type === "credit" ? "expense" : "income",
-            category: finalForm.type === "credit" ? "Credit Card Payment" : "Other Income",
-            description: "Opening balance",
-            amount: 0, // amount handled via openingBalance field, not a tx
-            accountId: next.id,
+            name: `${next.name} Payment`,
+            amount: next.openingBalance || 0,
             currency: next.currency,
-          });
+            category: "Credit Card Payment",
+            accountId: next.id,
+            frequency: "monthly",
+            nextDue: nextDueOnDay(next.paymentDueDay),
+            autopay: false,
+            notes: "Auto-added from credit card setup",
+            history: [],
+          };
+          next.linkedBillId = bill.id;
+          updated.bills = [...(s.bills ?? []), bill];
         }
-        // We chose not to also push a fake transaction; openingBalance is already
-        // included in accountBalance(). So we skip newTx push to avoid double counting.
-        return { ...s, accounts: [...s.accounts, next] };
+        return updated;
       });
-      toast.success("Account added");
+      toast.success(kind === "credit" && finalForm.paymentDueDay ? "Card added · payment bill scheduled" : "Account added");
     } else {
-      setState((s) => ({ ...s, accounts: s.accounts.map((a) => a.id === finalForm.id ? finalForm : a) }));
+      setState((s) => {
+        let bills = s.bills ?? [];
+        // Keep/update linked bill when editing a credit card
+        if (kind === "credit" && finalForm.paymentDueDay) {
+          const existingId = finalForm.linkedBillId;
+          const existing = existingId ? bills.find((b) => b.id === existingId) : undefined;
+          if (existing) {
+            bills = bills.map((b) => b.id === existing.id
+              ? { ...b, name: `${finalForm.name} Payment`, accountId: finalForm.id, currency: finalForm.currency, nextDue: nextDueOnDay(finalForm.paymentDueDay!) }
+              : b);
+          } else {
+            const bill: Bill = {
+              id: uid(),
+              name: `${finalForm.name} Payment`,
+              amount: finalForm.openingBalance || 0,
+              currency: finalForm.currency,
+              category: "Credit Card Payment",
+              accountId: finalForm.id,
+              frequency: "monthly",
+              nextDue: nextDueOnDay(finalForm.paymentDueDay),
+              autopay: false,
+              notes: "Auto-added from credit card setup",
+              history: [],
+            };
+            finalForm.linkedBillId = bill.id;
+            bills = [...bills, bill];
+          }
+        }
+        return { ...s, accounts: s.accounts.map((a) => a.id === finalForm.id ? finalForm : a), bills };
+      });
       toast.success("Account updated");
     }
     onClose();
   };
 
-  const isBank = type === "bank";
-  const isCC = type === "credit";
+  const isBank = kind === "bank";
+  const isDebit = kind === "debit";
+  const isCC = kind === "credit";
+  const hasBankFields = isBank || isDebit || isCC;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -528,24 +601,24 @@ function AccountFormDialog({ account, onClose, base }:
         <div className="space-y-3 pt-2">
           <div>
             <FieldLabel>Account Type</FieldLabel>
-            <div className="grid grid-cols-5 gap-1 mt-1 p-1 rounded-lg bg-white/[0.04]">
-              {(["bank", "credit", "cash", "wallet", "other"] as AccountType[]).map((t) => (
-                <button key={t} onClick={() => setType(t)}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 mt-1 p-1 rounded-lg bg-white/[0.04]">
+              {(["bank", "debit", "credit", "cash", "wallet", "other"] as Kind[]).map((t) => (
+                <button key={t} onClick={() => setKind(t)}
                   className={`py-1.5 text-xs capitalize rounded-md ${
-                    type === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                  }`}>{t === "credit" ? "Card" : t}</button>
+                    kind === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                  }`}>{t === "debit" ? "Debit Card" : t === "credit" ? "Credit Card" : t}</button>
               ))}
             </div>
           </div>
 
           <div>
-            <FieldLabel>{isCC ? "Card Nickname *" : isBank ? "Account Nickname *" : "Name *"}</FieldLabel>
+            <FieldLabel>{isCC ? "Card Nickname *" : isDebit ? "Debit Card Nickname *" : isBank ? "Account Nickname *" : "Name *"}</FieldLabel>
             <input className="underline-input" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={isBank ? "e.g. HDFC Savings" : isCC ? "e.g. Axis Magnus" : "e.g. Cash in Hand"} />
+              placeholder={isBank ? "e.g. HDFC Savings" : isCC ? "e.g. Axis Magnus" : isDebit ? "e.g. HDFC Debit" : "e.g. Cash in Hand"} />
           </div>
 
-          {(isBank || isCC) && (
+          {hasBankFields && (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <FieldLabel>{isCC ? "Issuer / Bank *" : "Bank Name *"}</FieldLabel>
@@ -593,12 +666,37 @@ function AccountFormDialog({ account, onClose, base }:
           </div>
 
           {isCC && (
-            <div>
-              <FieldLabel>Credit Limit (optional)</FieldLabel>
-              <MoneyInput value={form.creditLimit || 0}
-                onChange={(n) => setForm({ ...form, creditLimit: n || undefined })} />
-              <p className="text-[10px] text-muted-foreground mt-1">Shows utilisation % when set</p>
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>Payment Due Day</FieldLabel>
+                  <input type="number" min={1} max={31} className="underline-input"
+                    placeholder="e.g. 15"
+                    value={form.paymentDueDay ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value === "" ? undefined : Math.max(1, Math.min(31, Number(e.target.value)));
+                      setForm({ ...form, paymentDueDay: v });
+                    }} />
+                  <p className="text-[10px] text-muted-foreground mt-1">Auto-adds a monthly bill</p>
+                </div>
+                <div>
+                  <FieldLabel>Statement Day (optional)</FieldLabel>
+                  <input type="number" min={1} max={31} className="underline-input"
+                    placeholder="e.g. 1"
+                    value={form.statementDay ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value === "" ? undefined : Math.max(1, Math.min(31, Number(e.target.value)));
+                      setForm({ ...form, statementDay: v });
+                    }} />
+                </div>
+              </div>
+              <div>
+                <FieldLabel>Credit Limit (optional)</FieldLabel>
+                <MoneyInput value={form.creditLimit || 0}
+                  onChange={(n) => setForm({ ...form, creditLimit: n || undefined })} />
+                <p className="text-[10px] text-muted-foreground mt-1">Shows utilisation % when set</p>
+              </div>
+            </>
           )}
 
           <div>
@@ -607,7 +705,7 @@ function AccountFormDialog({ account, onClose, base }:
               onChange={(e) => setForm({ ...form, asOf: e.target.value })} />
           </div>
 
-          {(isBank || isCC) && (
+          {hasBankFields && (
             <details className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
               <summary className="text-sm font-medium cursor-pointer">
                 {isCC ? "Card login (net banking)" : "Internet banking login"}

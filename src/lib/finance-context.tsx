@@ -121,6 +121,9 @@ export interface Account {
   emergencyFund?: boolean;
   creditLimit?: number;
   issuer?: string;
+  paymentDueDay?: number; // 1-31, credit cards only
+  statementDay?: number;  // 1-31, credit cards only (optional)
+  linkedBillId?: string;  // auto-created payment bill id
   // Login credentials (encrypted at rest with the rest of the vault)
   loginUrl?: string;
   loginUsername?: string;
