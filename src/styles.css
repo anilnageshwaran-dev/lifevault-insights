@@ -55,13 +55,13 @@
 :root {
   --radius: 1rem;
 
-  /* LifeVault dark-first theme */
-  --background: oklch(0.16 0.03 265);  /* #0A0F1E approx */
+  /* LifeVault pitch-black OLED theme */
+  --background: oklch(0 0 0);          /* #000000 */
   --foreground: oklch(0.98 0.005 250); /* #F9FAFB */
-  --surface: oklch(0.21 0.03 265);     /* #111827 */
-  --card: oklch(0.21 0.03 265);
+  --surface: oklch(0.14 0 0);          /* #0E0E0E */
+  --card: oklch(0.14 0 0);             /* #0E0E0E */
   --card-foreground: oklch(0.98 0.005 250);
-  --popover: oklch(0.21 0.03 265);
+  --popover: oklch(0.11 0 0);          /* #0A0A0A */
   --popover-foreground: oklch(0.98 0.005 250);
 
   --primary: oklch(0.62 0.19 277);     /* indigo #6366F1 */
