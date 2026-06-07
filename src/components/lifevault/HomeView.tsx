@@ -223,6 +223,46 @@ export function HomeView({ onNavigate }: Props) {
         <StatCard icon={Shield} tint="warning" label="Runway" valueText={`${runway.toFixed(1)} mo`} sub="of expenses covered" />
       </div>
 
+      {/* Financial Health Score (mini) */}
+      <button
+        onClick={() => onNavigate("essentials")}
+        className="w-full text-left rounded-xl border border-border bg-card p-3 md:p-4 hover:bg-accent/50 transition-colors"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <HeartPulse className={`h-4 w-4 ${healthTone}`} />
+            <span className="text-sm font-medium">Financial Health</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`font-display text-base tabular ${healthTone}`}>{(healthScore.total / 10).toFixed(1)}/10</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+        <div className="mt-2 h-1.5 w-full rounded-full bg-accent overflow-hidden">
+          <div
+            className={`h-full rounded-full ${healthBar}`}
+            style={{ width: `${Math.max(2, healthScore.total)}%` }}
+          />
+        </div>
+      </button>
+
+      {/* Quick insights */}
+      {insights.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {insights.map((ins, i) => (
+            <button
+              key={i}
+              onClick={() => onNavigate(ins.target)}
+              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${ins.cls}`}
+            >
+              <span>{ins.emoji}</span>
+              <span>{ins.text}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+
       {/* Expiry alert mini-card */}
       {expiryAlerts.length > 0 && (
         <button
