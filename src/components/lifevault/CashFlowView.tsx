@@ -1263,7 +1263,8 @@ export function QuickAddFab() {
   const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
   const [open, setOpen] = React.useState(false);
-  const [mode, setMode] = React.useState<"tx" | "transfer">("tx");
+  const [mode, setMode] = React.useState<"tx" | "transfer" | "bill">("tx");
+  const [billOpen, setBillOpen] = React.useState(false);
 
   const defaultAccountId = state.lastUsedAccountId || state.accounts[0]?.id;
   const defaultAccount = state.accounts.find((a) => a.id === defaultAccountId);
@@ -1348,6 +1349,7 @@ export function QuickAddFab() {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <button onClick={() => setOpen(true)}
         className="fixed bottom-24 md:bottom-6 right-6 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-105 transition-transform z-30"
@@ -1357,11 +1359,11 @@ export function QuickAddFab() {
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">
-            {mode === "transfer" ? "Transfer Between Accounts" : "Quick Add Transaction"}
+            {mode === "transfer" ? "Transfer Between Accounts" : mode === "bill" ? "Add Bill" : "Quick Add Transaction"}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-white/[0.04] mb-3">
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-white/[0.04] mb-3">
           <button onClick={() => setMode("tx")}
             className={`py-2 text-xs rounded-md ${mode === "tx" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             Transaction
@@ -1369,6 +1371,10 @@ export function QuickAddFab() {
           <button onClick={() => setMode("transfer")}
             className={`py-2 text-xs rounded-md ${mode === "transfer" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             Transfer
+          </button>
+          <button onClick={() => { setOpen(false); setBillOpen(true); }}
+            className={`py-2 text-xs rounded-md ${mode === "bill" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+            Bill
           </button>
         </div>
 
@@ -1521,6 +1527,8 @@ export function QuickAddFab() {
         )}
       </DialogContent>
     </Dialog>
+    {billOpen && <BillFormDialog bill={null} onClose={() => { setBillOpen(false); setMode("tx"); }} base={base} />}
+    </>
   );
 }
 
