@@ -194,7 +194,11 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings, onNavigate }
 
   const goVault = (categoryId: string) => {
     try {
-      sessionStorage.setItem("lifevault_vault_initial_category", categoryId);
+      if (categoryId === "__emergency") {
+        sessionStorage.setItem("lifevault_vault_open_emergency", "1");
+      } else {
+        sessionStorage.setItem("lifevault_vault_initial_category", categoryId);
+      }
     } catch {}
     go("vault");
   };
