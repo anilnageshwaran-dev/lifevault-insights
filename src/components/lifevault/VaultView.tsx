@@ -114,7 +114,7 @@ const CATS: Category[] = [
     id: "family", name: "Parents & Family", emoji: "👨‍👩‍👧‍👦", titleField: "name", subtitleField: "relation",
     fields: [
       { key: "name", label: "Full Name" },
-      { key: "relation", label: "Relationship (Father / Mother / Sibling / Other)" },
+      { key: "relation", label: "Relationship", options: ["Father", "Mother", "Spouse", "Son", "Daughter", "Brother", "Sister", "Grandfather", "Grandmother", "Father-in-law", "Mother-in-law", "Other"] },
       { key: "dob", label: "Date of Birth" },
       { key: "phone", label: "Phone" },
       { key: "address", label: "Address", multiline: true },
