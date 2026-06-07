@@ -211,6 +211,17 @@ export function VaultView() {
   const [creating, setCreating] = React.useState(false);
   const [emergencyOpen, setEmergencyOpen] = React.useState(false);
 
+  React.useEffect(() => {
+    try {
+      const initial = sessionStorage.getItem("lifevault_vault_initial_category");
+      if (initial) {
+        sessionStorage.removeItem("lifevault_vault_initial_category");
+        const c = CATS.find((x) => x.id === initial);
+        if (c) setOpenCat(c);
+      }
+    } catch {}
+  }, []);
+
   if (emergencyOpen) {
     return <EmergencyView onBack={() => setEmergencyOpen(false)} />;
   }
