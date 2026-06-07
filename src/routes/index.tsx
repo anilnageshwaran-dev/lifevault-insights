@@ -16,11 +16,11 @@ export const Route = createFileRoute("/")({
         content:
           "personal finance india, net worth tracker, financial vault, encrypted finance app, free finance app india, zerodha import, mutual fund tracker, LifeVault",
       },
-      { name: "theme-color", content: "#FFFFFF" },
+      { name: "theme-color", content: "#0B0B0F" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "LifeVault" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { property: "og:title", content: "LifeVault — Personal Finance & Secure Vault for Indians" },
       {
         property: "og:description",
