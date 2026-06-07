@@ -330,6 +330,8 @@ export function HomeView({ onNavigate }: Props) {
                   days < 3 ? "text-danger bg-danger/10 border-danger/20"
                   : days < 7 ? "text-warning bg-warning/10 border-warning/20"
                   : "text-positive bg-positive/10 border-positive/20";
+                const acc = b.accountId ? state.accounts.find((a) => a.id === b.accountId) : null;
+                const ccy = b.currency || acc?.currency || state.baseCurrency || "INR";
                 return (
                   <div key={b.id} className="flex items-center gap-3 py-2.5 px-2">
                     <Receipt className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -339,7 +341,7 @@ export function HomeView({ onNavigate }: Props) {
                         {new Date(b.nextDue).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
                       </div>
                     </div>
-                    <div className="tabular text-sm shrink-0">{formatINR(b.amount)}</div>
+                    <div className="tabular text-sm shrink-0">{formatMoney(b.amount, ccy)}</div>
                     <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${color}`}>
                       {days <= 0 ? "Today" : `${days}d`}
                     </span>
