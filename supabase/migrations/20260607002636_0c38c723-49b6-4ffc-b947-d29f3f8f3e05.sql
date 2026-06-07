@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Authenticated users can read feedback" ON public.landing_feedback;
