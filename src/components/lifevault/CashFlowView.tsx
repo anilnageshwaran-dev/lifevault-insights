@@ -1266,6 +1266,7 @@ export function QuickAddFab() {
   const [open, setOpen] = React.useState(false);
   const [mode, setMode] = React.useState<"tx" | "transfer" | "bill">("tx");
   const [billOpen, setBillOpen] = React.useState(false);
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
   const defaultAccountId = state.lastUsedAccountId || state.accounts[0]?.id;
   const defaultAccount = state.accounts.find((a) => a.id === defaultAccountId);
