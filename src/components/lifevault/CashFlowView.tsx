@@ -453,6 +453,23 @@ function AccountsTab() {
   );
 }
 
+function nextDueOnDay(day: number): string {
+  const today = new Date();
+  const d = Math.max(1, Math.min(31, day));
+  let target = new Date(today.getFullYear(), today.getMonth(), d);
+  // If date overflowed (e.g. Feb 30), clamp to last day of this month
+  if (target.getMonth() !== today.getMonth()) {
+    target = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  }
+  if (target < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+    target = new Date(today.getFullYear(), today.getMonth() + 1, d);
+    if (target.getMonth() !== (today.getMonth() + 1) % 12) {
+      target = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+    }
+  }
+  return target.toISOString().slice(0, 10);
+}
+
 function AccountFormDialog({ account, onClose, base }:
   { account: Account | null; onClose: () => void; base: string }) {
   const { state, setState } = useFinance();
