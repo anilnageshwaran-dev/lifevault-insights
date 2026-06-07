@@ -25,7 +25,7 @@ import {
 import {
   Plus, Trash2, Receipt, AlertTriangle, Wallet, CreditCard, Banknote,
   ChevronLeft, ChevronRight, Search, CalendarClock, CheckCircle2, Repeat,
-  TrendingUp, Upload, FileDown,
+  TrendingUp, Upload, FileDown, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
@@ -36,6 +36,7 @@ import {
 import { StatementImportDialog } from "./StatementImportDialog";
 import { generateAnnualReport } from "@/lib/reports-pdf";
 import { useAuth } from "@/lib/auth-context";
+import { FeedbackDialog } from "./FeedbackButton";
 
 const BANKS = [
   // India
@@ -1265,6 +1266,7 @@ export function QuickAddFab() {
   const [open, setOpen] = React.useState(false);
   const [mode, setMode] = React.useState<"tx" | "transfer" | "bill">("tx");
   const [billOpen, setBillOpen] = React.useState(false);
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
   const defaultAccountId = state.lastUsedAccountId || state.accounts[0]?.id;
   const defaultAccount = state.accounts.find((a) => a.id === defaultAccountId);
@@ -1363,7 +1365,7 @@ export function QuickAddFab() {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-white/[0.04] mb-3">
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-white/[0.04] mb-3">
           <button onClick={() => setMode("tx")}
             className={`py-2 text-xs rounded-md ${mode === "tx" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             Transaction
@@ -1375,6 +1377,10 @@ export function QuickAddFab() {
           <button onClick={() => { setOpen(false); setBillOpen(true); }}
             className={`py-2 text-xs rounded-md ${mode === "bill" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             Bill
+          </button>
+          <button onClick={() => { setOpen(false); setFeedbackOpen(true); }}
+            className="py-2 text-xs rounded-md text-muted-foreground hover:text-foreground flex items-center justify-center gap-1">
+            <MessageSquare className="h-3 w-3" /> Feedback
           </button>
         </div>
 
@@ -1528,6 +1534,7 @@ export function QuickAddFab() {
       </DialogContent>
     </Dialog>
     {billOpen && <BillFormDialog bill={null} onClose={() => { setBillOpen(false); setMode("tx"); }} base={base} />}
+    <FeedbackDialog open={feedbackOpen} onOpenChange={(b) => { setFeedbackOpen(b); if (!b) setMode("tx"); }} />
     </>
   );
 }

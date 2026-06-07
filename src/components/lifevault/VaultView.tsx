@@ -30,6 +30,7 @@ interface Field {
   secret?: boolean;
   multiline?: boolean;
   type?: "text" | "number" | "date";
+  options?: string[];
 }
 interface Category {
   id: string;
@@ -92,7 +93,8 @@ const CATS: Category[] = [
   {
     id: "contacts", name: "Contacts", emoji: "👤", titleField: "name", subtitleField: "role",
     fields: [
-      { key: "role", label: "Role" }, { key: "name", label: "Full Name" },
+      { key: "role", label: "Relationship", options: ["Spouse", "Father", "Mother", "Son", "Daughter", "Brother", "Sister", "Grandparent", "Friend", "Doctor", "Lawyer", "Accountant", "Financial Advisor", "Insurance Agent", "Employer", "Landlord", "Neighbour", "Emergency Contact", "Other"] },
+      { key: "name", label: "Full Name" },
       { key: "phone", label: "Phone" }, { key: "email", label: "Email" },
       { key: "org", label: "Organisation / Firm" }, { key: "notes", label: "Notes", multiline: true },
     ],
@@ -112,7 +114,7 @@ const CATS: Category[] = [
     id: "family", name: "Parents & Family", emoji: "👨‍👩‍👧‍👦", titleField: "name", subtitleField: "relation",
     fields: [
       { key: "name", label: "Full Name" },
-      { key: "relation", label: "Relationship (Father / Mother / Sibling / Other)" },
+      { key: "relation", label: "Relationship", options: ["Father", "Mother", "Spouse", "Son", "Daughter", "Brother", "Sister", "Grandfather", "Grandmother", "Father-in-law", "Mother-in-law", "Other"] },
       { key: "dob", label: "Date of Birth" },
       { key: "phone", label: "Phone" },
       { key: "address", label: "Address", multiline: true },
@@ -526,6 +528,17 @@ function RecordEditor({
                     rows={3}
                     className="mt-1 w-full px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary"
                   />
+                ) : f.options ? (
+                  <select
+                    value={val}
+                    onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary"
+                  >
+                    <option value="">Select…</option>
+                    {f.options.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
                 ) : (
                   <input
                     type={f.secret && !isRevealed ? "password" : "text"}
