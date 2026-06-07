@@ -511,3 +511,9 @@ function StatCard({
     </div>
   );
 }
+
+function daysSince(iso: string): number {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000));
+}
