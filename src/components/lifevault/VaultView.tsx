@@ -339,7 +339,14 @@ function RecordList({
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="text-2xl">{category.emoji}</div>
-        <h2 className="font-display text-2xl">{category.name}</h2>
+        <h2 className="font-display text-2xl flex-1 min-w-0 truncate">{category.name}</h2>
+        <button
+          onClick={onCreate}
+          aria-label={`Add ${category.name} record`}
+          className="h-10 w-10 rounded-full bg-accent text-accent-foreground border border-border flex items-center justify-center hover:bg-accent/80 transition-colors shrink-0"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
       </div>
       {category.id === "investments" && (
         <div className="rounded-xl border border-border bg-card/50 p-3 text-xs text-muted-foreground">
@@ -411,13 +418,6 @@ function RecordList({
         </div>
       )}
 
-      <button
-        onClick={onCreate}
-        aria-label={`Add ${category.name} record`}
-        className="fixed bottom-44 md:bottom-28 right-6 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-105 transition-transform z-40"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
     </div>
   );
 }
