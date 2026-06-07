@@ -151,9 +151,7 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings, onNavigate }
   // ---------- Vault chip counts ----------
   const vaultChips: { id: string; label: string; icon: React.ReactNode }[] = [
     { id: "passwords", label: "Passwords", icon: <KeyRound className="h-3.5 w-3.5" /> },
-    { id: "insurance", label: "Insurance", icon: <ShieldCheck className="h-3.5 w-3.5" /> },
-    { id: "documents", label: "Documents", icon: <FileText className="h-3.5 w-3.5" /> },
-    { id: "subscriptions", label: "Subscriptions", icon: <CreditCard className="h-3.5 w-3.5" /> },
+    { id: "__emergency", label: "Emergency", icon: <AlertCircle className="h-3.5 w-3.5" /> },
   ];
 
   const toggleTheme = () => setMode(resolved === "dark" ? "light" : "dark");
