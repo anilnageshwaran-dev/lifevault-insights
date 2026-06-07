@@ -2,9 +2,11 @@ import * as React from "react";
 import {
   TrendingUp, TrendingDown, PiggyBank, Shield, Camera, ArrowUp, ArrowDown,
   AlertTriangle, Plus, Receipt, Target, Wallet, FileWarning, ChevronRight,
+  HeartPulse, Lightbulb,
 } from "lucide-react";
 import {
   useFinance, sumAssets, sumLiabilities, assetsByCategory,
+  computeHealthScore,
   type NetWorthSnapshot,
 } from "@/lib/finance-context";
 import { convert } from "@/lib/currency";
