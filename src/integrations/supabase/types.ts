@@ -281,6 +281,30 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_feedback: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          name: string | null
+          rating: number
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          id?: string
+          name?: string | null
+          rating: number
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          name?: string | null
+          rating?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
