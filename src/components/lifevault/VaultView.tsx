@@ -207,7 +207,7 @@ const CATS: Category[] = [
 ];
 
 export function VaultView() {
-  const { state } = useFinance();
+  const { state, update } = useFinance();
   const [openCat, setOpenCat] = React.useState<Category | null>(null);
   const [openRecord, setOpenRecord] = React.useState<VaultRecord | null>(null);
   const [creating, setCreating] = React.useState(false);
