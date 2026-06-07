@@ -1534,6 +1534,7 @@ export function QuickAddFab() {
       </DialogContent>
     </Dialog>
     {billOpen && <BillFormDialog bill={null} onClose={() => { setBillOpen(false); setMode("tx"); }} base={base} />}
+    <FeedbackDialog open={feedbackOpen} onOpenChange={(b) => { setFeedbackOpen(b); if (!b) setMode("tx"); }} />
     </>
   );
 }
