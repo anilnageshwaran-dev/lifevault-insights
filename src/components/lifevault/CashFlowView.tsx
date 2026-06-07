@@ -1263,7 +1263,8 @@ export function QuickAddFab() {
   const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
   const [open, setOpen] = React.useState(false);
-  const [mode, setMode] = React.useState<"tx" | "transfer">("tx");
+  const [mode, setMode] = React.useState<"tx" | "transfer" | "bill">("tx");
+  const [billOpen, setBillOpen] = React.useState(false);
 
   const defaultAccountId = state.lastUsedAccountId || state.accounts[0]?.id;
   const defaultAccount = state.accounts.find((a) => a.id === defaultAccountId);
