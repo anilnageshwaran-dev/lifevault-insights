@@ -274,7 +274,6 @@ export function LifeVaultApp() {
 
 
       <InstallBanner />
-      <FeedbackButton />
 
       <HelpAndTour
         showHelp={showHelp}
