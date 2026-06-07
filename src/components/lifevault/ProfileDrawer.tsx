@@ -114,9 +114,10 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings, onNavigate }
   // Document expiries
   const expiries = computeExpiryAlerts(state.vault ?? {});
   for (const e of expiries.slice(0, 2)) {
+    const title = e.record.title || e.fieldLabel || e.categoryName;
     agenda.push({
       icon: <FileText className="h-3.5 w-3.5" />,
-      text: `${e.title} expires in ${e.daysLeft} days`,
+      text: `${title} expires in ${e.daysLeft} days`,
       tone: e.daysLeft <= 30 ? "danger" : "warning",
     });
   }
