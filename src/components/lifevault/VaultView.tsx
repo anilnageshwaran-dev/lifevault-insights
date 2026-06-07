@@ -93,7 +93,8 @@ const CATS: Category[] = [
   {
     id: "contacts", name: "Contacts", emoji: "👤", titleField: "name", subtitleField: "role",
     fields: [
-      { key: "role", label: "Role" }, { key: "name", label: "Full Name" },
+      { key: "role", label: "Relationship", options: ["Spouse", "Father", "Mother", "Son", "Daughter", "Brother", "Sister", "Grandparent", "Friend", "Doctor", "Lawyer", "Accountant", "Financial Advisor", "Insurance Agent", "Employer", "Landlord", "Neighbour", "Emergency Contact", "Other"] },
+      { key: "name", label: "Full Name" },
       { key: "phone", label: "Phone" }, { key: "email", label: "Email" },
       { key: "org", label: "Organisation / Firm" }, { key: "notes", label: "Notes", multiline: true },
     ],
