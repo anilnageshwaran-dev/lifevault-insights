@@ -122,7 +122,7 @@ export function LifeVaultApp() {
         </button>
 
         <nav className="flex-1 space-y-1">
-          {TABS.filter((t) => !collapsed || t.id === "home" || t.id === "essentials").map((t) => {
+          {TABS.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
@@ -143,14 +143,14 @@ export function LifeVaultApp() {
           })}
         </nav>
 
-        <div className="space-y-1 pt-3 border-t border-border">
+        <div className={`pt-3 border-t border-border ${collapsed ? "flex flex-col items-center gap-1" : "flex items-center gap-1"}`}>
           <button
             onClick={() => setTabAnimated("settings")}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
               tab === "settings"
                 ? "bg-primary/15 text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent"
-            } ${collapsed ? "justify-center" : ""}`}
+            } ${collapsed ? "justify-center" : "flex-1"}`}
             title={collapsed ? "Settings" : undefined}
           >
             <SettingsIcon className="h-4 w-4 shrink-0" />
@@ -158,13 +158,11 @@ export function LifeVaultApp() {
           </button>
           <button
             onClick={toggleCollapse}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors ${
-              collapsed ? "justify-center" : ""
-            }`}
-            title={collapsed ? "Expand" : "Collapse"}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            {!collapsed && <span>Collapse</span>}
           </button>
         </div>
       </aside>
