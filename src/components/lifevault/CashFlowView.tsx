@@ -1349,6 +1349,7 @@ export function QuickAddFab() {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <button onClick={() => setOpen(true)}
         className="fixed bottom-24 md:bottom-6 right-6 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-105 transition-transform z-30"
