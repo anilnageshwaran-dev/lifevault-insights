@@ -82,6 +82,96 @@ function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Feedback form                                                     */
+/* ------------------------------------------------------------------ */
+function FeedbackForm() {
+  const [rating, setRating] = React.useState(0);
+  const [hover, setHover] = React.useState(0);
+  const [name, setName] = React.useState("");
+  const [comment, setComment] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rating === 0) { toast.error("Please pick a star rating"); return; }
+    if (!comment.trim()) { toast.error("Please add a short comment"); return; }
+    setSubmitting(true);
+    const { error } = await supabase.from("landing_feedback").insert({
+      rating,
+      name: name.trim() || null,
+      comment: comment.trim(),
+    });
+    setSubmitting(false);
+    if (error) { toast.error(error.message || "Could not submit feedback"); return; }
+    setSubmitted(true);
+    toast.success("Thanks for the feedback!");
+  };
+
+  if (submitted) {
+    return (
+      <div className="lv-card rounded-2xl bg-[#141417] border border-[#27272A] p-8 text-center">
+        <div className="text-3xl mb-2">🙏</div>
+        <div className="lv-display text-xl font-semibold text-[#F5F5F7]">Thank you!</div>
+        <p className="text-[15px] text-[#9CA3AF] mt-2">Your feedback helps us make LifeVault better.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="lv-card rounded-2xl bg-[#141417] border border-[#27272A] p-6 sm:p-8 space-y-5">
+      <div>
+        <label className="block text-sm font-medium text-[#F5F5F7] mb-2">Your rating</label>
+        <div className="flex gap-1.5">
+          {[1,2,3,4,5].map(n => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setRating(n)}
+              onMouseEnter={() => setHover(n)}
+              onMouseLeave={() => setHover(0)}
+              aria-label={`${n} star${n>1?"s":""}`}
+              className="p-1 transition-transform hover:scale-110"
+            >
+              <Star className={`h-8 w-8 ${(hover || rating) >= n ? "fill-[#FBBF24] text-[#FBBF24]" : "text-[#3F3F46]"}`} />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[#F5F5F7] mb-2">Name <span className="text-[#71717A] font-normal">(optional)</span></label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={80}
+          placeholder="Your name"
+          className="w-full rounded-xl bg-[#0A0A0C] border border-[#27272A] text-[#F5F5F7] placeholder:text-[#52525B] px-4 py-3 focus:outline-none focus:border-[#6366F1]"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[#F5F5F7] mb-2">Comment</label>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          maxLength={2000}
+          rows={4}
+          placeholder="Tell us what you love or what could be better…"
+          className="w-full rounded-xl bg-[#0A0A0C] border border-[#27272A] text-[#F5F5F7] placeholder:text-[#52525B] px-4 py-3 focus:outline-none focus:border-[#6366F1] resize-none"
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={submitting}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#6366F1] hover:bg-[#4F46E5] text-white font-semibold py-3.5 transition-all hover:scale-[1.02] disabled:opacity-60"
+      >
+        {submitting ? "Submitting…" : "Submit feedback"}
+      </button>
+    </form>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Sign-in modal                                                     */
 /* ------------------------------------------------------------------ */
 function SignInModal({ open, onClose, onEmail }: { open: boolean; onClose: () => void; onEmail: () => void }) {
