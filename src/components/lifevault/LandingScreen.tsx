@@ -565,39 +565,6 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
             </div>
           </Reveal>
 
-          <Reveal className="mt-20 max-w-3xl mx-auto">
-            <h3 className="lv-display text-2xl font-semibold text-center mb-6 text-[#1D1D1F]">How LifeVault compares</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-[#86868B] text-xs uppercase tracking-wider">
-                    <th className="py-3 font-medium">Feature</th>
-                    <th className="py-3 font-medium text-[#6366F1]">LifeVault</th>
-                    <th className="py-3 font-medium">FinBoom</th>
-                    <th className="py-3 font-medium">ET Money</th>
-                  </tr>
-                </thead>
-                <tbody className="text-[#1D1D1F]">
-                  {[
-                    ["Net Worth", "✅ Free", "✅ Paid", "❌"],
-                    ["Credentials Vault", "✅ Free", "❌", "❌"],
-                    ["Zero-Knowledge", "✅", "❌", "❌"],
-                    ["Bank Import", "✅ Free", "✅ Paid", "✅"],
-                    ["Goals + Inflation", "✅ Free", "✅ Paid", "❌"],
-                    ["100% Free", "✅", "❌", "✅"],
-                  ].map((r) => (
-                    <tr key={r[0]} className="border-t border-[#F0F0F2]">
-                      <td className="py-3 font-medium">{r[0]}</td>
-                      <td className="py-3">{r[1]}</td>
-                      <td className="py-3">{r[2]}</td>
-                      <td className="py-3">{r[3]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-xs text-[#86868B] mt-4 text-center">Comparison based on publicly available information. Last updated June 2026.</p>
-          </Reveal>
         </div>
       </section>
 
