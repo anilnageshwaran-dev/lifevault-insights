@@ -858,9 +858,9 @@ function FeatureShowcase({ index }: { index: number }) {
         <div className="rounded-2xl bg-[#141417] border border-[#27272A] p-6 space-y-3">
           {[
             ["Salary credit","HDFC Bank","+₹1,20,000","#10B981"],
-            ["Swiggy","Food","-₹420","#1D1D1F"],
-            ["Electricity bill","Utilities","-₹2,140","#1D1D1F"],
-            ["Rent","Housing","-₹35,000","#1D1D1F"],
+            ["Swiggy","Food","-₹420","#F5F5F7"],
+            ["Electricity bill","Utilities","-₹2,140","#F5F5F7"],
+            ["Rent","Housing","-₹35,000","#F5F5F7"],
           ].map((r, i) => (
             <div key={i} className="flex items-center justify-between text-sm">
               <div><div className="font-medium text-[#F5F5F7]">{r[0]}</div><div className="text-xs text-[#71717A]">{r[1]}</div></div>
