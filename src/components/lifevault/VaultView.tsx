@@ -324,12 +324,14 @@ function RecordList({
   onBack,
   onOpen,
   onCreate,
+  onDelete,
 }: {
   category: Category;
   records: VaultRecord[];
   onBack: () => void;
   onOpen: (r: VaultRecord) => void;
   onCreate: () => void;
+  onDelete: (r: VaultRecord) => void;
 }) {
   const [q, setQ] = React.useState("");
   const filtered = records.filter(
@@ -338,6 +340,7 @@ function RecordList({
       r.title.toLowerCase().includes(q.toLowerCase()) ||
       r.subtitle?.toLowerCase().includes(q.toLowerCase()),
   );
+  const singular = category.name.toLowerCase().replace(/s$/, "");
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -345,7 +348,12 @@ function RecordList({
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="text-2xl">{category.emoji}</div>
-        <h2 className="font-display text-2xl flex-1 min-w-0 truncate">{category.name}</h2>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-display text-2xl truncate leading-tight">{category.name}</h2>
+          <div className="text-xs text-muted-foreground tabular">
+            {records.length} record{records.length === 1 ? "" : "s"}
+          </div>
+        </div>
         <button
           onClick={onCreate}
           aria-label={`Add ${category.name} record`}
@@ -368,62 +376,141 @@ function RecordList({
       )}
 
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search"
-          className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-card border border-border outline-none focus:border-primary"
-        />
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon={Lock}
-          title={records.length === 0 ? "No records yet" : "No matches"}
-          description={
-            records.length === 0
-              ? "Securely store your sensitive information in this category."
-              : "Try a different search."
-          }
-          cta={
-            records.length === 0 && (
-              <button
-                onClick={onCreate}
-                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm"
-              >
-                Add first record
-              </button>
-            )
-          }
-        />
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => onOpen(r)}
-              className="w-full text-left rounded-xl border border-border bg-card hover:bg-accent p-4 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="font-medium text-foreground truncate">
-                    {r.title || "(untitled)"}
-                  </div>
-                  {r.subtitle && (
-                    <div className="text-xs text-muted-foreground truncate">{r.subtitle}</div>
-                  )}
-                </div>
-                <div className="text-[10px] text-muted-foreground shrink-0 ml-3">
-                  {new Date(r.updatedAt).toLocaleDateString()}
-                </div>
-              </div>
-            </button>
-          ))}
+      {records.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search"
+            className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-card border border-border outline-none focus:border-primary"
+          />
         </div>
       )}
 
+      {records.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/30 p-10 flex flex-col items-center text-center">
+          <div className="text-6xl opacity-40 mb-4">{category.emoji}</div>
+          <div className="font-display text-lg text-muted-foreground">
+            No {singular} saved yet
+          </div>
+          <div className="text-sm text-muted-foreground/70 mt-1">
+            Tap + to add your first {singular}
+          </div>
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Lock}
+          title="No matches"
+          description="Try a different search."
+        />
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((r) => {
+            const phone = r.fields?.phone || r.fields?.Phone || "";
+            return (
+              <SwipeableRow
+                key={r.id}
+                onClick={() => onOpen(r)}
+                onEdit={() => onOpen(r)}
+                onDelete={() => onDelete(r)}
+              >
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground truncate">
+                        {r.title || "(untitled)"}
+                      </div>
+                      {r.subtitle && (
+                        <div className="text-xs text-muted-foreground truncate">{r.subtitle}</div>
+                      )}
+                      {phone && (
+                        <div className="text-xs text-muted-foreground/80 truncate tabular mt-0.5">
+                          📞 {phone}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground shrink-0">
+                      {new Date(r.updatedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              </SwipeableRow>
+            );
+          })}
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+function SwipeableRow({
+  children,
+  onClick,
+  onEdit,
+  onDelete,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [drag, setDrag] = React.useState<number | null>(null);
+  const startX = React.useRef(0);
+  const moved = React.useRef(false);
+
+  const handleStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    moved.current = false;
+    setDrag(0);
+  };
+  const handleMove = (e: React.TouchEvent) => {
+    const d = e.touches[0].clientX - startX.current;
+    if (Math.abs(d) > 4) moved.current = true;
+    const base = open ? -128 : 0;
+    setDrag(Math.max(-140, Math.min(20, base + d)));
+  };
+  const handleEnd = () => {
+    setOpen((drag ?? 0) < -60);
+    setDrag(null);
+  };
+
+  const tx = drag !== null ? drag : (open ? -128 : 0);
+
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-border bg-card">
+      <div className="absolute inset-y-0 right-0 flex z-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); setOpen(false); onEdit(); }}
+          className="w-16 bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center"
+          aria-label="Edit"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
+          className="w-16 bg-danger/10 text-danger hover:bg-danger/20 flex items-center justify-center"
+          aria-label="Delete"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+      <div
+        className="relative bg-card hover:bg-accent transition-colors text-left w-full cursor-pointer"
+        style={{ transform: `translateX(${tx}px)`, transition: drag !== null ? "none" : "transform 0.2s ease" }}
+        onTouchStart={handleStart}
+        onTouchMove={handleMove}
+        onTouchEnd={handleEnd}
+        onClick={() => {
+          if (moved.current) return;
+          if (open) { setOpen(false); return; }
+          onClick();
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
