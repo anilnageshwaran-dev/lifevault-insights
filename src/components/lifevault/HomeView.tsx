@@ -187,10 +187,14 @@ export function HomeView({ onNavigate }: Props) {
             <div className={`font-display text-4xl md:text-5xl mt-2 tabular ${netWorth >= 0 ? "text-positive" : "text-danger"}`}>
               {formatINR(netWorth)}
             </div>
-            {lastSnap && (
+            {lastSnap ? (
               <div className={`mt-1.5 inline-flex items-center gap-1 text-sm tabular ${monthChange >= 0 ? "text-positive" : "text-danger"}`}>
                 {monthChange >= 0 ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-                {formatINR(Math.abs(monthChange))} since last snapshot
+                {monthChange >= 0 ? "+" : "-"}{formatINR(Math.abs(monthChange))} since last snapshot ({daysSince(lastSnap.date)} days ago)
+              </div>
+            ) : (
+              <div className="mt-1.5 text-sm text-muted-foreground">
+                Take your first snapshot to track changes
               </div>
             )}
           </div>
