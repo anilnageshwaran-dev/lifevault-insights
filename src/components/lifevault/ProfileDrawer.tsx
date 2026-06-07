@@ -266,7 +266,16 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings, onNavigate }
             <div className="grid grid-cols-3 gap-1.5">
               <QuickBtn label="Transaction" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => go("cashflow")} />
               <QuickBtn label="Asset" icon={<Wallet className="h-3.5 w-3.5" />} onClick={() => go("networth")} />
-              <QuickBtn label="Bill" icon={<Receipt className="h-3.5 w-3.5" />} onClick={() => go("cashflow")} />
+              <QuickBtn
+                label="Bill"
+                icon={<Receipt className="h-3.5 w-3.5" />}
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem("lifevault_cashflow_initial_subtab", "bills");
+                  } catch {}
+                  go("cashflow");
+                }}
+              />
             </div>
           </Section>
 
