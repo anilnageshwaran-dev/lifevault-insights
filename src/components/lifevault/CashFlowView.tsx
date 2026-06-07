@@ -7,7 +7,7 @@ import {
   type Transaction,
   type TxType,
   type Account,
-  type AccountType,
+  type Account,
   type Bill,
   type BillFrequency,
 } from "@/lib/finance-context";
