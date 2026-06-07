@@ -250,6 +250,12 @@ export function VaultView() {
         onBack={() => setOpenCat(null)}
         onOpen={(r) => setOpenRecord(r)}
         onCreate={() => setCreating(true)}
+        onDelete={(r) => {
+          if (!confirm("Delete this record? This cannot be undone.")) return;
+          const list = (state.vault[openCat.id] ?? []).filter((x) => x.id !== r.id);
+          update("vault", { ...state.vault, [openCat.id]: list });
+          toast.success("Deleted");
+        }}
       />
     );
   }
