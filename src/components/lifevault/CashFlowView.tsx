@@ -71,7 +71,20 @@ const ACCOUNT_ICONS = ["🏦", "💳", "💵", "📱", "💼", "🏧", "💎", "
 type SubTab = "transactions" | "accounts" | "bills" | "budget" | "insights";
 
 export function CashFlowView() {
-  const [tab, setTab] = React.useState<SubTab>("transactions");
+  const [tab, setTab] = React.useState<SubTab>(() => {
+    if (typeof window === "undefined") return "transactions";
+    try {
+      const hint = sessionStorage.getItem("lifevault_cashflow_initial_subtab");
+      if (hint) {
+        sessionStorage.removeItem("lifevault_cashflow_initial_subtab");
+        if (["transactions", "accounts", "bills", "budget", "insights"].includes(hint)) {
+          return hint as SubTab;
+        }
+      }
+    } catch {}
+    return "transactions";
+  });
+
 
   return (
     <div className="space-y-6">
