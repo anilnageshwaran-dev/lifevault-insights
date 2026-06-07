@@ -212,7 +212,7 @@ export const acceptFamilyInvite = createServerFn({ method: "POST" })
       callerEmail = u?.user?.email?.toLowerCase() ?? null;
     }
     if (!callerEmail || callerEmail !== inv.invitee_email.toLowerCase()) {
-      throw new Error(`This invite was sent to ${inv.invitee_email}. Please sign in with that account.`);
+      throw new Error("This invite was sent to a different email address. Please sign in with the correct account.");
     }
 
     // Upsert family_access
