@@ -528,6 +528,17 @@ function RecordEditor({
                     rows={3}
                     className="mt-1 w-full px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary"
                   />
+                ) : f.options ? (
+                  <select
+                    value={val}
+                    onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary"
+                  >
+                    <option value="">Select…</option>
+                    {f.options.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
                 ) : (
                   <input
                     type={f.secret && !isRevealed ? "password" : "text"}
