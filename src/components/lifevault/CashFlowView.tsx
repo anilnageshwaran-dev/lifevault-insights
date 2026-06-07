@@ -689,7 +689,7 @@ function AccountFormDialog({ account, onClose, base }:
               onChange={(e) => setForm({ ...form, asOf: e.target.value })} />
           </div>
 
-          {(isBank || isCC) && (
+          {hasBankFields && (
             <details className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
               <summary className="text-sm font-medium cursor-pointer">
                 {isCC ? "Card login (net banking)" : "Internet banking login"}
