@@ -217,9 +217,9 @@ function SignInModal({ open, onClose, onEmail }: { open: boolean; onClose: () =>
         </button>
 
         <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-[#D2D2D7]" />
+          <div className="flex-1 h-px bg-[#27272A]" />
           <span className="text-xs text-[#71717A] uppercase tracking-wider">or</span>
-          <div className="flex-1 h-px bg-[#D2D2D7]" />
+          <div className="flex-1 h-px bg-[#27272A]" />
         </div>
 
         <button
@@ -633,7 +633,7 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
                 <div className="lv-display text-[80px] font-bold text-[#6366F1] leading-none">₹0</div>
                 <div className="text-[#9CA3AF] text-sm mt-2">per month, forever</div>
               </div>
-              <div className="h-px bg-[#D2D2D7] mb-6" />
+              <div className="h-px bg-[#27272A] mb-6" />
               <ul className="space-y-3">
                 {[
                   "All 6 dashboard views", "Unlimited assets & liabilities", "Unlimited transactions",
@@ -753,7 +753,7 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
 
 
       {/* ============ FINAL CTA ============ */}
-      <section className="bg-[#1D1D1F] py-24 sm:py-32">
+      <section className="bg-[#000000] py-24 sm:py-32">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <Reveal>
             <h2 className="lv-display text-[36px] sm:text-[56px] font-bold text-white leading-[1.1]">
@@ -778,7 +778,7 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
       </section>
 
       {/* ============ FOOTER ============ */}
-      <footer className="bg-[#1D1D1F] border-t border-white/10 py-12">
+      <footer className="bg-[#000000] border-t border-white/10 py-12">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-8">
             <div>
