@@ -213,6 +213,11 @@ export function VaultView() {
 
   React.useEffect(() => {
     try {
+      if (sessionStorage.getItem("lifevault_vault_open_emergency") === "1") {
+        sessionStorage.removeItem("lifevault_vault_open_emergency");
+        setEmergencyOpen(true);
+        return;
+      }
       const initial = sessionStorage.getItem("lifevault_vault_initial_category");
       if (initial) {
         sessionStorage.removeItem("lifevault_vault_initial_category");
