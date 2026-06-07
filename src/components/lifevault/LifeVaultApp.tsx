@@ -17,7 +17,7 @@ import { InstallBanner } from "./InstallBanner";
 import { LifeVaultIcon } from "./LifeVaultIcon";
 import { ProfileDrawer } from "./ProfileDrawer";
 import { RemindersBanner } from "./RemindersBanner";
-import { FeedbackButton } from "./FeedbackButton";
+// FeedbackButton merged into QuickAddFab
 import { HelpAndTour } from "./HelpAndTour";
 import { useServerFn } from "@tanstack/react-start";
 import { listRecentAcceptances } from "@/lib/family.functions";
