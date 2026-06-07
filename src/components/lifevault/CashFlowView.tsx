@@ -25,7 +25,7 @@ import {
 import {
   Plus, Trash2, Receipt, AlertTriangle, Wallet, CreditCard, Banknote,
   ChevronLeft, ChevronRight, Search, CalendarClock, CheckCircle2, Repeat,
-  TrendingUp, Upload, FileDown,
+  TrendingUp, Upload, FileDown, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencySelect } from "./CurrencySelect";
