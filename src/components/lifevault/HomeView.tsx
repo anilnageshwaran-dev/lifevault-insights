@@ -9,7 +9,7 @@ import {
   computeHealthScore,
   type NetWorthSnapshot,
 } from "@/lib/finance-context";
-import { convert } from "@/lib/currency";
+import { convert, formatMoney } from "@/lib/currency";
 import { formatINR, uid } from "@/lib/finance-utils";
 import { GlassCard, SectionTitle } from "./primitives";
 import { Button } from "@/components/ui/button";
