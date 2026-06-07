@@ -29,7 +29,7 @@ export function FeedbackButton() {
   );
 }
 
-function FeedbackDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (b: boolean) => void }) {
+export function FeedbackDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (b: boolean) => void }) {
   const { user } = useAuth();
   const submit = useServerFn(submitFeedback);
   const [type, setType] = React.useState<FbType>("general");
