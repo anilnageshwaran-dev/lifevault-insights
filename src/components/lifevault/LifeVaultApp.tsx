@@ -122,7 +122,7 @@ export function LifeVaultApp() {
         </button>
 
         <nav className="flex-1 space-y-1">
-          {TABS.map((t) => {
+          {TABS.filter((t) => !collapsed || t.id === "home" || t.id === "essentials").map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
