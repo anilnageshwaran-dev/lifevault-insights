@@ -254,6 +254,11 @@ export function NetWorthView() {
               style={{ color: netWorth >= 0 ? "var(--color-positive)" : "var(--color-danger)" }}>
               {formatMoney(netWorth, displayCcy)}
             </div>
+            {netWorth < 0 && totalAssets === 0 && (
+              <div className="mt-2 text-xs italic text-amber-400/90">
+                Your liabilities exceed your assets. Add your assets in Net Worth to see the full picture.
+              </div>
+            )}
           </div>
         </div>
         <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
