@@ -168,6 +168,41 @@ export function HomeView({ onNavigate }: Props) {
 
   const showChecklist = !onbDismissed && !allDone;
 
+  // Financial health score (mini)
+  const healthScore = React.useMemo(() => computeHealthScore(state, fx), [state, fx]);
+  const healthTone =
+    healthScore.total >= 71 ? "text-positive"
+    : healthScore.total >= 41 ? "text-warning"
+    : "text-danger";
+  const healthBar =
+    healthScore.total >= 71 ? "bg-positive"
+    : healthScore.total >= 41 ? "bg-warning"
+    : "bg-danger";
+
+  // Quick insights
+  type Insight = { emoji: string; text: string; target: Parameters<typeof onNavigate>[0]; cls: string };
+  const insights: Insight[] = [];
+  if (savingsRate >= 20) {
+    insights.push({ emoji: "💡", text: "Savings rate above average", target: "cashflow", cls: "border-positive/30 bg-positive/10 text-positive hover:bg-positive/15" });
+  }
+  if (efTarget === 0 && liquidAssets === 0) {
+    insights.push({ emoji: "⚠️", text: "No emergency fund yet", target: "essentials", cls: "border-warning/30 bg-warning/10 text-warning hover:bg-warning/15" });
+  }
+  const goalsNeedingMonthly = state.goals.filter((g) => {
+    const yrs = Math.max(0, g.targetYear - new Date().getFullYear());
+    const future = g.currentCost * Math.pow(1 + g.inflation / 100, yrs);
+    return (g.currentSavings || 0) < future;
+  }).length;
+  if (goalsNeedingMonthly > 0) {
+    insights.push({ emoji: "🎯", text: `${goalsNeedingMonthly} goal${goalsNeedingMonthly === 1 ? "" : "s"} need contributions`, target: "goals", cls: "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15" });
+  }
+  if (lastSnap && monthChange > 0 && insights.length < 3) {
+    insights.push({ emoji: "📈", text: `Net worth up ${formatINR(monthChange)}`, target: "networth", cls: "border-positive/30 bg-positive/10 text-positive hover:bg-positive/15" });
+  }
+  const trimmedInsights = insights.slice(0, 3);
+
+
+
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Greeting */}
