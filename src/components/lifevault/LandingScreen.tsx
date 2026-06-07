@@ -643,41 +643,24 @@ export function LandingScreen({ onUseEmail }: { onUseEmail: () => void }) {
         </div>
       </section>
 
-      {/* ============ TESTIMONIALS ============ */}
+      {/* ============ FEEDBACK ============ */}
       <section className="bg-[#F5F5F7] py-24 sm:py-32">
-        <div className="max-w-6xl mx-auto px-6">
-          <Reveal className="text-center mb-14">
+        <div className="max-w-2xl mx-auto px-6">
+          <Reveal className="text-center mb-10">
             <h2 className="lv-display text-[32px] sm:text-[52px] font-bold text-[#1D1D1F] leading-[1.1]">
-              Loved by people who care<br />about their finances.
+              Share your feedback.
             </h2>
+            <p className="mt-4 text-[17px] text-[#6E6E73] leading-relaxed">
+              Rate your experience and tell us what we can improve.
+            </p>
           </Reveal>
-
-          {/* Replace these with real user testimonials collected via the in-app feedback system */}
-          <div className="grid md:grid-cols-3 gap-5">
-            {[
-              { q: "Finally an app that combines my net worth tracking AND keeps my passwords safe. The encryption gives me real peace of mind. And it's free!", name: "Priya S.", role: "Software Engineer, Bengaluru", initial: "P", color: "#6366F1" },
-              { q: "The emergency family page alone is worth it. My wife now knows exactly where all our documents and policies are. No other app has this.", name: "Rahul M.", role: "Senior Manager, Mumbai", initial: "R", color: "#10B981" },
-              { q: "I've tried Zerodha's portal, ET Money, and several others. LifeVault is the only one that gives me the full picture — including things I never tracked before.", name: "Ananya K.", role: "Doctor & Investor, Hyderabad", initial: "A", color: "#F59E0B" },
-            ].map((t, i) => (
-              <Reveal key={t.name} delay={i * 100}>
-                <div className="lv-card rounded-2xl bg-white border border-[#D2D2D7] p-8 h-full flex flex-col">
-                  <div className="flex gap-0.5 mb-4">
-                    {[0,1,2,3,4].map(j => <Star key={j} className="h-4 w-4 fill-[#FBBF24] text-[#FBBF24]" />)}
-                  </div>
-                  <p className="text-[15px] text-[#1D1D1F] leading-relaxed flex-1">"{t.q}"</p>
-                  <div className="mt-6 pt-6 border-t border-[#F0F0F2] flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold" style={{ background: t.color }}>{t.initial}</div>
-                    <div>
-                      <div className="text-sm font-semibold text-[#1D1D1F]">{t.name}</div>
-                      <div className="text-xs text-[#86868B]">{t.role}</div>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+          <Reveal>
+            <FeedbackForm />
+          </Reveal>
         </div>
       </section>
+
+
 
       {/* ============ FINAL CTA ============ */}
       <section className="bg-[#1D1D1F] py-24 sm:py-32">
