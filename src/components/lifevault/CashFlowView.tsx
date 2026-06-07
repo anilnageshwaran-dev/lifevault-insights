@@ -36,6 +36,7 @@ import {
 import { StatementImportDialog } from "./StatementImportDialog";
 import { generateAnnualReport } from "@/lib/reports-pdf";
 import { useAuth } from "@/lib/auth-context";
+import { FeedbackDialog } from "./FeedbackButton";
 
 const BANKS = [
   // India
