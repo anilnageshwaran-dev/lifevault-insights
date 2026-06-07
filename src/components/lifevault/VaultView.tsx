@@ -418,13 +418,6 @@ function RecordList({
         </div>
       )}
 
-      <button
-        onClick={onCreate}
-        aria-label={`Add ${category.name} record`}
-        className="fixed bottom-44 md:bottom-28 right-6 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-105 transition-transform z-40"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
     </div>
   );
 }
