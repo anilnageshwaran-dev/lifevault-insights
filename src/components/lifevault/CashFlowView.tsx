@@ -1365,7 +1365,7 @@ export function QuickAddFab() {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-white/[0.04] mb-3">
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-white/[0.04] mb-3">
           <button onClick={() => setMode("tx")}
             className={`py-2 text-xs rounded-md ${mode === "tx" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             Transaction
@@ -1377,6 +1377,10 @@ export function QuickAddFab() {
           <button onClick={() => { setOpen(false); setBillOpen(true); }}
             className={`py-2 text-xs rounded-md ${mode === "bill" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             Bill
+          </button>
+          <button onClick={() => { setOpen(false); setFeedbackOpen(true); }}
+            className="py-2 text-xs rounded-md text-muted-foreground hover:text-foreground flex items-center justify-center gap-1">
+            <MessageSquare className="h-3 w-3" /> Feedback
           </button>
         </div>
 
