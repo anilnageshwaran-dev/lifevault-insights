@@ -3,33 +3,49 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import { useLock } from "@/lib/lock-context";
-import { useFinance, sumAssets, sumLiabilities } from "@/lib/finance-context";
-import { formatCompact, formatMoney } from "@/lib/currency";
+import { useFinance } from "@/lib/finance-context";
+import { formatMoney } from "@/lib/currency";
 import {
   Settings as SettingsIcon,
   Sun,
   Moon,
   LogOut,
   RefreshCw,
-  Wallet,
   CalendarClock,
   ShieldCheck,
   Globe,
   Sparkles,
+  Plus,
+  Wallet,
+  Receipt,
+  Clock,
+  Lock,
+  KeyRound,
+  Landmark,
+  CreditCard,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  AlertCircle,
+  Target,
 } from "lucide-react";
 import { LifeVaultIcon } from "./LifeVaultIcon";
 import { CurrencySelect } from "./CurrencySelect";
 import { WhatsNewDialog } from "./WhatsNewDialog";
 import { APP_VERSION } from "@/lib/changelog";
+import { computeExpiryAlerts } from "@/lib/vault-expiry";
 import { toast } from "sonner";
+
+type NavTarget = "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenSettings: () => void;
+  onNavigate?: (target: NavTarget) => void;
 }
 
-export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
+export function ProfileDrawer({ open, onOpenChange, onOpenSettings, onNavigate }: Props) {
   const { user, signOut } = useAuth();
   const { resolved, setMode } = useTheme();
   const { lock } = useLock();
@@ -50,33 +66,95 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
     .join("")
     .toUpperCase();
 
-  const hour = new Date().getHours();
-  const partOfDay =
-    hour < 5 ? "night" : hour < 12 ? "morning" : hour < 17 ? "afternoon" : hour < 21 ? "evening" : "night";
-  const firstName = (name || "").split(/[\s@]/)[0];
-
   const base = state.baseCurrency || "INR";
-  const assets = sumAssets(state, fx, base);
-  const liabilities = sumLiabilities(state, fx, base);
-  const netWorth = assets - liabilities;
-  const monthlyIncome = state.regions.reduce((s, r) => s + (r.monthlyIncome || 0), 0);
-  const monthlyExpenses = state.regions.reduce((s, r) => s + (r.monthlyExpenses || 0), 0);
-  const savingsRate =
-    monthlyIncome > 0 ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) : 0;
 
+  // ---------- Today's agenda ----------
   const today = new Date();
-  const in7 = new Date();
-  in7.setDate(today.getDate() + 7);
-  const dueBills = (state.bills || [])
-    .filter((b) => {
-      const d = new Date(b.nextDue);
-      return d >= new Date(today.toDateString()) && d <= in7;
-    })
-    .sort((a, b) => +new Date(a.nextDue) - +new Date(b.nextDue));
-  const overdueBills = (state.bills || []).filter((b) => new Date(b.nextDue) < new Date(today.toDateString()));
-  const goalsNearTarget = (state.goals || []).filter(
-    (g) => g.currentCost > 0 && g.currentSavings / g.currentCost >= 0.8,
-  ).length;
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const tomorrowEnd = new Date(todayStart.getTime() + 2 * 86400000 - 1);
+
+  type Agenda = { icon: React.ReactNode; text: string; tone: "danger" | "warning" | "neutral" };
+  const agenda: Agenda[] = [];
+
+  for (const b of state.bills || []) {
+    const d = new Date(b.nextDue);
+    if (isNaN(d.getTime())) continue;
+    if (d < todayStart) {
+      agenda.push({
+        icon: <AlertCircle className="h-3.5 w-3.5" />,
+        text: `${b.name} overdue — ${formatMoney(b.amount, b.currency || base)}`,
+        tone: "danger",
+      });
+    } else if (d <= tomorrowEnd) {
+      const label = d.toDateString() === todayStart.toDateString() ? "due today" : "due tomorrow";
+      agenda.push({
+        icon: <Receipt className="h-3.5 w-3.5" />,
+        text: `${b.name} ${label} — ${formatMoney(b.amount, b.currency || base)}`,
+        tone: d.toDateString() === todayStart.toDateString() ? "danger" : "warning",
+      });
+    }
+  }
+
+  // Goals behind pace
+  for (const g of state.goals || []) {
+    const yrs = Math.max(0, g.targetYear - today.getFullYear());
+    const months = Math.max(1, yrs * 12);
+    const future = g.currentCost * Math.pow(1 + g.inflation / 100, yrs);
+    const remaining = Math.max(0, future - (g.currentSavings || 0));
+    const needed = remaining / months;
+    if (needed > 0 && g.currentSavings < future * 0.1 && yrs <= 5) {
+      agenda.push({
+        icon: <Target className="h-3.5 w-3.5" />,
+        text: `${g.name} goal needs ${formatMoney(needed, base)}/mo`,
+        tone: "warning",
+      });
+    }
+  }
+
+  // Document expiries
+  const expiries = computeExpiryAlerts(state.vault ?? {});
+  for (const e of expiries.slice(0, 2)) {
+    const title = e.record.title || e.fieldLabel || e.categoryName;
+    agenda.push({
+      icon: <FileText className="h-3.5 w-3.5" />,
+      text: `${title} expires in ${e.daysLeft} days`,
+      tone: e.daysLeft <= 30 ? "danger" : "warning",
+    });
+  }
+
+  // Budget warnings
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthTx = state.transactions.filter((t) => new Date(t.date) >= monthStart && !t.transferId);
+  for (const [cat, budget] of Object.entries(state.budgets || {})) {
+    if (!budget || budget <= 0) continue;
+    const spent = monthTx
+      .filter((t) => t.type === "expense" && t.category === cat)
+      .reduce((s, t) => s + t.amount, 0);
+    const pct = spent / budget;
+    if (pct >= 0.9) {
+      agenda.push({
+        icon: <AlertTriangle className="h-3.5 w-3.5" />,
+        text: `${cat} budget ${Math.round(pct * 100)}% used`,
+        tone: pct >= 1 ? "danger" : "warning",
+      });
+    }
+  }
+
+  const visibleAgenda = agenda.slice(0, 4);
+
+  // ---------- Recent activity ----------
+  const recent = [...state.transactions]
+    .filter((t) => !t.transferId)
+    .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+    .slice(0, 3);
+
+  // ---------- Vault chip counts ----------
+  const vaultChips: { id: string; label: string; icon: React.ReactNode }[] = [
+    { id: "passwords", label: "Passwords", icon: <KeyRound className="h-3.5 w-3.5" /> },
+    { id: "accounts", label: "Banks", icon: <Landmark className="h-3.5 w-3.5" /> },
+    { id: "cards", label: "Cards", icon: <CreditCard className="h-3.5 w-3.5" /> },
+    { id: "documents", label: "Documents", icon: <FileText className="h-3.5 w-3.5" /> },
+  ];
 
   const toggleTheme = () => setMode(resolved === "dark" ? "light" : "dark");
 
@@ -111,121 +189,166 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
           ? "bg-positive"
           : "bg-foreground/30";
 
+  const go = (target: NavTarget) => {
+    onOpenChange(false);
+    onNavigate?.(target);
+  };
+
+  const goVault = (categoryId: string) => {
+    try {
+      sessionStorage.setItem("lifevault_vault_initial_category", categoryId);
+    } catch {}
+    go("vault");
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="p-0 flex flex-col w-[88vw] max-w-sm">
-        <SheetHeader className="p-5 pb-3 border-b border-border">
+      <SheetContent
+        side="left"
+        className="p-0 flex flex-col w-full sm:w-[280px] sm:max-w-[280px] duration-250"
+      >
+        <SheetHeader className="p-4 pb-3 border-b border-border">
           <div className="flex items-center gap-3">
-            <LifeVaultIcon className="h-10 w-10" />
-            <SheetTitle className="font-display text-lg">LifeVault</SheetTitle>
+            <LifeVaultIcon className="h-9 w-9" />
+            <SheetTitle className="font-display text-base">LifeVault</SheetTitle>
           </div>
         </SheetHeader>
 
-        <div className="p-5 flex-1 overflow-y-auto space-y-6">
+        <div className="p-4 flex-1 overflow-y-auto space-y-5">
           {/* Profile header */}
           <div className="flex items-center gap-3">
             {avatar ? (
-              <img src={avatar} alt={name} className="h-16 w-16 rounded-full object-cover border border-border" />
+              <img src={avatar} alt={name} className="h-12 w-12 rounded-full object-cover border border-border" />
             ) : (
-              <div className="h-16 w-16 rounded-full bg-primary/15 text-foreground flex items-center justify-center font-display text-xl">
+              <div className="h-12 w-12 rounded-full bg-primary/15 text-foreground flex items-center justify-center font-display text-base">
                 {initials}
               </div>
             )}
             <div className="min-w-0">
-              <div className="text-xs text-muted-foreground">Good {partOfDay},</div>
-              <div className="font-display text-lg truncate">{firstName || "there"} 👋</div>
+              <div className="font-display text-sm truncate">{name}</div>
               {user?.email && (
                 <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>
               )}
             </div>
           </div>
 
-          {/* Quick stats */}
-          <Section icon={Wallet} title="Quick stats">
-            <div className="grid grid-cols-2 gap-2">
-              <Stat label="Net worth" value={formatCompact(netWorth, base)} tone={netWorth >= 0 ? "pos" : "neg"} />
-              <Stat label="Savings rate" value={`${savingsRate}%`} tone={savingsRate >= 20 ? "pos" : savingsRate >= 0 ? "neutral" : "neg"} />
-              <Stat label="Assets" value={formatCompact(assets, base)} />
-              <Stat label="Liabilities" value={formatCompact(liabilities, base)} />
-            </div>
-          </Section>
-
           {/* Today's agenda */}
           <Section icon={CalendarClock} title="Today's agenda">
-            {overdueBills.length === 0 && dueBills.length === 0 && goalsNearTarget === 0 ? (
-              <p className="text-xs text-muted-foreground">Nothing urgent. Enjoy your {partOfDay}.</p>
+            {visibleAgenda.length === 0 ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="h-3.5 w-3.5 text-positive" />
+                <span>All clear! Nothing urgent today.</span>
+              </div>
             ) : (
-              <ul className="space-y-1.5 text-sm">
-                {overdueBills.length > 0 && (
-                  <li className="flex justify-between text-danger">
-                    <span>Overdue bills</span>
-                    <span className="font-medium">{overdueBills.length}</span>
-                  </li>
-                )}
-                {dueBills.slice(0, 3).map((b) => (
-                  <li key={b.id} className="flex justify-between gap-2">
-                    <span className="truncate text-muted-foreground">{b.name}</span>
-                    <span className="tabular-nums">
-                      {formatMoney(b.amount, b.currency || base)} ·{" "}
-                      {new Date(b.nextDue).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
-                    </span>
+              <ul className="space-y-1.5">
+                {visibleAgenda.map((a, i) => (
+                  <li
+                    key={i}
+                    className={`flex items-center gap-2 text-xs ${
+                      a.tone === "danger" ? "text-danger" : a.tone === "warning" ? "text-warning" : "text-foreground"
+                    }`}
+                  >
+                    <span className="shrink-0">{a.icon}</span>
+                    <span className="truncate">{a.text}</span>
                   </li>
                 ))}
-                {dueBills.length > 3 && (
-                  <li className="text-xs text-muted-foreground">+ {dueBills.length - 3} more this week</li>
-                )}
-                {goalsNearTarget > 0 && (
-                  <li className="flex justify-between text-positive">
-                    <span>Goals near target</span>
-                    <span className="font-medium">{goalsNearTarget}</span>
+                {agenda.length > visibleAgenda.length && (
+                  <li className="text-[11px] text-muted-foreground">
+                    + {agenda.length - visibleAgenda.length} more
                   </li>
                 )}
               </ul>
             )}
           </Section>
 
+          {/* Quick Add */}
+          <Section icon={Plus} title="Quick add">
+            <div className="grid grid-cols-3 gap-1.5">
+              <QuickBtn label="Transaction" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => go("cashflow")} />
+              <QuickBtn label="Asset" icon={<Wallet className="h-3.5 w-3.5" />} onClick={() => go("networth")} />
+              <QuickBtn label="Bill" icon={<Receipt className="h-3.5 w-3.5" />} onClick={() => go("cashflow")} />
+            </div>
+          </Section>
+
+          {/* Recent activity */}
+          <Section icon={Clock} title="Recent">
+            {recent.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No recent activity</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {recent.map((t) => (
+                  <li key={t.id} className="flex items-center gap-2 text-xs">
+                    <span className="h-6 w-6 rounded-md bg-accent flex items-center justify-center text-[10px]">
+                      {t.type === "income" ? "↑" : t.type === "expense" ? "↓" : "↔"}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate">{t.description || t.category}</div>
+                      <div className="text-[10px] text-muted-foreground">{relativeTime(new Date(t.date))}</div>
+                    </div>
+                    <span
+                      className={`tabular-nums shrink-0 ${
+                        t.type === "income" ? "text-positive" : t.type === "expense" ? "text-danger" : "text-foreground"
+                      }`}
+                    >
+                      {formatMoney(t.amount, t.currency || base)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          {/* Vault quick access */}
+          <Section icon={Lock} title="Vault">
+            <div className="grid grid-cols-2 gap-1.5">
+              {vaultChips.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => goVault(c.id)}
+                  className="flex items-center gap-1.5 px-2.5 py-2 rounded-md border border-border text-xs hover:bg-accent transition-colors"
+                >
+                  {c.icon}
+                  <span className="truncate">{c.label}</span>
+                </button>
+              ))}
+            </div>
+          </Section>
+
           {/* Sync status */}
           <Section icon={RefreshCw} title="Backup & sync">
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-xs">
               <span className={`h-2 w-2 rounded-full ${syncDot}`} />
-              <span className="text-muted-foreground flex-1">{syncLabel}</span>
+              <span className="text-muted-foreground flex-1 truncate">{syncLabel}</span>
               <button
                 onClick={handleSync}
                 disabled={syncing || syncStatus === "saving"}
-                className="text-xs px-2.5 py-1 rounded-md border border-border hover:bg-accent disabled:opacity-50"
+                className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-accent disabled:opacity-50"
               >
                 Sync now
               </button>
             </div>
           </Section>
 
-          {/* Currency & locale */}
+          {/* Currency */}
           <Section icon={Globe} title="Currency">
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <CurrencySelect
-                  value={base}
-                  onChange={(c) => {
-                    update("baseCurrency", c);
-                    toast.success(`Base set to ${c}`);
-                  }}
-                />
-              </div>
-            </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Totals across regions convert to this currency.
-            </p>
+            <CurrencySelect
+              value={base}
+              onChange={(c) => {
+                update("baseCurrency", c);
+                toast.success(`Base set to ${c}`);
+              }}
+            />
           </Section>
 
           {/* Security */}
           <Section icon={ShieldCheck} title="Security">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <button
                 onClick={() => {
                   onOpenChange(false);
                   onOpenSettings();
                 }}
-                className="px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent text-left"
+                className="px-2.5 py-2 rounded-md border border-border text-xs hover:bg-accent text-left"
               >
                 Change PIN
               </button>
@@ -234,7 +357,7 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
                   onOpenChange(false);
                   lock();
                 }}
-                className="px-3 py-2 rounded-lg border border-border text-xs hover:bg-accent text-left"
+                className="px-2.5 py-2 rounded-md border border-border text-xs hover:bg-accent text-left"
               >
                 Lock now
               </button>
@@ -243,21 +366,21 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
 
           <button
             onClick={() => setWhatsNewOpen(true)}
-            className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
+            className="w-full flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-1.5"
           >
-            <Sparkles className="h-3.5 w-3.5" />
+            <Sparkles className="h-3 w-3" />
             What's new · v{APP_VERSION}
           </button>
         </div>
 
         <WhatsNewDialog open={whatsNewOpen} onOpenChange={setWhatsNewOpen} />
 
-        <div className="border-t border-border p-3 grid grid-cols-2 gap-2">
+        <div className="border-t border-border p-2.5 grid grid-cols-2 gap-1.5">
           <button
             onClick={toggleTheme}
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm hover:bg-accent transition-colors"
+            className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md border border-border text-xs hover:bg-accent transition-colors"
           >
-            {resolved === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {resolved === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
             {resolved === "dark" ? "Light" : "Dark"}
           </button>
           <button
@@ -265,18 +388,18 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings }: Props) {
               onOpenChange(false);
               onOpenSettings();
             }}
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm hover:bg-accent transition-colors"
+            className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md border border-border text-xs hover:bg-accent transition-colors"
           >
-            <SettingsIcon className="h-4 w-4" /> Settings
+            <SettingsIcon className="h-3.5 w-3.5" /> Settings
           </button>
           <button
             onClick={() => {
               onOpenChange(false);
               void signOut();
             }}
-            className="col-span-2 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="col-span-2 flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
-            <LogOut className="h-4 w-4" /> Sign out
+            <LogOut className="h-3.5 w-3.5" /> Sign out
           </button>
         </div>
       </SheetContent>
@@ -295,8 +418,8 @@ function Section({
 }) {
   return (
     <section>
-      <h4 className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-        <Icon className="h-3.5 w-3.5" />
+      <h4 className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+        <Icon className="h-3 w-3" />
         {title}
       </h4>
       {children}
@@ -304,22 +427,15 @@ function Section({
   );
 }
 
-function Stat({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  tone?: "pos" | "neg" | "neutral";
-}) {
-  const toneClass =
-    tone === "pos" ? "text-positive" : tone === "neg" ? "text-danger" : "text-foreground";
+function QuickBtn({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
   return (
-    <div className="rounded-lg border border-border bg-white/[0.02] px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`font-display text-lg tabular-nums ${toneClass}`}>{value}</div>
-    </div>
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 px-1 py-2 rounded-md border border-border text-[11px] hover:bg-accent transition-colors"
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 
@@ -329,4 +445,14 @@ function timeAgo(ts: number): string {
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return new Date(ts).toLocaleDateString();
+}
+
+function relativeTime(d: Date): string {
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  const days = Math.floor(s / 86400);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString();
 }

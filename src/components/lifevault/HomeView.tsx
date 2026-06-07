@@ -2,9 +2,11 @@ import * as React from "react";
 import {
   TrendingUp, TrendingDown, PiggyBank, Shield, Camera, ArrowUp, ArrowDown,
   AlertTriangle, Plus, Receipt, Target, Wallet, FileWarning, ChevronRight,
+  HeartPulse, Lightbulb,
 } from "lucide-react";
 import {
   useFinance, sumAssets, sumLiabilities, assetsByCategory,
+  computeHealthScore,
   type NetWorthSnapshot,
 } from "@/lib/finance-context";
 import { convert } from "@/lib/currency";
@@ -166,6 +168,41 @@ export function HomeView({ onNavigate }: Props) {
 
   const showChecklist = !onbDismissed && !allDone;
 
+  // Financial health score (mini)
+  const healthScore = React.useMemo(() => computeHealthScore(state, fx), [state, fx]);
+  const healthTone =
+    healthScore.total >= 71 ? "text-positive"
+    : healthScore.total >= 41 ? "text-warning"
+    : "text-danger";
+  const healthBar =
+    healthScore.total >= 71 ? "bg-positive"
+    : healthScore.total >= 41 ? "bg-warning"
+    : "bg-danger";
+
+  // Quick insights
+  type Insight = { emoji: string; text: string; target: Parameters<typeof onNavigate>[0]; cls: string };
+  const insights: Insight[] = [];
+  if (savingsRate >= 20) {
+    insights.push({ emoji: "💡", text: "Savings rate above average", target: "cashflow", cls: "border-positive/30 bg-positive/10 text-positive hover:bg-positive/15" });
+  }
+  if (efTarget === 0 && liquidAssets === 0) {
+    insights.push({ emoji: "⚠️", text: "No emergency fund yet", target: "essentials", cls: "border-warning/30 bg-warning/10 text-warning hover:bg-warning/15" });
+  }
+  const goalsNeedingMonthly = state.goals.filter((g) => {
+    const yrs = Math.max(0, g.targetYear - new Date().getFullYear());
+    const future = g.currentCost * Math.pow(1 + g.inflation / 100, yrs);
+    return (g.currentSavings || 0) < future;
+  }).length;
+  if (goalsNeedingMonthly > 0) {
+    insights.push({ emoji: "🎯", text: `${goalsNeedingMonthly} goal${goalsNeedingMonthly === 1 ? "" : "s"} need contributions`, target: "goals", cls: "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15" });
+  }
+  if (lastSnap && monthChange > 0 && insights.length < 3) {
+    insights.push({ emoji: "📈", text: `Net worth up ${formatINR(monthChange)}`, target: "networth", cls: "border-positive/30 bg-positive/10 text-positive hover:bg-positive/15" });
+  }
+  const trimmedInsights = insights.slice(0, 3);
+
+
+
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Greeting */}
@@ -185,10 +222,14 @@ export function HomeView({ onNavigate }: Props) {
             <div className={`font-display text-4xl md:text-5xl mt-2 tabular ${netWorth >= 0 ? "text-positive" : "text-danger"}`}>
               {formatINR(netWorth)}
             </div>
-            {lastSnap && (
+            {lastSnap ? (
               <div className={`mt-1.5 inline-flex items-center gap-1 text-sm tabular ${monthChange >= 0 ? "text-positive" : "text-danger"}`}>
                 {monthChange >= 0 ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-                {formatINR(Math.abs(monthChange))} since last snapshot
+                {monthChange >= 0 ? "+" : "-"}{formatINR(Math.abs(monthChange))} since last snapshot ({daysSince(lastSnap.date)} days ago)
+              </div>
+            ) : (
+              <div className="mt-1.5 text-sm text-muted-foreground">
+                Take your first snapshot to track changes
               </div>
             )}
           </div>
@@ -216,6 +257,46 @@ export function HomeView({ onNavigate }: Props) {
         <StatCard icon={PiggyBank} tint="primary" label="Savings Rate" valueText={`${savingsRate.toFixed(0)}%`} sub="of income saved" />
         <StatCard icon={Shield} tint="warning" label="Runway" valueText={`${runway.toFixed(1)} mo`} sub="of expenses covered" />
       </div>
+
+      {/* Financial Health Score (mini) */}
+      <button
+        onClick={() => onNavigate("essentials")}
+        className="w-full text-left rounded-xl border border-border bg-card p-3 md:p-4 hover:bg-accent/50 transition-colors"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <HeartPulse className={`h-4 w-4 ${healthTone}`} />
+            <span className="text-sm font-medium">Financial Health</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`font-display text-base tabular ${healthTone}`}>{(healthScore.total / 10).toFixed(1)}/10</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+        <div className="mt-2 h-1.5 w-full rounded-full bg-accent overflow-hidden">
+          <div
+            className={`h-full rounded-full ${healthBar}`}
+            style={{ width: `${Math.max(2, healthScore.total)}%` }}
+          />
+        </div>
+      </button>
+
+      {/* Quick insights */}
+      {insights.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {insights.map((ins, i) => (
+            <button
+              key={i}
+              onClick={() => onNavigate(ins.target)}
+              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${ins.cls}`}
+            >
+              <span>{ins.emoji}</span>
+              <span>{ins.text}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
 
       {/* Expiry alert mini-card */}
       {expiryAlerts.length > 0 && (
@@ -429,4 +510,10 @@ function StatCard({
       <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>
     </div>
   );
+}
+
+function daysSince(iso: string): number {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000));
 }
