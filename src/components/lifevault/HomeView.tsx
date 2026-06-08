@@ -197,7 +197,7 @@ export function HomeView({ onNavigate }: Props) {
     insights.push({ emoji: "🎯", text: `${goalsNeedingMonthly} goal${goalsNeedingMonthly === 1 ? "" : "s"} need contributions`, target: "goals", cls: "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15" });
   }
   if (lastSnap && monthChange > 0 && insights.length < 3) {
-    insights.push({ emoji: "📈", text: `Net worth up ${formatINR(monthChange)}`, target: "networth", cls: "border-positive/30 bg-positive/10 text-positive hover:bg-positive/15" });
+    insights.push({ emoji: "📈", text: `Net worth up ${formatMoney(monthChange, base)}`, target: "networth", cls: "border-positive/30 bg-positive/10 text-positive hover:bg-positive/15" });
   }
   const trimmedInsights = insights.slice(0, 3);
 
