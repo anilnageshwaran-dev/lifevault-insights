@@ -220,7 +220,7 @@ export function HomeView({ onNavigate }: Props) {
           <div className="min-w-0">
             <div className="text-xs uppercase tracking-widest text-muted-foreground">Total Net Worth</div>
             <div className={`font-display text-4xl md:text-5xl mt-2 tabular ${netWorth >= 0 ? "text-positive" : "text-danger"}`}>
-              {formatINR(netWorth)}
+              {formatMoney(netWorth, base)}
             </div>
             {lastSnap ? (
               <div className={`mt-1.5 inline-flex items-center gap-1 text-sm tabular ${monthChange >= 0 ? "text-positive" : "text-danger"}`}>
