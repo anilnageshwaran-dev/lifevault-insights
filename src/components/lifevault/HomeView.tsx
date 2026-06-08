@@ -45,8 +45,8 @@ function formatToday(): string {
   });
 }
 
-function Money({ value, className }: { value: number; className?: string }) {
-  return <span className={`tabular ${className ?? ""}`}>{formatINR(value)}</span>;
+function Money({ value, className, currency }: { value: number; className?: string; currency: string }) {
+  return <span className={`tabular ${className ?? ""}`}>{formatMoney(value, currency)}</span>;
 }
 
 export function HomeView({ onNavigate }: Props) {
@@ -197,7 +197,7 @@ export function HomeView({ onNavigate }: Props) {
     insights.push({ emoji: "🎯", text: `${goalsNeedingMonthly} goal${goalsNeedingMonthly === 1 ? "" : "s"} need contributions`, target: "goals", cls: "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15" });
   }
   if (lastSnap && monthChange > 0 && insights.length < 3) {
-    insights.push({ emoji: "📈", text: `Net worth up ${formatINR(monthChange)}`, target: "networth", cls: "border-positive/30 bg-positive/10 text-positive hover:bg-positive/15" });
+    insights.push({ emoji: "📈", text: `Net worth up ${formatMoney(monthChange, base)}`, target: "networth", cls: "border-positive/30 bg-positive/10 text-positive hover:bg-positive/15" });
   }
   const trimmedInsights = insights.slice(0, 3);
 
@@ -220,12 +220,12 @@ export function HomeView({ onNavigate }: Props) {
           <div className="min-w-0">
             <div className="text-xs uppercase tracking-widest text-muted-foreground">Total Net Worth</div>
             <div className={`font-display text-4xl md:text-5xl mt-2 tabular ${netWorth >= 0 ? "text-positive" : "text-danger"}`}>
-              {formatINR(netWorth)}
+              {formatMoney(netWorth, base)}
             </div>
             {lastSnap ? (
               <div className={`mt-1.5 inline-flex items-center gap-1 text-sm tabular ${monthChange >= 0 ? "text-positive" : "text-danger"}`}>
                 {monthChange >= 0 ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-                {monthChange >= 0 ? "+" : "-"}{formatINR(Math.abs(monthChange))} since last snapshot ({Math.max(0, Math.floor((Date.now() - new Date(lastSnap.date).getTime()) / 86_400_000))} days ago)
+                {monthChange >= 0 ? "+" : "-"}{formatMoney(Math.abs(monthChange), base)} since last snapshot ({Math.max(0, Math.floor((Date.now() - new Date(lastSnap.date).getTime()) / 86_400_000))} days ago)
               </div>
             ) : (
               <div className="mt-1.5 text-sm text-muted-foreground">
@@ -257,8 +257,8 @@ export function HomeView({ onNavigate }: Props) {
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={TrendingUp} tint="positive" label="Income" value={monthIncome} sub={now.toLocaleDateString(undefined, { month: "long", year: "numeric" })} />
-        <StatCard icon={TrendingDown} tint="danger" label="Expenses" value={monthExpenses} sub={now.toLocaleDateString(undefined, { month: "long", year: "numeric" })} />
+        <StatCard icon={TrendingUp} tint="positive" label="Income" value={monthIncome} currency={base} sub={now.toLocaleDateString(undefined, { month: "long", year: "numeric" })} />
+        <StatCard icon={TrendingDown} tint="danger" label="Expenses" value={monthExpenses} currency={base} sub={now.toLocaleDateString(undefined, { month: "long", year: "numeric" })} />
         <StatCard icon={PiggyBank} tint="primary" label="Savings Rate" valueText={`${savingsRate.toFixed(0)}%`} sub="of income saved" />
         <StatCard icon={Shield} tint="warning" label="Runway" valueText={`${runway.toFixed(1)} mo`} sub="of expenses covered" />
       </div>
@@ -393,7 +393,7 @@ export function HomeView({ onNavigate }: Props) {
                     </div>
                     <Progress value={progress} className="h-1.5" />
                     <div className="text-[11px] text-muted-foreground tabular">
-                      {formatINR(monthly)}/mo needed
+                      {formatMoney(monthly, base)}/mo needed
                     </div>
                   </div>
                 );
@@ -490,7 +490,7 @@ export function HomeView({ onNavigate }: Props) {
 }
 
 function StatCard({
-  icon: Icon, tint, label, value, valueText, sub,
+  icon: Icon, tint, label, value, valueText, sub, currency,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   tint: "positive" | "danger" | "primary" | "warning";
@@ -498,6 +498,7 @@ function StatCard({
   value?: number;
   valueText?: string;
   sub: string;
+  currency?: string;
 }) {
   const tintMap: Record<string, string> = {
     positive: "text-positive bg-positive/10",
@@ -512,7 +513,7 @@ function StatCard({
       </div>
       <div className="mt-2 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="font-display text-xl md:text-2xl tabular mt-0.5">
-        {valueText ?? <Money value={value ?? 0} />}
+        {valueText ?? <Money value={value ?? 0} currency={currency || "INR"} />}
       </div>
       <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>
     </div>
