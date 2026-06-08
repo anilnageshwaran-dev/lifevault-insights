@@ -490,7 +490,7 @@ export function HomeView({ onNavigate }: Props) {
 }
 
 function StatCard({
-  icon: Icon, tint, label, value, valueText, sub,
+  icon: Icon, tint, label, value, valueText, sub, currency,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   tint: "positive" | "danger" | "primary" | "warning";
@@ -498,6 +498,7 @@ function StatCard({
   value?: number;
   valueText?: string;
   sub: string;
+  currency?: string;
 }) {
   const tintMap: Record<string, string> = {
     positive: "text-positive bg-positive/10",
@@ -512,7 +513,7 @@ function StatCard({
       </div>
       <div className="mt-2 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="font-display text-xl md:text-2xl tabular mt-0.5">
-        {valueText ?? <Money value={value ?? 0} />}
+        {valueText ?? <Money value={value ?? 0} currency={currency || "INR"} />}
       </div>
       <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>
     </div>
