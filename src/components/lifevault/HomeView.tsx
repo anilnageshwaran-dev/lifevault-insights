@@ -257,8 +257,8 @@ export function HomeView({ onNavigate }: Props) {
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={TrendingUp} tint="positive" label="Income" value={monthIncome} sub={now.toLocaleDateString(undefined, { month: "long", year: "numeric" })} />
-        <StatCard icon={TrendingDown} tint="danger" label="Expenses" value={monthExpenses} sub={now.toLocaleDateString(undefined, { month: "long", year: "numeric" })} />
+        <StatCard icon={TrendingUp} tint="positive" label="Income" value={monthIncome} currency={base} sub={now.toLocaleDateString(undefined, { month: "long", year: "numeric" })} />
+        <StatCard icon={TrendingDown} tint="danger" label="Expenses" value={monthExpenses} currency={base} sub={now.toLocaleDateString(undefined, { month: "long", year: "numeric" })} />
         <StatCard icon={PiggyBank} tint="primary" label="Savings Rate" valueText={`${savingsRate.toFixed(0)}%`} sub="of income saved" />
         <StatCard icon={Shield} tint="warning" label="Runway" valueText={`${runway.toFixed(1)} mo`} sub="of expenses covered" />
       </div>
