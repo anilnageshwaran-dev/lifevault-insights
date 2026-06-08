@@ -225,7 +225,7 @@ export function HomeView({ onNavigate }: Props) {
             {lastSnap ? (
               <div className={`mt-1.5 inline-flex items-center gap-1 text-sm tabular ${monthChange >= 0 ? "text-positive" : "text-danger"}`}>
                 {monthChange >= 0 ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-                {monthChange >= 0 ? "+" : "-"}{formatINR(Math.abs(monthChange))} since last snapshot ({Math.max(0, Math.floor((Date.now() - new Date(lastSnap.date).getTime()) / 86_400_000))} days ago)
+                {monthChange >= 0 ? "+" : "-"}{formatMoney(Math.abs(monthChange), base)} since last snapshot ({Math.max(0, Math.floor((Date.now() - new Date(lastSnap.date).getTime()) / 86_400_000))} days ago)
               </div>
             ) : (
               <div className="mt-1.5 text-sm text-muted-foreground">
