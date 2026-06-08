@@ -393,7 +393,7 @@ export function HomeView({ onNavigate }: Props) {
                     </div>
                     <Progress value={progress} className="h-1.5" />
                     <div className="text-[11px] text-muted-foreground tabular">
-                      {formatINR(monthly)}/mo needed
+                      {formatMoney(monthly, base)}/mo needed
                     </div>
                   </div>
                 );
