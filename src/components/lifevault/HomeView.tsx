@@ -45,8 +45,8 @@ function formatToday(): string {
   });
 }
 
-function Money({ value, className }: { value: number; className?: string }) {
-  return <span className={`tabular ${className ?? ""}`}>{formatINR(value)}</span>;
+function Money({ value, className, currency }: { value: number; className?: string; currency: string }) {
+  return <span className={`tabular ${className ?? ""}`}>{formatMoney(value, currency)}</span>;
 }
 
 export function HomeView({ onNavigate }: Props) {
