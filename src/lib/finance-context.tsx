@@ -946,14 +946,20 @@ export function accountBalance(state: FinanceState, accountId: string): number {
   const opening = acc.openingBalance || 0;
   const txs = state.transactions.filter((t) => t.accountId === accountId);
   if (acc.type === "credit") {
-    // Credit cards: outstanding = opening + expenses − credit card payments
+    // Credit cards: outstanding = opening + expenses − (payments + transfers in)
     const exp = txs
       .filter((t) => t.type === "expense" && t.category !== "Credit Card Payment")
       .reduce((s, t) => s + t.amount, 0);
     const pay = txs
       .filter((t) => t.type === "expense" && t.category === "Credit Card Payment")
       .reduce((s, t) => s + t.amount, 0);
-    return opening + exp - pay;
+    // Transfers into a credit card account (e.g. paying the card from a bank
+    // account) arrive as income entries with category "Transfer In". They
+    // should reduce the outstanding just like a Credit Card Payment.
+    const transferIn = txs
+      .filter((t) => t.type === "income" && !!t.transferId)
+      .reduce((s, t) => s + t.amount, 0);
+    return opening + exp - pay - transferIn;
   }
   const inc = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const exp = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
