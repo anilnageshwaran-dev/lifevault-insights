@@ -133,6 +133,7 @@ function TransactionsTab() {
   const [minAmt, setMinAmt] = React.useState<string>("");
   const [maxAmt, setMaxAmt] = React.useState<string>("");
   const [importOpen, setImportOpen] = React.useState(false);
+  const [editingTx, setEditingTx] = React.useState<Transaction | null>(null);
 
   const now = new Date();
   const viewing = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
