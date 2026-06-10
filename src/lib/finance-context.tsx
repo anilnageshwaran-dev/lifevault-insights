@@ -230,85 +230,77 @@ export interface Bill {
 }
 
 export const EXPENSE_CATEGORIES = [
-  "Housing & Rent",
-  "House",
-  "Food & Dining",
-  "Drink & Dine",
-  "Food & Grocery",
-  "Groceries",
-  "Transport",
-  "Taxi",
-  "Travel & Vacations",
-  "Mobile",
-  "Healthcare",
-  "Health & Fitness",
+  "Bills & Utilities",
+  "Cash Withdrawal",
+  "Childcare",
+  "Credit Card Payment",
   "Education",
-  "Insurance",
+  "Electricity",
   "EMI & Loans",
-  "Loan & Debts",
   "Entertainment",
   "Events",
-  "Sports",
-  "Utilities",
-  "Bills & Utilities",
-  "Electricity",
-  "Water",
-  "Shopping",
-  "Subscriptions",
-  "Personal Care",
   "Family Care",
-  "Kids Care",
-  "Childcare",
-  "Pet Care",
-  "Gifts & Donations",
   "Fees & Charges",
   "Financial Services",
-  "Office & Business",
-  "Credit Card Payment",
-  "Mortgage Payment",
+  "Food & Dining",
+  "Gifts & Donations",
+  "Groceries",
+  "Health & Fitness",
+  "Healthcare",
+  "Housing & Rent",
+  "Insurance",
+  "Kids Care",
   "Loan Payment",
+  "Mobile",
+  "Mortgage Payment",
+  "Office & Business",
+  "Personal Care",
+  "Pet Care",
+  "Shopping",
+  "Sports",
+  "Subscriptions",
   "Taxes",
-  "Cash Withdrawal",
+  "Taxi",
   "Transfer",
+  "Transport",
+  "Travel & Vacations",
+  "Water",
   "Misc Expenses",
   "Other Expense",
 ] as const;
 
 export const INCOME_CATEGORIES = [
-  "Salary",
-  "Salary & Paycheck",
-  "Wages & Tips",
-  "Freelance",
-  "Business Income",
-  "Business & Profession",
-  "Selling Income",
-  "Rental Income",
-  "Interest",
-  "Dividends",
   "Bonus",
   "Brokerage",
+  "Business & Profession",
   "Coupons",
   "Credit",
-  "Refunds",
-  "Reimbursement",
+  "Dividends",
+  "Freelance",
+  "Gifts",
+  "Interest",
   "Loan",
   "Lottery & Gambling",
   "Mutual Funds",
-  "Savings",
+  "Refunds",
+  "Reimbursement",
+  "Rental Income",
   "Retirement & Pension",
-  "Gift",
-  "Gifts",
+  "Salary & Paycheck",
+  "Savings",
+  "Selling Income",
+  "Wages & Tips",
   "Other Income",
 ] as const;
 
 export const INVESTMENT_CATEGORIES = [
-  "Mutual Fund SIP",
-  "Stock Purchase",
-  "FD/RD Deposit",
-  "PPF/EPF",
-  "NPS",
-  "Gold",
   "Crypto",
+  "FD/RD Deposit",
+  "Gold",
+  "Mutual Fund SIP",
+  "NPS",
+  "PPF/EPF",
+  "Stock Purchase",
   "Other Investment",
 ] as const;
 
@@ -483,6 +475,26 @@ export function ensureRegions(s: FinanceState): FinanceState {
       ta.debt = 0;
       next = { ...next, targetAllocation: ta };
     }
+  }
+  // Migrate legacy / duplicate transaction category labels into the canonical set.
+  if (next.transactions && next.transactions.length > 0) {
+    const catMap: Record<string, string> = {
+      "House": "Housing & Rent",
+      "Drink & Dine": "Food & Dining",
+      "Food & Grocery": "Groceries",
+      "Utilities": "Bills & Utilities",
+      "Loan & Debts": "EMI & Loans",
+      "Salary": "Salary & Paycheck",
+      "Business Income": "Business & Profession",
+      "Gift": "Gifts",
+    };
+    let changed = false;
+    const txs = next.transactions.map((t) => {
+      const mapped = catMap[t.category];
+      if (mapped && mapped !== t.category) { changed = true; return { ...t, category: mapped }; }
+      return t;
+    });
+    if (changed) next = { ...next, transactions: txs };
   }
   return next;
 }
