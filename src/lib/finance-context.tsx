@@ -351,8 +351,9 @@ const initialState: FinanceState = {
   liabilities: [],
   targetAllocation: {
     cash: 10,
-    equity: 50,
-    debt: 20,
+    investment: 70,
+    equity: 0,
+    debt: 0,
     gold: 10,
     realestate: 5,
     crypto: 5,
