@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
   Loader2, ArrowLeft, Eye, ShieldAlert, TrendingUp, ArrowLeftRight,
-  Target, Wallet, AlertCircle,
+  Target, Wallet, AlertCircle, PiggyBank,
 } from "lucide-react";
 import { getFamilyView } from "@/lib/family.functions";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
