@@ -362,6 +362,7 @@ function TransactionsTab() {
           })}
         </div>
       )}
+      <TxEditDialog tx={editingTx} onClose={() => setEditingTx(null)} />
     </GlassCard>
   );
 }
