@@ -629,10 +629,10 @@ function AccountFormDialog({ account, onClose, base }:
           </div>
 
           <div>
-            <FieldLabel>{isCC ? "Card Nickname *" : isDebit ? "Debit Card Nickname *" : isBank ? "Account Nickname *" : "Name *"}</FieldLabel>
+            <FieldLabel>{isCC ? "Card Nickname *" : isDebit ? "Debit Card Nickname *" : isFD ? "FD Nickname *" : isBank ? "Account Nickname *" : "Name *"}</FieldLabel>
             <input className="underline-input" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={isBank ? "e.g. HDFC Savings" : isCC ? "e.g. Axis Magnus" : isDebit ? "e.g. HDFC Debit" : "e.g. Cash in Hand"} />
+              placeholder={isBank ? "e.g. HDFC Savings" : isCC ? "e.g. Axis Magnus" : isDebit ? "e.g. HDFC Debit" : isFD ? "e.g. HDFC 5-yr FD" : "e.g. Cash in Hand"} />
           </div>
 
           {hasBankFields && (
