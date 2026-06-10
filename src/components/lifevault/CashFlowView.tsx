@@ -334,19 +334,29 @@ function TransactionsTab() {
                     </div>
                   )}
                 </div>
-                <button className="text-muted-foreground hover:text-rose-400"
-                  onClick={() => {
-                    if (!confirm(isTransfer ? "Delete this transfer? Both linked entries will be removed." : "Delete this transaction?")) return;
-                    setState((s) => ({
-                      ...s,
-                      transactions: s.transactions.filter((x) =>
-                        isTransfer ? x.transferId !== t.transferId : x.id !== t.id,
-                      ),
-                    }));
-                    toast.success("Deleted");
-                  }}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {!isTransfer && (
+                    <button className="text-muted-foreground hover:text-primary p-1"
+                      onClick={() => setEditingTx(t)}
+                      aria-label="Edit transaction">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button className="text-muted-foreground hover:text-rose-400 p-1"
+                    onClick={() => {
+                      if (!confirm(isTransfer ? "Delete this transfer? Both linked entries will be removed." : "Delete this transaction?")) return;
+                      setState((s) => ({
+                        ...s,
+                        transactions: s.transactions.filter((x) =>
+                          isTransfer ? x.transferId !== t.transferId : x.id !== t.id,
+                        ),
+                      }));
+                      toast.success("Deleted");
+                    }}
+                    aria-label="Delete transaction">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             );
           })}
