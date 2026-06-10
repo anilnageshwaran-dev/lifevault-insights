@@ -82,11 +82,14 @@ import { BrokerImportDialog } from "./BrokerImportDialog";
 import { generateNetWorthReport } from "@/lib/reports-pdf";
 import { useAuth } from "@/lib/auth-context";
 
-const ASSET_CATS: AssetCategory[] = ["cash", "equity", "debt", "gold", "realestate", "crypto"];
+// Equity & Debt merged into the unified "investment" category. Legacy keys
+// remain in the type only for backward-compat (migrated on load).
+const ASSET_CATS: AssetCategory[] = ["cash", "investment", "gold", "realestate", "crypto"];
 const LIAB_CATS: LiabilityCategory[] = ["home", "vehicle", "personal", "credit", "other"];
 
 const CAT_COLORS: Record<AssetCategory, string> = {
   cash: "#10B981",
+  investment: "#6366F1",
   equity: "#6366F1",
   debt: "#3B82F6",
   gold: "#F59E0B",
@@ -96,8 +99,9 @@ const CAT_COLORS: Record<AssetCategory, string> = {
 
 const SUBTYPES: Record<AssetCategory, string[]> = {
   cash: ["Fixed Deposit", "Recurring Deposit", "Liquid Fund", "Treasury Bill", "Other"],
-  equity: ["Direct Stock", "Equity Mutual Fund", "ETF", "ESOP", "Other"],
-  debt: ["Bond", "Debt Mutual Fund", "Government Security", "Corporate FD", "Other"],
+  investment: [], // handled by InvestmentEditModal's grouped picker
+  equity: [],
+  debt: [],
   gold: ["Physical Gold", "Gold ETF", "Sovereign Gold Bond", "Digital Gold", "Other"],
   realestate: ["Primary Home", "Investment Property", "Land", "Commercial", "Other"],
   crypto: ["Bitcoin", "Ethereum", "Altcoin", "Stablecoin", "Other"],
