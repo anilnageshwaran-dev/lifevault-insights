@@ -108,6 +108,7 @@ export interface AssetItem {
   sipDate?: number; // 1-28
   sipStartDate?: string;
   sipStatus?: "active" | "paused";
+  sipAccountId?: string;
   lastSipProcessedDate?: string;
   sipHistory?: SipHistoryEntry[];
 }
