@@ -451,6 +451,12 @@ function AccountsTab() {
                     </div>
                   </div>
                 ) : null}
+                {a.type === "fd" && (a.maturityDate || a.maturityAmount) ? (
+                  <div className="text-[11px] text-muted-foreground flex justify-between pt-1">
+                    {a.maturityDate ? <span>Matures {a.maturityDate}</span> : <span />}
+                    {a.maturityAmount ? <span>→ {formatMoney(a.maturityAmount, a.currency)}</span> : null}
+                  </div>
+                ) : null}
               </div>
             );
           })}
