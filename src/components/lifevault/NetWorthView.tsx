@@ -207,12 +207,12 @@ export function NetWorthView() {
 
   const refreshPrices = async () => {
     const holdings = state.assets
-      .filter((a) => (a.category === "equity" || a.category === "crypto") && a.ticker && (a.units ?? 0) > 0)
+      .filter((a) => (a.category === "equity" || a.category === "crypto" || a.category === "investment") && a.ticker && (a.units ?? 0) > 0)
       .map((a) => ({
         id: a.id,
         ticker: a.ticker as string,
         name: a.name,
-        kind: a.category === "crypto" ? ("crypto" as const) : a.subtype === "Equity Mutual Fund" ? ("mutualfund" as const) : ("stock" as const),
+        kind: a.category === "crypto" ? ("crypto" as const) : (a.subtype === "Equity MF" || a.subtype === "Equity Mutual Fund" || a.subtype === "ELSS" || a.subtype === "Debt MF" || a.subtype === "Hybrid MF") ? ("mutualfund" as const) : ("stock" as const),
         currency: a.currency || base,
       }));
     if (holdings.length === 0) {
