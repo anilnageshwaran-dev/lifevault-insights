@@ -288,6 +288,50 @@ export const getFamilyView = createServerFn({ method: "GET" })
     };
   });
 
+// ─── Vaults that have been shared WITH the current user ──────────────────────
+export const listSharedWithMe = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: rows, error } = await supabase
+      .from("family_access")
+      .select("id, owner_id, role, allowed_sections, granted_at")
+      .eq("member_id", userId)
+      .order("granted_at", { ascending: false });
+    if (error) {
+      console.error("[family] listSharedWithMe:", error);
+      throw new Error("An internal error occurred. Please try again.");
+    }
+    const ownerIds = (rows ?? []).map((r) => r.owner_id);
+    if (!ownerIds.length) return { shared: [] };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, display_name, avatar_url")
+      .in("id", ownerIds);
+    const emails: Record<string, string | null> = {};
+    for (const id of ownerIds) {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(id);
+      emails[id] = u?.user?.email ?? null;
+    }
+    return {
+      shared: (rows ?? []).map((r) => {
+        const p = profiles?.find((x) => x.id === r.owner_id);
+        return {
+          id: r.id,
+          owner_id: r.owner_id,
+          role: r.role as "viewer" | "emergency",
+          allowed_sections: r.allowed_sections as string[],
+          granted_at: r.granted_at,
+          owner_name: p?.display_name ?? null,
+          owner_avatar: p?.avatar_url ?? null,
+          owner_email: emails[r.owner_id] ?? null,
+        };
+      }),
+    };
+  });
+
 // ─── Owner notifications: invites accepted since cutoff timestamp ────────────
 export const listRecentAcceptances = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

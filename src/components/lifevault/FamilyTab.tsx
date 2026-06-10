@@ -1,9 +1,11 @@
 import * as React from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Users, Plus, Trash2, Copy, X, Check } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Users, Plus, Trash2, Copy, X, Check, Eye, ShieldAlert, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import {
   listFamily,
+  listSharedWithMe,
   createFamilyInvite,
   revokeFamilyInvite,
   removeFamilyMember,
@@ -39,10 +41,23 @@ interface Pending {
   invited_at: string;
 }
 
+interface SharedWithMe {
+  id: string;
+  owner_id: string;
+  role: Role;
+  allowed_sections: string[];
+  granted_at: string;
+  owner_name: string | null;
+  owner_avatar: string | null;
+  owner_email: string | null;
+}
+
 export function FamilyTab() {
   const fetchList = useServerFn(listFamily);
+  const fetchShared = useServerFn(listSharedWithMe);
   const [members, setMembers] = React.useState<Member[]>([]);
   const [pending, setPending] = React.useState<Pending[]>([]);
+  const [shared, setShared] = React.useState<SharedWithMe[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [showInvite, setShowInvite] = React.useState(false);
   const [confirmRemove, setConfirmRemove] = React.useState<Member | null>(null);
@@ -50,15 +65,16 @@ export function FamilyTab() {
 
   const refresh = React.useCallback(async () => {
     try {
-      const r = await fetchList();
+      const [r, s] = await Promise.all([fetchList(), fetchShared()]);
       setMembers(r.members as Member[]);
       setPending(r.pending as Pending[]);
+      setShared(s.shared as SharedWithMe[]);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [fetchList]);
+  }, [fetchList, fetchShared]);
 
   React.useEffect(() => { void refresh(); }, [refresh]);
 
@@ -70,6 +86,54 @@ export function FamilyTab() {
           Invite family members to view your financial dashboard (read-only).
         </p>
       </header>
+
+      <section className="rounded-2xl border border-border bg-card p-4 md:p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Eye className="h-4 w-4 text-primary" />
+          <h3 className="font-medium">Shared with me</h3>
+        </div>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : shared.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No one has shared their LifeVault with you yet. When they do, it'll appear here.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {shared.map((s) => {
+              const name = s.owner_name || s.owner_email || "Family member";
+              const initial = (name[0] || "?").toUpperCase();
+              return (
+                <li key={s.id}>
+                  <Link
+                    to="/family-view/$ownerId"
+                    params={{ ownerId: s.owner_id }}
+                    className="flex items-center gap-3 py-3 hover:bg-accent/40 rounded-lg px-1 -mx-1"
+                  >
+                    <div className="h-9 w-9 rounded-full bg-primary/15 flex items-center justify-center font-display text-sm shrink-0">
+                      {initial}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">{name}'s LifeVault</div>
+                      {s.owner_email && (
+                        <div className="text-xs text-muted-foreground truncate">{s.owner_email}</div>
+                      )}
+                    </div>
+                    {s.role === "emergency" ? (
+                      <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1">
+                        <ShieldAlert className="h-3 w-3" /> Emergency
+                      </span>
+                    ) : (
+                      <RoleBadge role={s.role} />
+                    )}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <section className="rounded-2xl border border-border bg-card p-4 md:p-5 space-y-3">
         <div className="flex items-center justify-between">
