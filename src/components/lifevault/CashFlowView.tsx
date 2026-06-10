@@ -1682,7 +1682,7 @@ function daysUntil(iso: string): number {
 }
 
 function BillsTab() {
-  const { state, setState } = useFinance();
+  const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Bill | null>(null);
@@ -1703,6 +1703,35 @@ function BillsTab() {
   const paidHistory = bills.flatMap((b) =>
     b.history.map((h) => ({ bill: b, payment: h }))
   ).sort((a, b) => b.payment.date.localeCompare(a.payment.date));
+
+  // Summary totals (converted to base currency)
+  const totals = React.useMemo(() => {
+    const FREQ_PER_YEAR: Record<BillFrequency, number> = {
+      weekly: 52, monthly: 12, quarterly: 4, halfYearly: 2, yearly: 1, onetime: 0,
+    };
+    const billCcy = (b: Bill) => b.currency || (b.accountId ? accById[b.accountId]?.currency : base) || base;
+    const toBase = (amt: number, ccy: string) => convert(amt, ccy, base, fx);
+
+    let monthlyRecurring = 0;
+    let yearlyRecurring = 0;
+    for (const b of recurring) {
+      const perYear = FREQ_PER_YEAR[b.frequency] * toBase(b.amount, billCcy(b));
+      yearlyRecurring += perYear;
+      monthlyRecurring += perYear / 12;
+    }
+    const upcomingTotal = upcoming.reduce((s, b) => s + toBase(b.amount, billCcy(b)), 0);
+    const overdueTotal = overdue.reduce((s, b) => s + toBase(b.amount, billCcy(b)), 0);
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    let paidThisMonth = 0;
+    for (const b of bills) {
+      for (const h of b.history) {
+        const d = new Date(h.date);
+        if (d.getFullYear() === y && d.getMonth() === m) paidThisMonth += toBase(h.amount, billCcy(b));
+      }
+    }
+    return { monthlyRecurring, yearlyRecurring, upcomingTotal, overdueTotal, paidThisMonth };
+  }, [bills, recurring, upcoming, overdue, accById, fx, base]);
 
   const markPaid = (bill: Bill, when?: string) => {
     const paidDate = when || new Date().toISOString().slice(0, 10);
