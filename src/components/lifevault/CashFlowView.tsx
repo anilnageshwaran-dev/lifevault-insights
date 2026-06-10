@@ -618,12 +618,12 @@ function AccountFormDialog({ account, onClose, base }:
         <div className="space-y-3 pt-2">
           <div>
             <FieldLabel>Account Type</FieldLabel>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 mt-1 p-1 rounded-lg bg-white/[0.04]">
-              {(["bank", "debit", "credit", "cash", "wallet", "other"] as Kind[]).map((t) => (
+            <div className="grid grid-cols-3 sm:grid-cols-7 gap-1 mt-1 p-1 rounded-lg bg-white/[0.04]">
+              {(["bank", "debit", "credit", "fd", "cash", "wallet", "other"] as Kind[]).map((t) => (
                 <button key={t} onClick={() => setKind(t)}
                   className={`py-1.5 text-xs capitalize rounded-md ${
                     kind === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                  }`}>{t === "debit" ? "Debit Card" : t === "credit" ? "Credit Card" : t}</button>
+                  }`}>{t === "debit" ? "Debit Card" : t === "credit" ? "Credit Card" : t === "fd" ? "Fixed Deposit" : t}</button>
               ))}
             </div>
           </div>
