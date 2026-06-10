@@ -169,7 +169,7 @@ function ViewerSections({
 
       {allowed.includes("networth") && (
         <Card title="Net Worth" icon={TrendingUp}>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Stat label="Net worth" value={fmt(snapshot.base_currency, snapshot.net_worth)} highlight />
             <Stat label="Assets" value={fmt(snapshot.base_currency, snapshot.total_assets)} />
             <Stat label="Liabilities" value={fmt(snapshot.base_currency, snapshot.total_liabilities)} />
@@ -261,9 +261,9 @@ function Card({
 
 function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`mt-1 font-display ${highlight ? "text-2xl" : "text-lg"}`}>{value}</div>
+    <div className="min-w-0 rounded-lg border border-border bg-muted/20 p-3">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">{label}</div>
+      <div className={`mt-1 font-display break-words ${highlight ? "text-lg sm:text-2xl" : "text-base sm:text-lg"}`}>{value}</div>
     </div>
   );
 }
