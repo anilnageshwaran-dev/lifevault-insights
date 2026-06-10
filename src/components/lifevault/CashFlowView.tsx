@@ -1682,7 +1682,7 @@ function daysUntil(iso: string): number {
 }
 
 function BillsTab() {
-  const { state, setState } = useFinance();
+  const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Bill | null>(null);
@@ -1703,6 +1703,35 @@ function BillsTab() {
   const paidHistory = bills.flatMap((b) =>
     b.history.map((h) => ({ bill: b, payment: h }))
   ).sort((a, b) => b.payment.date.localeCompare(a.payment.date));
+
+  // Summary totals (converted to base currency)
+  const totals = React.useMemo(() => {
+    const FREQ_PER_YEAR: Record<BillFrequency, number> = {
+      weekly: 52, monthly: 12, quarterly: 4, halfYearly: 2, yearly: 1, onetime: 0,
+    };
+    const billCcy = (b: Bill) => b.currency || (b.accountId ? accById[b.accountId]?.currency : base) || base;
+    const toBase = (amt: number, ccy: string) => convert(amt, ccy, base, fx);
+
+    let monthlyRecurring = 0;
+    let yearlyRecurring = 0;
+    for (const b of recurring) {
+      const perYear = FREQ_PER_YEAR[b.frequency] * toBase(b.amount, billCcy(b));
+      yearlyRecurring += perYear;
+      monthlyRecurring += perYear / 12;
+    }
+    const upcomingTotal = upcoming.reduce((s, b) => s + toBase(b.amount, billCcy(b)), 0);
+    const overdueTotal = overdue.reduce((s, b) => s + toBase(b.amount, billCcy(b)), 0);
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    let paidThisMonth = 0;
+    for (const b of bills) {
+      for (const h of b.history) {
+        const d = new Date(h.date);
+        if (d.getFullYear() === y && d.getMonth() === m) paidThisMonth += toBase(h.amount, billCcy(b));
+      }
+    }
+    return { monthlyRecurring, yearlyRecurring, upcomingTotal, overdueTotal, paidThisMonth };
+  }, [bills, recurring, upcoming, overdue, accById, fx, base]);
 
   const markPaid = (bill: Bill, when?: string) => {
     const paidDate = when || new Date().toISOString().slice(0, 10);
@@ -1771,6 +1800,39 @@ function BillsTab() {
             );
           })}
         </div>
+
+        {bills.length > 0 && (
+          <div className="mb-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Monthly recurring</div>
+                <div className="tabular font-display text-base mt-0.5">{formatMoney(totals.monthlyRecurring, base)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Yearly recurring</div>
+                <div className="tabular font-display text-base mt-0.5">{formatMoney(totals.yearlyRecurring, base)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Upcoming (30d)</div>
+                <div className="tabular font-display text-base mt-0.5" style={{ color: "var(--color-warning)" }}>
+                  {formatMoney(totals.upcomingTotal, base)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Overdue</div>
+                <div className="tabular font-display text-base mt-0.5" style={{ color: totals.overdueTotal > 0 ? "var(--color-danger)" : undefined }}>
+                  {formatMoney(totals.overdueTotal, base)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Paid this month</div>
+                <div className="tabular font-display text-base mt-0.5" style={{ color: "var(--color-positive)" }}>
+                  {formatMoney(totals.paidThisMonth, base)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {bills.length === 0 ? (
           <EmptyState icon={CalendarClock} title="No bills yet"
