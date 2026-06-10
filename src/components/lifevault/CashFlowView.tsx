@@ -408,9 +408,10 @@ function AccountsTab() {
                         {a.name}
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        {a.type === "bank" ? a.accountSubtype || "Bank" : a.type === "credit" ? "Credit Card" : a.type}
+                        {a.type === "bank" ? a.accountSubtype || "Bank" : a.type === "credit" ? "Credit Card" : a.type === "fd" ? "Fixed Deposit" : a.type}
                         {a.last4 ? ` · ····${a.last4}` : ""}
                         {a.emergencyFund ? " · 🛡 Emergency" : ""}
+                        {a.type === "fd" && a.interestRate ? ` · ${a.interestRate}% p.a.` : ""}
                       </div>
                     </div>
                   </div>
