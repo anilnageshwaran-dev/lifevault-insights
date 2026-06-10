@@ -795,6 +795,35 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t);
   }, [state, hydrated, key, user, cloudReady, persistLocal, writeAndPush]);
 
+  // 3c) Publish snapshot for family viewers (debounced; only when signed in & hydrated).
+  React.useEffect(() => {
+    if (!hydrated || !user) return;
+    const t = setTimeout(() => {
+      try {
+        const s = buildSharedSummary(state, fx);
+        void publishMySnapshot({
+          data: {
+            displayName: user.user_metadata?.full_name || user.user_metadata?.name || user.email || null,
+            baseCurrency: s.baseCurrency,
+            netWorth: s.netWorth,
+            totalAssets: s.totalAssets,
+            totalLiabilities: s.totalLiabilities,
+            monthlyIncome: s.monthlyIncome,
+            monthlyExpenses: s.monthlyExpenses,
+            emergencyFund: s.emergencyFund,
+            goalCount: s.goalCount,
+            accountCount: s.accountCount,
+            healthScore: s.healthScore,
+          },
+        }).catch((e) => console.warn("[snapshot] publish failed:", e));
+      } catch (e) {
+        console.warn("[snapshot] build failed:", e);
+      }
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [state, fx, hydrated, user]);
+
+
   // 3b) Live auto-pull: every 20s while tab is visible, on focus, on reconnect.
   React.useEffect(() => {
     if (!hydrated || !key || !user) return;
