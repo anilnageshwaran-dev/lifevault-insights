@@ -350,7 +350,8 @@ export function NetWorthView() {
                         className="flex items-center justify-between text-sm rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
                         <div>
                           <div>{a.name}</div>
-                          <div className="text-[11px] text-muted-foreground">From Cash Flow → Accounts</div>
+                          <div className="text-[11px] text-muted-foreground">{a.hint}</div>
+
                         </div>
                         <div className="tabular text-sm">
                           {formatMoney(a.value, a.currency)}
