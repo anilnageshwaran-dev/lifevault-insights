@@ -1907,7 +1907,7 @@ function BillsTab() {
                       <div className="min-w-0">
                         <div className="font-medium truncate">{d.asset.name}</div>
                         <div className="text-[11px] text-muted-foreground">
-                          Due {d.asset.sipDate ?? 1}{nth(d.asset.sipDate ?? 1)} · {d.dueDate}
+                          Due {d.asset.sipDate ?? 1} · {d.dueDate}
                         </div>
                       </div>
                       <div className="tabular text-sm">{formatMoney(d.amount, d.asset.currency)}</div>
