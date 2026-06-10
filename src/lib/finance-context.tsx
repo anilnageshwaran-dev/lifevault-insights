@@ -411,6 +411,40 @@ export function ensureRegions(s: FinanceState): FinanceState {
       }));
     next = { ...next, bills: [...(next.bills ?? []), ...migrated], recurring: [] };
   }
+  // Migrate legacy equity/debt assets into the unified "investment" category.
+  if (next.assets && next.assets.some((a) => a.category === "equity" || a.category === "debt")) {
+    next = {
+      ...next,
+      assets: next.assets.map((a) => {
+        if (a.category !== "equity" && a.category !== "debt") return a;
+        // Default a subtype if missing
+        let subtype = a.subtype;
+        if (!subtype) {
+          subtype = a.category === "equity" ? "Direct Stock" : "FD";
+        } else {
+          // Normalise old labels to new subtype names
+          const map: Record<string, string> = {
+            "Equity Mutual Fund": "Equity MF",
+            "Debt Mutual Fund": "Debt MF",
+            "Government Security": "G-Sec",
+          };
+          subtype = map[subtype] || subtype;
+        }
+        return { ...a, category: "investment", subtype };
+      }),
+    };
+  }
+  // Migrate legacy targetAllocation that has equity/debt but no investment.
+  if (next.targetAllocation && (next.targetAllocation.equity || next.targetAllocation.debt)) {
+    const ta = { ...next.targetAllocation };
+    const combined = (ta.equity || 0) + (ta.debt || 0);
+    if (combined > 0 && !(ta.investment && ta.investment > 0)) {
+      ta.investment = combined;
+      ta.equity = 0;
+      ta.debt = 0;
+      next = { ...next, targetAllocation: ta };
+    }
+  }
   return next;
 }
 
