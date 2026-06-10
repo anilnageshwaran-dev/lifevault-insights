@@ -490,7 +490,7 @@ function AccountFormDialog({ account, onClose, base }:
   // UI "kind" splits the Card pill into Debit/Credit.
   // Debit → stored as type "bank" with accountSubtype "Debit Card".
   // Credit → stored as type "credit".
-  type Kind = "bank" | "debit" | "credit" | "cash" | "wallet" | "other";
+  type Kind = "bank" | "debit" | "credit" | "cash" | "wallet" | "fd" | "other";
   const initialKind: Kind = account
     ? account.type === "credit"
       ? "credit"
