@@ -431,6 +431,28 @@ export function InvestmentEditModal({ existing, defaultSubtype, onClose }: Props
                       onChange={(e) => setForm({ ...form, sipStartDate: e.target.value })} />
                   </div>
                   <div className="col-span-2">
+                    <FieldLabel>Debit From Account</FieldLabel>
+                    <Select
+                      value={form.sipAccountId || "__none__"}
+                      onValueChange={(v) => setForm({ ...form, sipAccountId: v === "__none__" ? undefined : v })}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— None (use last used) —</SelectItem>
+                        {state.accounts
+                          .filter((a) => a.type !== "credit" && a.type !== "fd")
+                          .map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.name}{a.last4 ? ` ••${a.last4}` : ""}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      SIP debits will be recorded as a transaction in this account.
+                    </p>
+                  </div>
+                  <div className="col-span-2">
                     <FieldLabel>Status</FieldLabel>
                     <Select value={form.sipStatus || "active"} onValueChange={(v) => setForm({ ...form, sipStatus: v as "active" | "paused" })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
