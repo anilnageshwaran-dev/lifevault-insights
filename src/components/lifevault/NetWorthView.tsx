@@ -583,7 +583,56 @@ export function NetWorthView() {
       )}
       <BrokerImportDialog open={brokerOpen} onClose={() => setBrokerOpen(false)} />
       <MilestoneCelebration milestone={celebrate} onClose={() => setCelebrate(null)} />
+      {(editInvestment || addInvestment) && (
+        <InvestmentEditModal
+          existing={editInvestment}
+          onClose={() => { setEditInvestment(null); setAddInvestment(false); }}
+        />
+      )}
     </div>
+  );
+}
+
+function InvestmentRow({ item, base, fx, onEdit }: {
+  item: AssetItem;
+  base: string;
+  fx: ReturnType<typeof useFinance>["fx"];
+  onEdit: () => void;
+}) {
+  const invested = item.invested || 0;
+  const gain = invested > 0 ? item.value - invested : 0;
+  const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
+  const gainColor = gain >= 0 ? "var(--color-positive)" : "var(--color-danger)";
+  const sipBadge = item.sipEnabled && item.sipStatus === "active"
+    ? <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary ml-1">SIP</span>
+    : null;
+  return (
+    <button
+      onClick={onEdit}
+      className="w-full text-left flex items-center justify-between gap-2 rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2 hover:bg-white/[0.04] transition-colors">
+      <div className="min-w-0">
+        <div className="text-sm truncate">{item.name || "(unnamed)"} {sipBadge}</div>
+        <div className="text-[11px] text-muted-foreground">
+          {item.subtype || "Investment"}
+          {invested ? ` · Invested ${formatMoney(invested, item.currency || base)}` : ""}
+          {item.units ? ` · ${item.units} u` : ""}
+        </div>
+      </div>
+      <div className="tabular text-sm text-right shrink-0">
+        {formatMoney(item.value, item.currency || base)}
+        {invested > 0 && (
+          <div className="text-[11px] flex items-center justify-end gap-1" style={{ color: gainColor }}>
+            {gain >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {gain >= 0 ? "+" : ""}{formatMoney(gain, item.currency || base)} ({gainPct.toFixed(1)}%)
+          </div>
+        )}
+        {(item.currency || base) !== base && (
+          <div className="text-[11px] text-muted-foreground">
+            · {formatMoney(convert(item.value, item.currency || base, base, fx), base)}
+          </div>
+        )}
+      </div>
+    </button>
   );
 }
 
