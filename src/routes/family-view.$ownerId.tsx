@@ -169,7 +169,7 @@ function ViewerSections({
 
       {allowed.includes("networth") && (
         <Card title="Net Worth" icon={TrendingUp}>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Stat label="Net worth" value={fmt(snapshot.base_currency, snapshot.net_worth)} highlight />
             <Stat label="Assets" value={fmt(snapshot.base_currency, snapshot.total_assets)} />
             <Stat label="Liabilities" value={fmt(snapshot.base_currency, snapshot.total_liabilities)} />
