@@ -476,6 +476,26 @@ export function ensureRegions(s: FinanceState): FinanceState {
       next = { ...next, targetAllocation: ta };
     }
   }
+  // Migrate legacy / duplicate transaction category labels into the canonical set.
+  if (next.transactions && next.transactions.length > 0) {
+    const catMap: Record<string, string> = {
+      "House": "Housing & Rent",
+      "Drink & Dine": "Food & Dining",
+      "Food & Grocery": "Groceries",
+      "Utilities": "Bills & Utilities",
+      "Loan & Debts": "EMI & Loans",
+      "Salary": "Salary & Paycheck",
+      "Business Income": "Business & Profession",
+      "Gift": "Gifts",
+    };
+    let changed = false;
+    const txs = next.transactions.map((t) => {
+      const mapped = catMap[t.category];
+      if (mapped && mapped !== t.category) { changed = true; return { ...t, category: mapped }; }
+      return t;
+    });
+    if (changed) next = { ...next, transactions: txs };
+  }
   return next;
 }
 
