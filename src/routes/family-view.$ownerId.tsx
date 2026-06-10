@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
   Loader2, ArrowLeft, Eye, ShieldAlert, TrendingUp, ArrowLeftRight,
-  Target, Wallet, AlertCircle,
+  Target, Wallet, AlertCircle, PiggyBank,
 } from "lucide-react";
 import { getFamilyView } from "@/lib/family.functions";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
@@ -206,6 +206,19 @@ function ViewerSections({
           </p>
         </Card>
       )}
+
+      {allowed.includes("investments") && (
+        <Card title="Investments" icon={PiggyBank}>
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="Total assets" value={fmt(snapshot.base_currency, snapshot.total_assets)} highlight />
+            <Stat label="Accounts tracked" value={String(snapshot.account_count)} />
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Includes SIPs, stocks, mutual funds, FDs and other tracked investments.
+          </p>
+        </Card>
+      )}
+
 
       {allowed.length === 0 && (
         <p className="text-sm text-muted-foreground">No sections have been shared with you.</p>
