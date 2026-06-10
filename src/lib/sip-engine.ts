@@ -82,6 +82,10 @@ export function applySipProcess(
   navPrice?: number,
 ): FinanceState {
   const date = whenISO || toISO(new Date());
+  // Tie to the user's last-used cash account (so cash decreases).
+  const cashAccount = state.accounts.find(
+    (a) => a.id === state.lastUsedAccountId && a.type !== "credit" && a.type !== "fd",
+  ) || state.accounts.find((a) => a.type !== "credit" && a.type !== "fd");
   const tx: Transaction = {
     id: uid(),
     date,
@@ -89,7 +93,8 @@ export function applySipProcess(
     category: "Mutual Fund SIP",
     description: `${asset.name || "Investment"} SIP`,
     amount,
-    currency: asset.currency,
+    currency: asset.currency || cashAccount?.currency,
+    accountId: cashAccount?.id,
   };
   const newUnits = units && units > 0 ? units : 0;
   const newAvg = navPrice && navPrice > 0 ? navPrice : asset.avgPrice || 0;
