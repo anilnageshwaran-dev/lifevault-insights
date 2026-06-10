@@ -1801,6 +1801,39 @@ function BillsTab() {
           })}
         </div>
 
+        {bills.length > 0 && (
+          <div className="mb-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Monthly recurring</div>
+                <div className="tabular font-display text-base mt-0.5">{formatMoney(totals.monthlyRecurring, base)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Yearly recurring</div>
+                <div className="tabular font-display text-base mt-0.5">{formatMoney(totals.yearlyRecurring, base)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Upcoming (30d)</div>
+                <div className="tabular font-display text-base mt-0.5" style={{ color: "var(--color-warning)" }}>
+                  {formatMoney(totals.upcomingTotal, base)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Overdue</div>
+                <div className="tabular font-display text-base mt-0.5" style={{ color: totals.overdueTotal > 0 ? "var(--color-danger)" : undefined }}>
+                  {formatMoney(totals.overdueTotal, base)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Paid this month</div>
+                <div className="tabular font-display text-base mt-0.5" style={{ color: "var(--color-positive)" }}>
+                  {formatMoney(totals.paidThisMonth, base)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {bills.length === 0 ? (
           <EmptyState icon={CalendarClock} title="No bills yet"
             description="Add bills like rent, EMIs, subscriptions or utilities to track upcoming debits."
