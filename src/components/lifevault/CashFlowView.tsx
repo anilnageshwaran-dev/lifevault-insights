@@ -1272,6 +1272,110 @@ function SpendingAnalytics({
 
 // ────────────────────────────────────────────── QUICK ADD FAB
 
+function TxEditDialog({ tx, onClose }: { tx: Transaction | null; onClose: () => void }) {
+  const { state, setState } = useFinance();
+  const base = state.baseCurrency || "INR";
+  const [draft, setDraft] = React.useState<Transaction | null>(tx);
+
+  React.useEffect(() => { setDraft(tx); }, [tx]);
+
+  if (!draft) return null;
+
+  const selectedAccount = state.accounts.find((a) => a.id === draft.accountId);
+  const txCurrency = draft.currency || selectedAccount?.currency || base;
+  const cats = categoriesForType(draft.type);
+
+  const save = () => {
+    if (!draft.amount) { toast.error("Enter an amount"); return; }
+    setState((s) => ({
+      ...s,
+      transactions: s.transactions.map((x) =>
+        x.id === draft.id ? { ...draft, currency: txCurrency } : x,
+      ),
+    }));
+    toast.success("Transaction updated");
+    onClose();
+  };
+
+  return (
+    <Dialog open={!!tx} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">Edit Transaction</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-white/[0.04]">
+            {(["income", "expense", "investment"] as const).map((t) => (
+              <button key={t} onClick={() => setDraft({ ...draft, type: t, category: categoriesForType(t).includes(draft.category) ? draft.category : categoriesForType(t)[0] })}
+                className={`py-2 text-xs capitalize rounded-md transition-colors ${
+                  draft.type === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                }`}>{t}</button>
+            ))}
+          </div>
+
+          <div>
+            <FieldLabel>Date</FieldLabel>
+            <input type="date" className="underline-input" value={draft.date}
+              onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
+          </div>
+
+          <div>
+            <FieldLabel>Account</FieldLabel>
+            <Select value={draft.accountId || ""}
+              onValueChange={(v) => setDraft({ ...draft, accountId: v, currency: state.accounts.find((a) => a.id === v)?.currency })}>
+              <SelectTrigger><SelectValue placeholder="Pick an account" /></SelectTrigger>
+              <SelectContent>
+                {state.accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: a.color }} />
+                      {a.name} <span className="text-[10px] text-muted-foreground">· {a.currency}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {!selectedAccount && (
+            <div>
+              <FieldLabel>Currency</FieldLabel>
+              <CurrencySelect value={draft.currency || base}
+                onChange={(c) => setDraft({ ...draft, currency: c })} />
+            </div>
+          )}
+
+          <div>
+            <FieldLabel>Category</FieldLabel>
+            <Select value={draft.category} onValueChange={(v) => setDraft({ ...draft, category: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {cats.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <FieldLabel>Description</FieldLabel>
+            <input className="underline-input" placeholder="e.g. Coffee with friends"
+              value={draft.description || ""} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+          </div>
+
+          <div>
+            <FieldLabel>Amount ({getCurrency(txCurrency).symbol})</FieldLabel>
+            <MoneyInput value={draft.amount} onChange={(n) => setDraft({ ...draft, amount: n })} />
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button className="flex-1" onClick={save} disabled={!draft.amount}>Save Changes</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function QuickAddFab() {
   const { state, setState, fx } = useFinance();
   const base = state.baseCurrency || "INR";
