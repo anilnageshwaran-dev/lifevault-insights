@@ -11,8 +11,9 @@ import { publishMySnapshot } from "./shared-snapshot.functions";
 
 export type AssetCategory =
   | "cash"
-  | "equity"
-  | "debt"
+  | "investment"
+  | "equity"    // legacy — migrated to "investment" on load
+  | "debt"      // legacy — migrated to "investment" on load
   | "gold"
   | "realestate"
   | "crypto";
@@ -25,6 +26,53 @@ export type LiabilityCategory =
   | "other";
 
 export type TxType = "income" | "expense" | "investment";
+
+/** Grouped subtypes used by the unified "Investments" category. */
+export const INVESTMENT_SUBTYPE_GROUPS = {
+  "Stocks & Equity": [
+    "Direct Stock", "Equity MF", "ELSS", "ETF", "Index Fund", "ESOP", "Unlisted Equity",
+  ],
+  "Fixed Income": [
+    "FD", "RD", "PPF", "EPF", "NPS", "Bond", "Debt MF", "G-Sec",
+    "Corporate FD", "RBI Bond", "NSC", "KVP", "Sukanya Samriddhi",
+    "SCSS", "Post Office TD",
+  ],
+  "Hybrid & Other": [
+    "Hybrid MF", "Balanced Fund", "ULIP", "PMS", "AIF", "P2P Lending", "Other",
+  ],
+} as const;
+
+export const ALL_INVESTMENT_SUBTYPES: string[] =
+  Object.values(INVESTMENT_SUBTYPE_GROUPS).flat() as string[];
+
+export function subtypeGroup(subtype?: string): keyof typeof INVESTMENT_SUBTYPE_GROUPS | null {
+  if (!subtype) return null;
+  for (const [g, list] of Object.entries(INVESTMENT_SUBTYPE_GROUPS)) {
+    if ((list as readonly string[]).includes(subtype)) return g as keyof typeof INVESTMENT_SUBTYPE_GROUPS;
+  }
+  return null;
+}
+
+/** Subtypes considered SIP-eligible (mutual fund / ETF / index). */
+export const SIP_ELIGIBLE_SUBTYPES = new Set<string>([
+  "Equity MF", "ELSS", "ETF", "Index Fund", "Debt MF", "Hybrid MF", "Balanced Fund", "ULIP",
+]);
+
+export interface InvestmentPurchase {
+  id: string;
+  date: string;        // ISO yyyy-mm-dd
+  amount: number;      // cash invested in asset.currency
+  units?: number;
+  price?: number;
+  notes?: string;
+}
+
+export interface SipHistoryEntry {
+  date: string;
+  amount: number;
+  units?: number;
+  price?: number;
+}
 
 export interface AssetItem {
   id: string;
@@ -39,6 +87,29 @@ export interface AssetItem {
   ticker?: string;
   units?: number;
   avgPrice?: number;
+  currentPrice?: number;
+  // FD/RD/Bond specifics
+  principal?: number;
+  interestRate?: number;
+  startDate?: string;
+  tenureMonths?: number;
+  maturityDate?: string;
+  maturityAmount?: number;
+  // PPF/EPF/NPS
+  currentBalance?: number;
+  annualContribution?: number;
+  expectedRate?: number;
+  // Purchase history (any subtype)
+  purchases?: InvestmentPurchase[];
+  // SIP fields (MF/ETF/Index)
+  sipEnabled?: boolean;
+  sipAmount?: number;
+  sipFrequency?: "monthly";
+  sipDate?: number; // 1-28
+  sipStartDate?: string;
+  sipStatus?: "active" | "paused";
+  lastSipProcessedDate?: string;
+  sipHistory?: SipHistoryEntry[];
 }
 export interface LiabilityItem {
   id: string;
@@ -280,8 +351,9 @@ const initialState: FinanceState = {
   liabilities: [],
   targetAllocation: {
     cash: 10,
-    equity: 50,
-    debt: 20,
+    investment: 70,
+    equity: 0,
+    debt: 0,
     gold: 10,
     realestate: 5,
     crypto: 5,
@@ -338,6 +410,40 @@ export function ensureRegions(s: FinanceState): FinanceState {
         history: [],
       }));
     next = { ...next, bills: [...(next.bills ?? []), ...migrated], recurring: [] };
+  }
+  // Migrate legacy equity/debt assets into the unified "investment" category.
+  if (next.assets && next.assets.some((a) => a.category === "equity" || a.category === "debt")) {
+    next = {
+      ...next,
+      assets: next.assets.map((a) => {
+        if (a.category !== "equity" && a.category !== "debt") return a;
+        // Default a subtype if missing
+        let subtype = a.subtype;
+        if (!subtype) {
+          subtype = a.category === "equity" ? "Direct Stock" : "FD";
+        } else {
+          // Normalise old labels to new subtype names
+          const map: Record<string, string> = {
+            "Equity Mutual Fund": "Equity MF",
+            "Debt Mutual Fund": "Debt MF",
+            "Government Security": "G-Sec",
+          };
+          subtype = map[subtype] || subtype;
+        }
+        return { ...a, category: "investment", subtype };
+      }),
+    };
+  }
+  // Migrate legacy targetAllocation that has equity/debt but no investment.
+  if (next.targetAllocation && (next.targetAllocation.equity || next.targetAllocation.debt)) {
+    const ta = { ...next.targetAllocation };
+    const combined = (ta.equity || 0) + (ta.debt || 0);
+    if (combined > 0 && !(ta.investment && ta.investment > 0)) {
+      ta.investment = combined;
+      ta.equity = 0;
+      ta.debt = 0;
+      next = { ...next, targetAllocation: ta };
+    }
   }
   return next;
 }
@@ -957,8 +1063,9 @@ export function useFinance() {
 
 export const ASSET_LABELS: Record<AssetCategory, string> = {
   cash: "Cash & Savings",
-  equity: "Equity",
-  debt: "Debt",
+  investment: "💼 Investments",
+  equity: "Equity (legacy)",
+  debt: "Debt (legacy)",
   gold: "Gold & Silver",
   realestate: "Real Estate",
   crypto: "Crypto",
@@ -1001,7 +1108,9 @@ export function accountBalance(state: FinanceState, accountId: string): number {
   }
   const inc = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const exp = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  return opening + inc - exp;
+  // Investments tied to a cash account are outflows (cash → holding).
+  const inv = txs.filter((t) => t.type === "investment").reduce((s, t) => s + t.amount, 0);
+  return opening + inc - exp - inv;
 }
 
 export function sumAssets(state: FinanceState, fx: FxCache | null, base: string): number {
@@ -1043,6 +1152,7 @@ export function assetsByCategory(
 ): Record<AssetCategory, number> {
   const out: Record<AssetCategory, number> = {
     cash: 0,
+    investment: 0,
     equity: 0,
     debt: 0,
     gold: 0,
@@ -1050,13 +1160,16 @@ export function assetsByCategory(
     crypto: 0,
   };
   state.assets.forEach((a) => {
-    out[a.category] += convert(a.value || 0, a.currency || base, base, fx);
+    // Migrate legacy equity/debt categories into the unified investment bucket.
+    const cat: AssetCategory =
+      a.category === "equity" || a.category === "debt" ? "investment" : a.category;
+    out[cat] += convert(a.value || 0, a.currency || base, base, fx);
   });
-  // Bank/cash/wallet accounts → cash; FD accounts → debt
+  // Bank/cash/wallet accounts → cash; FD accounts → investment (fixed-income bucket)
   state.accounts
     .filter((a) => a.type !== "credit")
     .forEach((a) => {
-      const bucket: AssetCategory = a.type === "fd" ? "debt" : "cash";
+      const bucket: AssetCategory = a.type === "fd" ? "investment" : "cash";
       out[bucket] += convert(accountBalance(state, a.id), a.currency, base, fx);
     });
   return out;

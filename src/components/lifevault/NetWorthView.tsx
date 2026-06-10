@@ -81,12 +81,17 @@ import { MilestonesRow } from "./MilestonesRow";
 import { BrokerImportDialog } from "./BrokerImportDialog";
 import { generateNetWorthReport } from "@/lib/reports-pdf";
 import { useAuth } from "@/lib/auth-context";
+import { InvestmentEditModal } from "./InvestmentEditModal";
+import { subtypeGroup } from "@/lib/finance-context";
 
-const ASSET_CATS: AssetCategory[] = ["cash", "equity", "debt", "gold", "realestate", "crypto"];
+// Equity & Debt merged into the unified "investment" category. Legacy keys
+// remain in the type only for backward-compat (migrated on load).
+const ASSET_CATS: AssetCategory[] = ["cash", "investment", "gold", "realestate", "crypto"];
 const LIAB_CATS: LiabilityCategory[] = ["home", "vehicle", "personal", "credit", "other"];
 
 const CAT_COLORS: Record<AssetCategory, string> = {
   cash: "#10B981",
+  investment: "#6366F1",
   equity: "#6366F1",
   debt: "#3B82F6",
   gold: "#F59E0B",
@@ -96,8 +101,9 @@ const CAT_COLORS: Record<AssetCategory, string> = {
 
 const SUBTYPES: Record<AssetCategory, string[]> = {
   cash: ["Fixed Deposit", "Recurring Deposit", "Liquid Fund", "Treasury Bill", "Other"],
-  equity: ["Direct Stock", "Equity Mutual Fund", "ETF", "ESOP", "Other"],
-  debt: ["Bond", "Debt Mutual Fund", "Government Security", "Corporate FD", "Other"],
+  investment: [], // handled by InvestmentEditModal's grouped picker
+  equity: [],
+  debt: [],
   gold: ["Physical Gold", "Gold ETF", "Sovereign Gold Bond", "Digital Gold", "Other"],
   realestate: ["Primary Home", "Investment Property", "Land", "Commercial", "Other"],
   crypto: ["Bitcoin", "Ethereum", "Altcoin", "Stablecoin", "Other"],
@@ -109,6 +115,8 @@ export function NetWorthView() {
   const base = state.baseCurrency || "INR";
 
   const [openAdd, setOpenAdd] = React.useState<{ kind: "asset" | "liability"; category: string } | null>(null);
+  const [editInvestment, setEditInvestment] = React.useState<AssetItem | null>(null);
+  const [addInvestment, setAddInvestment] = React.useState(false);
   const [scheduleFor, setScheduleFor] = React.useState<LiabilityItem | null>(null);
   const [refreshingPrices, setRefreshingPrices] = React.useState(false);
   const [hideValues, setHideValues] = React.useState(false);
@@ -199,12 +207,12 @@ export function NetWorthView() {
 
   const refreshPrices = async () => {
     const holdings = state.assets
-      .filter((a) => (a.category === "equity" || a.category === "crypto") && a.ticker && (a.units ?? 0) > 0)
+      .filter((a) => (a.category === "equity" || a.category === "crypto" || a.category === "investment") && a.ticker && (a.units ?? 0) > 0)
       .map((a) => ({
         id: a.id,
         ticker: a.ticker as string,
         name: a.name,
-        kind: a.category === "crypto" ? ("crypto" as const) : a.subtype === "Equity Mutual Fund" ? ("mutualfund" as const) : ("stock" as const),
+        kind: a.category === "crypto" ? ("crypto" as const) : (a.subtype === "Equity MF" || a.subtype === "Equity Mutual Fund" || a.subtype === "ELSS" || a.subtype === "Debt MF" || a.subtype === "Hybrid MF") ? ("mutualfund" as const) : ("stock" as const),
         currency: a.currency || base,
       }));
     if (holdings.length === 0) {
@@ -318,19 +326,27 @@ export function NetWorthView() {
                       currency: a.currency,
                       hint: "From Cash Flow → Accounts",
                     }))
-                  : cat === "debt"
+                  : cat === "investment"
                   ? state.accounts.filter((a) => a.type === "fd").map((a) => ({
                       isAccount: true as const,
                       id: a.id,
                       name: `${a.name}${a.last4 ? ` ····${a.last4}` : ""}`,
                       value: accountBalance(state, a.id),
                       currency: a.currency,
-                      hint: `Fixed Deposit${a.maturityDate ? ` · Matures ${a.maturityDate}` : ""}${a.interestRate ? ` · ${a.interestRate}% p.a.` : ""}`,
+                      hint: `Fixed Deposit · Cash Flow${a.maturityDate ? ` · Matures ${a.maturityDate}` : ""}${a.interestRate ? ` · ${a.interestRate}% p.a.` : ""}`,
                     }))
                   : [];
               const total =
                 manualItems.reduce((s, a) => s + convert(a.value, a.currency || base, base, fx), 0) +
                 accountItems.reduce((s, a) => s + convert(a.value, a.currency, base, fx), 0);
+
+              // For investments, group manual items by subtypeGroup for nicer display.
+              const groupedInvestments = cat === "investment"
+                ? (["Stocks & Equity", "Fixed Income", "Hybrid & Other"] as const).map((g) => ({
+                    group: g,
+                    items: manualItems.filter((a) => subtypeGroup(a.subtype) === g),
+                  })).filter((g) => g.items.length > 0)
+                : null;
 
               return (
                 <AccordionItem key={cat} value={cat}
@@ -351,7 +367,6 @@ export function NetWorthView() {
                         <div>
                           <div>{a.name}</div>
                           <div className="text-[11px] text-muted-foreground">{a.hint}</div>
-
                         </div>
                         <div className="tabular text-sm">
                           {formatMoney(a.value, a.currency)}
@@ -366,7 +381,19 @@ export function NetWorthView() {
                     {manualItems.length === 0 && accountItems.length === 0 && (
                       <p className="text-xs text-muted-foreground py-1">No entries yet.</p>
                     )}
-                    {manualItems.map((item) => {
+
+                    {/* Investments: grouped by subtype group, tap to edit */}
+                    {cat === "investment" && groupedInvestments?.map(({ group, items }) => (
+                      <div key={group} className="space-y-1.5">
+                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground pt-1">{group}</div>
+                        {items.map((item) => (
+                          <InvestmentRow key={item.id} item={item} base={base} fx={fx} onEdit={() => setEditInvestment(item)} />
+                        ))}
+                      </div>
+                    ))}
+
+                    {/* Non-investment categories: existing row layout */}
+                    {cat !== "investment" && manualItems.map((item) => {
                       const invested = item.invested || 0;
                       const gain = invested > 0 ? item.value - invested : 0;
                       const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
@@ -408,10 +435,18 @@ export function NetWorthView() {
                         </div>
                       </div>
                     );})}
-                    <Button variant="ghost" size="sm" className="gap-1"
-                      onClick={() => setOpenAdd({ kind: "asset", category: cat })}>
-                      <Plus className="h-3.5 w-3.5" /> Add asset
-                    </Button>
+
+                    {cat === "investment" ? (
+                      <Button variant="ghost" size="sm" className="gap-1"
+                        onClick={() => setAddInvestment(true)}>
+                        <Plus className="h-3.5 w-3.5" /> Add Investment
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" className="gap-1"
+                        onClick={() => setOpenAdd({ kind: "asset", category: cat })}>
+                        <Plus className="h-3.5 w-3.5" /> Add asset
+                      </Button>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               );
@@ -548,7 +583,56 @@ export function NetWorthView() {
       )}
       <BrokerImportDialog open={brokerOpen} onClose={() => setBrokerOpen(false)} />
       <MilestoneCelebration milestone={celebrate} onClose={() => setCelebrate(null)} />
+      {(editInvestment || addInvestment) && (
+        <InvestmentEditModal
+          existing={editInvestment}
+          onClose={() => { setEditInvestment(null); setAddInvestment(false); }}
+        />
+      )}
     </div>
+  );
+}
+
+function InvestmentRow({ item, base, fx, onEdit }: {
+  item: AssetItem;
+  base: string;
+  fx: ReturnType<typeof useFinance>["fx"];
+  onEdit: () => void;
+}) {
+  const invested = item.invested || 0;
+  const gain = invested > 0 ? item.value - invested : 0;
+  const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
+  const gainColor = gain >= 0 ? "var(--color-positive)" : "var(--color-danger)";
+  const sipBadge = item.sipEnabled && item.sipStatus === "active"
+    ? <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary ml-1">SIP</span>
+    : null;
+  return (
+    <button
+      onClick={onEdit}
+      className="w-full text-left flex items-center justify-between gap-2 rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2 hover:bg-white/[0.04] transition-colors">
+      <div className="min-w-0">
+        <div className="text-sm truncate">{item.name || "(unnamed)"} {sipBadge}</div>
+        <div className="text-[11px] text-muted-foreground">
+          {item.subtype || "Investment"}
+          {invested ? ` · Invested ${formatMoney(invested, item.currency || base)}` : ""}
+          {item.units ? ` · ${item.units} u` : ""}
+        </div>
+      </div>
+      <div className="tabular text-sm text-right shrink-0">
+        {formatMoney(item.value, item.currency || base)}
+        {invested > 0 && (
+          <div className="text-[11px] flex items-center justify-end gap-1" style={{ color: gainColor }}>
+            {gain >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {gain >= 0 ? "+" : ""}{formatMoney(gain, item.currency || base)} ({gainPct.toFixed(1)}%)
+          </div>
+        )}
+        {(item.currency || base) !== base && (
+          <div className="text-[11px] text-muted-foreground">
+            · {formatMoney(convert(item.value, item.currency || base, base, fx), base)}
+          </div>
+        )}
+      </div>
+    </button>
   );
 }
 
