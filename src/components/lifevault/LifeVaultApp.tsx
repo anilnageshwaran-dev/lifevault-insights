@@ -19,6 +19,7 @@ import { ProfileDrawer } from "./ProfileDrawer";
 import { RemindersBanner } from "./RemindersBanner";
 // FeedbackButton merged into QuickAddFab
 import { HelpAndTour } from "./HelpAndTour";
+import { SipDueSheet } from "./SipDueSheet";
 import { useServerFn } from "@tanstack/react-start";
 import { listRecentAcceptances } from "@/lib/family.functions";
 import { toast } from "sonner";
