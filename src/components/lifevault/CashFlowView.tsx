@@ -638,7 +638,7 @@ function AccountFormDialog({ account, onClose, base }:
           {hasBankFields && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <FieldLabel>{isCC ? "Issuer / Bank *" : "Bank Name *"}</FieldLabel>
+                <FieldLabel>{isCC ? "Issuer / Bank *" : isFD ? "Bank / Issuer *" : "Bank Name *"}</FieldLabel>
                 <input className="underline-input" list="bank-list" value={form.bank || ""}
                   placeholder="Type or pick (e.g. Barclays, HDFC)"
                   onChange={(e) => setForm({ ...form, bank: e.target.value })} />
