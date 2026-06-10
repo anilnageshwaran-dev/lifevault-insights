@@ -7,6 +7,7 @@ import { fetchFxRates, type FxCache, convert } from "./currency";
 import { downloadVault, uploadVault, statVault } from "./supabase-storage";
 import { toast } from "sonner";
 import type { MilestoneAchieved } from "./milestones";
+import { publishMySnapshot } from "./shared-snapshot.functions";
 
 export type AssetCategory =
   | "cash"
