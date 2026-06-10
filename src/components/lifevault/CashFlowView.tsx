@@ -1840,38 +1840,93 @@ function BillsTab() {
           })}
         </div>
 
-        {bills.length > 0 && (
-          <div className="mb-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Monthly recurring</div>
-                <div className="tabular font-display text-base mt-0.5">{formatMoney(totals.monthlyRecurring, base)}</div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Yearly recurring</div>
-                <div className="tabular font-display text-base mt-0.5">{formatMoney(totals.yearlyRecurring, base)}</div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Upcoming (30d)</div>
-                <div className="tabular font-display text-base mt-0.5" style={{ color: "var(--color-warning)" }}>
-                  {formatMoney(totals.upcomingTotal, base)}
+        {(() => {
+          const sipsDue = sipsDueThisMonth(state);
+          const sipsTotal = sipsDue.reduce(
+            (s, d) => s + convert(d.amount, d.asset.currency || base, base, fx),
+            0,
+          );
+          const cashNeeded = totals.monthlyRecurring + sipsTotal;
+          return (
+            <>
+              {(bills.length > 0 || sipsDue.length > 0) && (
+                <div className="mb-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Monthly recurring</div>
+                      <div className="tabular font-display text-base mt-0.5">{formatMoney(totals.monthlyRecurring, base)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Yearly recurring</div>
+                      <div className="tabular font-display text-base mt-0.5">{formatMoney(totals.yearlyRecurring, base)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Upcoming (30d)</div>
+                      <div className="tabular font-display text-base mt-0.5" style={{ color: "var(--color-warning)" }}>
+                        {formatMoney(totals.upcomingTotal, base)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Overdue</div>
+                      <div className="tabular font-display text-base mt-0.5" style={{ color: totals.overdueTotal > 0 ? "var(--color-danger)" : undefined }}>
+                        {formatMoney(totals.overdueTotal, base)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Paid this month</div>
+                      <div className="tabular font-display text-base mt-0.5" style={{ color: "var(--color-positive)" }}>
+                        {formatMoney(totals.paidThisMonth, base)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-white/5 grid grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-rose-300/80">Bills (expenses)</div>
+                      <div className="tabular font-display mt-0.5">{formatMoney(totals.monthlyRecurring, base)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-emerald-300/80">SIPs (investments)</div>
+                      <div className="tabular font-display mt-0.5">{formatMoney(sipsTotal, base)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total cash needed</div>
+                      <div className="tabular font-display mt-0.5">{formatMoney(cashNeeded, base)}</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Overdue</div>
-                <div className="tabular font-display text-base mt-0.5" style={{ color: totals.overdueTotal > 0 ? "var(--color-danger)" : undefined }}>
-                  {formatMoney(totals.overdueTotal, base)}
+              )}
+
+              {sipsDue.length > 0 && (
+                <div className="mb-4 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.04] p-3 space-y-2">
+                  <div className="text-sm font-medium text-emerald-300">
+                    📈 Investments Due This Month
+                  </div>
+                  {sipsDue.map((d) => (
+                    <div key={d.asset.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-400/10 bg-white/[0.02] p-2.5 text-sm">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{d.asset.name}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Due {d.asset.sipDate ?? 1}{nth(d.asset.sipDate ?? 1)} · {d.dueDate}
+                        </div>
+                      </div>
+                      <div className="tabular text-sm">{formatMoney(d.amount, d.asset.currency)}</div>
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white"
+                        onClick={() => {
+                          setState((s) => applySipProcess(s, d.asset, d.amount));
+                          toast.success(`${d.asset.name} SIP processed ✅`);
+                        }}>
+                        Mark as Invested
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Paid this month</div>
-                <div className="tabular font-display text-base mt-0.5" style={{ color: "var(--color-positive)" }}>
-                  {formatMoney(totals.paidThisMonth, base)}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+              )}
+            </>
+          );
+        })()}
 
         {bills.length === 0 ? (
           <EmptyState icon={CalendarClock} title="No bills yet"
