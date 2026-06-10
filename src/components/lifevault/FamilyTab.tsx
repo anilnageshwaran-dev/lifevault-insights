@@ -394,7 +394,7 @@ function InviteModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                 checked={role === "viewer"}
                 onChange={() => setRole("viewer")}
                 title="Viewer"
-                desc="Can see Essentials, Net Worth, Cash Flow, and Goals (read-only)"
+                desc="Can see Essentials, Net Worth, Cash Flow, Investments, and Goals (read-only)"
               />
               <RoleOption
                 checked={role === "emergency"}
@@ -403,6 +403,13 @@ function InviteModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                 desc="Can only see the Emergency page in the Vault section"
               />
             </fieldset>
+
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Heads up:</span> when they accept, you'll
+              also get read-only access to <span className="font-medium text-foreground">their</span>{" "}
+              LifeVault with the same role and sections. Sharing is mutual.
+            </div>
+
 
             {role === "viewer" && (
               <fieldset className="space-y-2">
