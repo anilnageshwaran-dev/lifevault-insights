@@ -1108,7 +1108,9 @@ export function accountBalance(state: FinanceState, accountId: string): number {
   }
   const inc = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const exp = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  return opening + inc - exp;
+  // Investments tied to a cash account are outflows (cash → holding).
+  const inv = txs.filter((t) => t.type === "investment").reduce((s, t) => s + t.amount, 0);
+  return opening + inc - exp - inv;
 }
 
 export function sumAssets(state: FinanceState, fx: FxCache | null, base: string): number {
