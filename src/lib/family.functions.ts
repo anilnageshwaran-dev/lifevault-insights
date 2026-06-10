@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const SECTION_VALUES = ["essentials", "networth", "cashflow", "goals"] as const;
+const SECTION_VALUES = ["essentials", "networth", "cashflow", "goals", "investments"] as const;
 const sectionSchema = z.enum(SECTION_VALUES);
 
 // ─── List my outgoing invites and active grants ──────────────────────────────
@@ -215,7 +215,7 @@ export const acceptFamilyInvite = createServerFn({ method: "POST" })
       throw new Error("This invite was sent to a different email address. Please sign in with the correct account.");
     }
 
-    // Upsert family_access
+    // Upsert family_access — grant inviter→invitee access
     const { error: aErr } = await supabaseAdmin
       .from("family_access")
       .upsert(
@@ -230,6 +230,30 @@ export const acceptFamilyInvite = createServerFn({ method: "POST" })
     if (aErr) {
       console.error("[family] acceptFamilyInvite upsert:", aErr);
       throw new Error("An internal error occurred. Please try again.");
+    }
+
+    // Reciprocal: also grant the inviter read-only access to the invitee's
+    // dashboard with the same role/sections. Only insert if not already present
+    // so we don't clobber an existing manual grant from the invitee.
+    const { data: existingReverse } = await supabaseAdmin
+      .from("family_access")
+      .select("id")
+      .eq("owner_id", userId)
+      .eq("member_id", inv.owner_id)
+      .maybeSingle();
+    if (!existingReverse) {
+      const { error: rErr } = await supabaseAdmin
+        .from("family_access")
+        .insert({
+          owner_id: userId,
+          member_id: inv.owner_id,
+          role: inv.role,
+          allowed_sections: inv.allowed_sections,
+        });
+      if (rErr) {
+        console.error("[family] acceptFamilyInvite reciprocal:", rErr);
+        // Non-fatal: primary access already granted.
+      }
     }
 
     await supabaseAdmin

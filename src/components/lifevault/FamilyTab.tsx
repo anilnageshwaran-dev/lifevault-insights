@@ -12,13 +12,14 @@ import {
 } from "@/lib/family.functions";
 
 type Role = "viewer" | "emergency";
-type Section = "essentials" | "networth" | "cashflow" | "goals";
+type Section = "essentials" | "networth" | "cashflow" | "goals" | "investments";
 
 const ALL_SECTIONS: { id: Section; label: string }[] = [
   { id: "essentials", label: "Essentials" },
   { id: "networth", label: "Net Worth" },
   { id: "cashflow", label: "Cash Flow" },
   { id: "goals", label: "Goals" },
+  { id: "investments", label: "Investments" },
 ];
 
 interface Member {
