@@ -494,9 +494,11 @@ function AccountFormDialog({ account, onClose, base }:
   const initialKind: Kind = account
     ? account.type === "credit"
       ? "credit"
-      : account.type === "bank" && account.accountSubtype === "Debit Card"
-        ? "debit"
-        : account.type
+      : account.type === "fd"
+        ? "fd"
+        : account.type === "bank" && account.accountSubtype === "Debit Card"
+          ? "debit"
+          : (account.type as Kind)
     : "bank";
 
   const [kind, setKind] = React.useState<Kind>(initialKind);
