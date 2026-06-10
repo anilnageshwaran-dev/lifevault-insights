@@ -113,6 +113,8 @@ export function NetWorthView() {
   const base = state.baseCurrency || "INR";
 
   const [openAdd, setOpenAdd] = React.useState<{ kind: "asset" | "liability"; category: string } | null>(null);
+  const [editInvestment, setEditInvestment] = React.useState<AssetItem | null>(null);
+  const [addInvestment, setAddInvestment] = React.useState(false);
   const [scheduleFor, setScheduleFor] = React.useState<LiabilityItem | null>(null);
   const [refreshingPrices, setRefreshingPrices] = React.useState(false);
   const [hideValues, setHideValues] = React.useState(false);
