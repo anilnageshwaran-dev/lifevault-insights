@@ -1029,8 +1029,9 @@ export function useFinance() {
 
 export const ASSET_LABELS: Record<AssetCategory, string> = {
   cash: "Cash & Savings",
-  equity: "Equity",
-  debt: "Debt",
+  investment: "💼 Investments",
+  equity: "Equity (legacy)",
+  debt: "Debt (legacy)",
   gold: "Gold & Silver",
   realestate: "Real Estate",
   crypto: "Crypto",
