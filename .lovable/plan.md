@@ -1,56 +1,78 @@
-# LifeVault Phase 1 + 2 Build Plan
 
-This is a large scope (8 features + font swap). I'll deliver in 3 batches so you can review progress and we don't risk breaking working flows.
+# Investments + SIP overhaul
 
-## Batch 0 — Fonts (apply first, ship immediately)
-- Add Playfair Display + Plus Jakarta Sans `<link>` in `index.html` (or TanStack `__root.tsx` head).
-- Update `src/styles.css`: replace `--font-display` → Playfair Display, `--font-body` → Plus Jakarta Sans. Keep existing semantic tokens.
-- Add a `.tabular` utility class (`font-variant-numeric: tabular-nums`) and apply to money components (`formatINR` consumers — wrap in `<span className="tabular">`).
-- Search/remove "DM Serif Display" / "DM Sans" references.
+Scope is large (data model, forms, edit flow, SIP engine, bills page). I'll keep all UI inline within existing files — no new pages or routes.
 
-## Batch 1 — Phase 1
-### Feature 1: Home tab + dashboard
-- New nav entry `home` (LayoutDashboard icon) as first tab in `LifeVaultApp.tsx`; default tab becomes `home`.
-- New `HomeView.tsx` with sections: greeting header, net worth hero (with sparkline using Recharts, snapshot button reusing existing snapshot fn), 4 quick stat cards (income/expense/savings rate/runway computed from finance-context), upcoming bills (next 3), top 3 goals, rebalancing alert (>5% deviation from target allocation), quick actions (deep-link to existing add flows), getting started checklist (stored as `vault.onboardingChecklistDismissed` flag — auto-derived from data presence + dismiss when all 6 complete).
+## 1. Data model (`src/lib/finance-context.tsx`)
 
-### Feature 2: Recurring Bills
-- Extend vault state with `bills: Bill[]` array (id, name, category, amount, currency, frequency, nextDueDate, accountId, autoPost, notes, paidHistory[]).
-- Add "Bills" sub-tab inside CashFlowView between existing tabs.
-- `BillsView.tsx`: summary row, grouped list (Overdue/This Week/Upcoming/Paid this month), add/edit modal, Mark Paid (creates transaction + advances `nextDueDate` by frequency), calendar toggle (simple month grid).
+- Add `"investment"` to `AssetCategory` (keep `equity` + `debt` literals defined for backward-compat type narrowing).
+- Extend `AssetItem` with:
+  - `purchases?: { id; date; amount; units?; price?; notes? }[]` (purchase history)
+  - `principal?`, `interestRate?`, `startDate?`, `tenureMonths?`, `maturityDate?`, `maturityAmount?` (FD/RD/Bond)
+  - `currentBalance?`, `annualContribution?`, `expectedRate?` (PPF/EPF/NPS)
+  - `currentPrice?` (stocks/MF — `avgPrice`/`units` already exist)
+  - SIP fields: `sipEnabled?`, `sipAmount?`, `sipFrequency?` (`"monthly"`), `sipDate?` (1–28), `sipStartDate?`, `sipStatus?` (`"active"|"paused"`), `lastSipProcessedDate?`, `sipHistory?: { date; amount }[]`
+- Add `SUBTYPE_GROUPS` constant (Stocks & Equity / Fixed Income / Hybrid & Other) for grouped dropdown.
+- Migration in `ensureRegions` (runs on every load): map `category === "equity" || "debt"` → `"investment"`, preserve `subtype` (default by old category if missing).
+- `calculateAssetBreakdown`: route `"investment"` items to the existing chart bucket(s) — keep `equity`/`debt` keys for chart shape; classify each investment by subtype group (stocks-equity → equity bucket; fixed-income → debt bucket; hybrid → split equity).
+- Add `INVESTMENT_SUBTYPES` array and `subtypeGroup(subtype)` helper.
 
-### Feature 3: Document Expiry Alerts
-- New util `vault-expiry.ts` that scans all vault categories for known expiry fields and returns `{record, field, date, daysLeft, severity}`.
-- Add "Needs Attention" card at top of `VaultView`. Per-item dismiss persisted in `localStorage` for 7 days.
-- Add small "X items expiring soon" card on Home dashboard linking to Vault.
+## 2. Net Worth view (`NetWorthView.tsx`)
 
-### Feature 4: Feedback button
-- Existing `feedback` table + `submitFeedback` server fn already exist (verified in codebase context). Will reuse and adapt schema if needed.
-- New floating `FeedbackButton.tsx` bottom-left (above mobile bottom nav with `bottom-20 md:bottom-4`). Opens dialog with toggle Bug/Feature/General, title, description (500 char counter), 1–5 star rating (general only), prefilled email, submit → toast.
+- Merge Equity + Debt cards into a single "💼 Investments" category card listing all `category === "investment"` assets grouped by subtype group.
+- Tap row → opens new `InvestmentEditModal` (see §3).
+- "Add Investment" button opens same modal in create mode with subtype picker.
+- Remove standalone FD handling here; FDs continue to live on the Cash Flow Accounts list AND also surface as an Investment row if a flag tells us (simpler: drop the duplicate — FD as account-type stays, FD as Investment subtype is a separate manual entry). I'll **keep accounts-FD as-is** and add Investment-FD as the new modeled record so the user's per-subtype request works without breaking existing account FDs.
 
-## Batch 2 — Phase 2
-### Feature 5: Spending Analytics
-- Rework Insights tab inside CashFlowView: period selector (This Month / Last Month / 3M / 6M / 12M / YTD), summary ribbon w/ monthly averages, savings rate trend line chart (Recharts) with 20/40% reference lines, category donut + ranked list w/ MoM delta, MoM grouped bar (top 5 cats), unusual-spend amber cards (>30% above 3M avg, dismissable), top 5 transactions.
+## 3. New `InvestmentEditModal` (inside `NetWorthView.tsx`)
 
-### Feature 6: Loan Payoff Planner
-- Reuse `loan-utils.ts`. Add expandable `PayoffPlannerPanel` to each liability card in NetWorthView.
-- Sections: summary, extra-payment calc (live recompute via `n = -log(1 - rP/EMI)/log(1+r)`), amortization table (first 6 / show all), prepay-vs-invest comparison @ 12% CAGR with advisory line.
+Subtype-driven form sections:
+- Stocks/ETF/Equity-MF/Index/Mutual Funds: units, avg/NAV, current price/NAV → auto P&L
+- FD/RD/Bonds/Corporate FD/RBI Bond/NSC/KVP/Sukanya/SCSS/Post Office TD: principal, rate %, start date, tenure months → maturity date, maturity amount (compound monthly), current value (linear-time accrual), interest earned
+- PPF/EPF/NPS: current balance, annual contribution, expected rate (defaults 7.1 / 8.15 / 10) → projected value at retirement-ish horizon (use tenure field, default 15y)
+- Everything else: name, current value, total invested, currency
+- Footer: **Save**, **Add More** (purchase add → recompute weighted avg for stocks/MF; deposit add for FD/PPF), **Delete** (with confirm)
+- Collapsible **History** section listing `purchases[]`
+- For MF/IndexFund/ETF subtypes: SIP toggle block (amount, frequency, day 1–28, start date, status)
+- "Expected returns" section: subtype-driven (FD shows maturity; PPF/EPF/NPS shows projection; stocks/MF shows 3 scenarios 10/14/18% over 10y)
+- All ₹ via existing `formatMoney` (Indian format already wired in `currency.ts`)
 
-### Feature 7: Password Health
-- In Vault Passwords category page: top card with circular gauge (Recharts RadialBar) + score formula (start 100, −10 weak, −15 dup, −5 if >90d old).
-- Strength scoring util. Issue lists for weak / duplicate / old. Per-record strength bar. Copy button with `setTimeout(() => navigator.clipboard.writeText(''), 30000)` + countdown toast.
+## 4. SIP auto-processing
 
-### Feature 8: What's New page
-- New route `src/routes/whats-new.tsx`. Hardcoded changelog (replaces / supplements existing `CHANGELOG` constant). Settings link + 7-day "NEW" badge on nav driven by `localStorage` timestamp vs `APP_VERSION`.
+- New helper `computeDueSips(state, today)` in `src/lib/sip-engine.ts`: returns due SIPs (active, today ≥ next due date computed from `sipDate` + `lastSipProcessedDate` || `sipStartDate`).
+- On app open after PIN unlock (in `AppRoot.tsx` or `LifeVaultApp.tsx`, whichever owns post-unlock effects), call helper; if any due, show `SipDueSheet` bottom sheet.
+- Sheet: list + "✅ Mark All as Invested" / "Review Each" (modal stepper with editable NAV/units).
+- Processing creates one `Transaction { type: "investment", category: "Mutual Fund SIP", description: "<fund> SIP", amount, date: today, accountId: optional }`, appends to `sipHistory[]`, updates `lastSipProcessedDate`, increments `invested` on the asset.
+- Existing `accountBalance` already subtracts investments from accounts ⇒ Net Worth invariant holds.
+- Toast on completion.
+
+## 5. Bills page (`CashFlowView.tsx` → `BillsTab`)
+
+- Below the existing rose-themed bills list, render a new emerald-themed "📈 Investments Due This Month" panel listing each active SIP due in current month: `[Fund] | ₹amt | Due Xth` + "Mark as Invested" button (per-SIP, reuses the same processor as §4).
+- Extend summary panel with two-row breakdown:
+  - Bills (expenses) — rose
+  - SIPs (investments) — emerald
+  - Total cash needed
+- SIP amounts already excluded from expense totals because tx.type is `"investment"` (verify in `Insights`/`Budget` computations — they already filter by type).
+
+## 6. Bottom sheet component
+
+- New `src/components/lifevault/SipDueSheet.tsx` using existing shadcn `Sheet`/`Dialog` primitives.
+
+## 7. Constraints
+
+- No new routes. Only files touched: `finance-context.tsx`, `NetWorthView.tsx`, `CashFlowView.tsx`, `AppRoot.tsx` (one hook), plus 2 new files: `sip-engine.ts`, `SipDueSheet.tsx`.
+- All persistence flows through existing vault save mechanism (`setState` → encrypted sync).
+- Indian ₹ formatting via existing `formatMoney("INR")`.
+- Toast via `sonner` on every save/delete/process.
+- Confirm dialog before delete (shadcn `AlertDialog`).
+- Migration runs on hydrate — no data loss for existing equity/debt assets.
 
 ## Technical notes
-- All new money rendered with `tabular-nums` utility.
-- All new state lives in existing vault `finance-context` save loop — no separate persistence layer except feedback (Supabase) and per-user dismiss flags (localStorage).
-- Recharts is the only chart lib; Lucide for icons.
-- New route added to routeTree by router plugin automatically.
-- No existing files removed; only additive + targeted edits to `LifeVaultApp`, `CashFlowView`, `NetWorthView`, `VaultView`, `SettingsView`, `styles.css`, `__root.tsx`.
 
-## Out of scope / assumptions
-- Feedback table already exists (Supabase). I'll reuse; if column names differ I'll align the insert.
-- Calendar view for bills will be a lightweight in-house grid (not a heavy date library), to avoid new deps.
-- "Currency" field on bills defaults to base currency; multi-currency conversion uses existing FX context.
-- Confirm: ship in 3 batches (fonts → P1 → P2) with one approval at the end of each, OR ship everything in one large batch?
+- "Current value" for FD = `principal × (1 + (rate/12)/100)^elapsedMonths` clamped at maturity amount.
+- Weighted avg recompute on Add More: `newAvg = (oldUnits×oldAvg + newUnits×newPrice) / (oldUnits+newUnits)`.
+- SIP next-due: if `lastSipProcessedDate` set, next = same day-of-month next month (clamped to month length); else use `sipStartDate`.
+- One in-progress task tracker entry per change block; I'll keep them small.
+
+Proceed?
