@@ -604,7 +604,8 @@ function AccountFormDialog({ account, onClose, base }:
   const isBank = kind === "bank";
   const isDebit = kind === "debit";
   const isCC = kind === "credit";
-  const hasBankFields = isBank || isDebit || isCC;
+  const isFD = kind === "fd";
+  const hasBankFields = isBank || isDebit || isCC || isFD;
 
   return (
     <Dialog open onOpenChange={onClose}>
