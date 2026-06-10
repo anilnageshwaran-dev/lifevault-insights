@@ -10,6 +10,7 @@ import {
   type Bill,
   type BillFrequency,
 } from "@/lib/finance-context";
+import { sipsDueThisMonth, applySipProcess } from "@/lib/sip-engine";
 import { formatMoney, convert, CURRENCIES, getCurrency } from "@/lib/currency";
 import { pct, uid, clamp } from "@/lib/finance-utils";
 import {
