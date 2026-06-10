@@ -408,9 +408,10 @@ function AccountsTab() {
                         {a.name}
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        {a.type === "bank" ? a.accountSubtype || "Bank" : a.type === "credit" ? "Credit Card" : a.type}
+                        {a.type === "bank" ? a.accountSubtype || "Bank" : a.type === "credit" ? "Credit Card" : a.type === "fd" ? "Fixed Deposit" : a.type}
                         {a.last4 ? ` · ····${a.last4}` : ""}
                         {a.emergencyFund ? " · 🛡 Emergency" : ""}
+                        {a.type === "fd" && a.interestRate ? ` · ${a.interestRate}% p.a.` : ""}
                       </div>
                     </div>
                   </div>
@@ -429,7 +430,7 @@ function AccountsTab() {
                 <div className="flex items-end justify-between pt-1">
                   <div>
                     <div className="text-[11px] text-muted-foreground">
-                      {isCC ? "Outstanding" : "Current Balance"}
+                      {isCC ? "Outstanding" : a.type === "fd" ? "Invested" : "Current Balance"}
                     </div>
                     <div className="font-display text-2xl tabular"
                       style={{ color: isCC ? "var(--color-danger)" : undefined }}>
@@ -448,6 +449,12 @@ function AccountsTab() {
                       <div className="h-full rounded-full"
                         style={{ width: `${util}%`, backgroundColor: util > 70 ? "var(--color-danger)" : "var(--color-warning)" }} />
                     </div>
+                  </div>
+                ) : null}
+                {a.type === "fd" && (a.maturityDate || a.maturityAmount) ? (
+                  <div className="text-[11px] text-muted-foreground flex justify-between pt-1">
+                    {a.maturityDate ? <span>Matures {a.maturityDate}</span> : <span />}
+                    {a.maturityAmount ? <span>→ {formatMoney(a.maturityAmount, a.currency)}</span> : null}
                   </div>
                 ) : null}
               </div>
@@ -490,13 +497,15 @@ function AccountFormDialog({ account, onClose, base }:
   // UI "kind" splits the Card pill into Debit/Credit.
   // Debit → stored as type "bank" with accountSubtype "Debit Card".
   // Credit → stored as type "credit".
-  type Kind = "bank" | "debit" | "credit" | "cash" | "wallet" | "other";
+  type Kind = "bank" | "debit" | "credit" | "cash" | "wallet" | "fd" | "other";
   const initialKind: Kind = account
     ? account.type === "credit"
       ? "credit"
-      : account.type === "bank" && account.accountSubtype === "Debit Card"
-        ? "debit"
-        : account.type
+      : account.type === "fd"
+        ? "fd"
+        : account.type === "bank" && account.accountSubtype === "Debit Card"
+          ? "debit"
+          : (account.type as Kind)
     : "bank";
 
   const [kind, setKind] = React.useState<Kind>(initialKind);
@@ -522,8 +531,9 @@ function AccountFormDialog({ account, onClose, base }:
     setForm((f) => {
       if (kind === "credit") return { ...f, type: "credit" };
       if (kind === "debit") return { ...f, type: "bank", accountSubtype: "Debit Card" };
+      if (kind === "fd") return { ...f, type: "fd", accountSubtype: "Fixed Deposit" };
       if (kind === "bank") {
-        return { ...f, type: "bank", accountSubtype: f.accountSubtype === "Debit Card" ? "Savings" : (f.accountSubtype || "Savings") };
+        return { ...f, type: "bank", accountSubtype: f.accountSubtype === "Debit Card" || f.accountSubtype === "Fixed Deposit" ? "Savings" : (f.accountSubtype || "Savings") };
       }
       return { ...f, type: kind };
     });
@@ -601,7 +611,8 @@ function AccountFormDialog({ account, onClose, base }:
   const isBank = kind === "bank";
   const isDebit = kind === "debit";
   const isCC = kind === "credit";
-  const hasBankFields = isBank || isDebit || isCC;
+  const isFD = kind === "fd";
+  const hasBankFields = isBank || isDebit || isCC || isFD;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -614,27 +625,27 @@ function AccountFormDialog({ account, onClose, base }:
         <div className="space-y-3 pt-2">
           <div>
             <FieldLabel>Account Type</FieldLabel>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 mt-1 p-1 rounded-lg bg-white/[0.04]">
-              {(["bank", "debit", "credit", "cash", "wallet", "other"] as Kind[]).map((t) => (
+            <div className="grid grid-cols-3 sm:grid-cols-7 gap-1 mt-1 p-1 rounded-lg bg-white/[0.04]">
+              {(["bank", "debit", "credit", "fd", "cash", "wallet", "other"] as Kind[]).map((t) => (
                 <button key={t} onClick={() => setKind(t)}
                   className={`py-1.5 text-xs capitalize rounded-md ${
                     kind === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                  }`}>{t === "debit" ? "Debit Card" : t === "credit" ? "Credit Card" : t}</button>
+                  }`}>{t === "debit" ? "Debit Card" : t === "credit" ? "Credit Card" : t === "fd" ? "Fixed Deposit" : t}</button>
               ))}
             </div>
           </div>
 
           <div>
-            <FieldLabel>{isCC ? "Card Nickname *" : isDebit ? "Debit Card Nickname *" : isBank ? "Account Nickname *" : "Name *"}</FieldLabel>
+            <FieldLabel>{isCC ? "Card Nickname *" : isDebit ? "Debit Card Nickname *" : isFD ? "FD Nickname *" : isBank ? "Account Nickname *" : "Name *"}</FieldLabel>
             <input className="underline-input" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={isBank ? "e.g. HDFC Savings" : isCC ? "e.g. Axis Magnus" : isDebit ? "e.g. HDFC Debit" : "e.g. Cash in Hand"} />
+              placeholder={isBank ? "e.g. HDFC Savings" : isCC ? "e.g. Axis Magnus" : isDebit ? "e.g. HDFC Debit" : isFD ? "e.g. HDFC 5-yr FD" : "e.g. Cash in Hand"} />
           </div>
 
           {hasBankFields && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <FieldLabel>{isCC ? "Issuer / Bank *" : "Bank Name *"}</FieldLabel>
+                <FieldLabel>{isCC ? "Issuer / Bank *" : isFD ? "Bank / Issuer *" : "Bank Name *"}</FieldLabel>
                 <input className="underline-input" list="bank-list" value={form.bank || ""}
                   placeholder="Type or pick (e.g. Barclays, HDFC)"
                   onChange={(e) => setForm({ ...form, bank: e.target.value })} />
@@ -667,16 +678,43 @@ function AccountFormDialog({ account, onClose, base }:
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <FieldLabel>{isCC ? "Opening Outstanding *" : "Opening Balance *"}</FieldLabel>
+              <FieldLabel>{isCC ? "Opening Outstanding *" : isFD ? "Invested Amount *" : "Opening Balance *"}</FieldLabel>
               <MoneyInput value={form.openingBalance}
                 onChange={(n) => setForm({ ...form, openingBalance: n })} />
               {isCC && <p className="text-[10px] text-muted-foreground mt-1">Current amount owed on this card</p>}
+              {isFD && <p className="text-[10px] text-muted-foreground mt-1">Principal you deposited into this FD</p>}
             </div>
             <div>
               <FieldLabel>Currency *</FieldLabel>
               <CurrencySelect value={form.currency} onChange={(c) => setForm({ ...form, currency: c })} />
             </div>
           </div>
+
+          {isFD && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>Interest Rate (% p.a.)</FieldLabel>
+                  <input type="number" step="0.01" min={0} className="underline-input"
+                    placeholder="e.g. 7.25"
+                    value={form.interestRate ?? ""}
+                    onChange={(e) => setForm({ ...form, interestRate: e.target.value === "" ? undefined : Number(e.target.value) })} />
+                </div>
+                <div>
+                  <FieldLabel>Maturity Date</FieldLabel>
+                  <input type="date" className="underline-input"
+                    value={form.maturityDate || ""}
+                    onChange={(e) => setForm({ ...form, maturityDate: e.target.value || undefined })} />
+                </div>
+              </div>
+              <div>
+                <FieldLabel>Maturity Amount (optional)</FieldLabel>
+                <MoneyInput value={form.maturityAmount || 0}
+                  onChange={(n) => setForm({ ...form, maturityAmount: n || undefined })} />
+                <p className="text-[10px] text-muted-foreground mt-1">Expected payout at maturity</p>
+              </div>
+            </>
+          )}
 
           {isCC && (
             <>

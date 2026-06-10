@@ -105,7 +105,7 @@ export interface VaultRecord {
   updatedAt: number;
 }
 
-export type AccountType = "bank" | "credit" | "cash" | "wallet" | "other";
+export type AccountType = "bank" | "credit" | "cash" | "wallet" | "fd" | "other";
 
 export interface Account {
   id: string;
@@ -125,6 +125,10 @@ export interface Account {
   paymentDueDay?: number; // 1-31, credit cards only
   statementDay?: number;  // 1-31, credit cards only (optional)
   linkedBillId?: string;  // auto-created payment bill id
+  // Fixed Deposit specifics (when type === "fd")
+  interestRate?: number;     // annual %, e.g. 7.2
+  maturityDate?: string;     // ISO date
+  maturityAmount?: number;   // expected amount at maturity
   // Login credentials (encrypted at rest with the rest of the vault)
   loginUrl?: string;
   loginUsername?: string;
@@ -991,6 +995,10 @@ export function accountBalance(state: FinanceState, accountId: string): number {
       .reduce((s, t) => s + t.amount, 0);
     return opening + exp - pay - transferIn;
   }
+  if (acc.type === "fd") {
+    // Fixed deposits hold the invested amount; transactions don't change it.
+    return opening;
+  }
   const inc = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const exp = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   return opening + inc - exp;
@@ -1044,11 +1052,12 @@ export function assetsByCategory(
   state.assets.forEach((a) => {
     out[a.category] += convert(a.value || 0, a.currency || base, base, fx);
   });
-  // Bank/cash/wallet accounts → cash
+  // Bank/cash/wallet accounts → cash; FD accounts → debt
   state.accounts
     .filter((a) => a.type !== "credit")
     .forEach((a) => {
-      out.cash += convert(accountBalance(state, a.id), a.currency, base, fx);
+      const bucket: AssetCategory = a.type === "fd" ? "debt" : "cash";
+      out[bucket] += convert(accountBalance(state, a.id), a.currency, base, fx);
     });
   return out;
 }
