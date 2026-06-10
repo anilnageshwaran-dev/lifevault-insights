@@ -83,7 +83,11 @@ export function applySipProcess(
 ): FinanceState {
   const date = whenISO || toISO(new Date());
   // Tie to the user's last-used cash account (so cash decreases).
-  const cashAccount = state.accounts.find(
+  // Prefer the account explicitly linked to this SIP; fall back to last-used, then any cash account.
+  const linked = asset.sipAccountId
+    ? state.accounts.find((a) => a.id === asset.sipAccountId)
+    : undefined;
+  const cashAccount = linked || state.accounts.find(
     (a) => a.id === state.lastUsedAccountId && a.type !== "credit" && a.type !== "fd",
   ) || state.accounts.find((a) => a.type !== "credit" && a.type !== "fd");
   const tx: Transaction = {
