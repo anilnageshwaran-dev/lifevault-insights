@@ -430,7 +430,7 @@ function AccountsTab() {
                 <div className="flex items-end justify-between pt-1">
                   <div>
                     <div className="text-[11px] text-muted-foreground">
-                      {isCC ? "Outstanding" : "Current Balance"}
+                      {isCC ? "Outstanding" : a.type === "fd" ? "Invested" : "Current Balance"}
                     </div>
                     <div className="font-display text-2xl tabular"
                       style={{ color: isCC ? "var(--color-danger)" : undefined }}>
