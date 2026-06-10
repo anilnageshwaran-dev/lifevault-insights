@@ -310,17 +310,28 @@ export function NetWorthView() {
               const manualItems = state.assets.filter((a) => a.category === cat);
               const accountItems =
                 cat === "cash"
-                  ? state.accounts.filter((a) => a.type !== "credit").map((a) => ({
+                  ? state.accounts.filter((a) => a.type !== "credit" && a.type !== "fd").map((a) => ({
                       isAccount: true as const,
                       id: a.id,
                       name: `${a.name}${a.last4 ? ` ····${a.last4}` : ""}`,
                       value: accountBalance(state, a.id),
                       currency: a.currency,
+                      hint: "From Cash Flow → Accounts",
+                    }))
+                  : cat === "debt"
+                  ? state.accounts.filter((a) => a.type === "fd").map((a) => ({
+                      isAccount: true as const,
+                      id: a.id,
+                      name: `${a.name}${a.last4 ? ` ····${a.last4}` : ""}`,
+                      value: accountBalance(state, a.id),
+                      currency: a.currency,
+                      hint: `Fixed Deposit${a.maturityDate ? ` · Matures ${a.maturityDate}` : ""}${a.interestRate ? ` · ${a.interestRate}% p.a.` : ""}`,
                     }))
                   : [];
               const total =
                 manualItems.reduce((s, a) => s + convert(a.value, a.currency || base, base, fx), 0) +
                 accountItems.reduce((s, a) => s + convert(a.value, a.currency, base, fx), 0);
+
               return (
                 <AccordionItem key={cat} value={cat}
                   className="border border-white/5 rounded-xl px-3 bg-white/[0.02]">
