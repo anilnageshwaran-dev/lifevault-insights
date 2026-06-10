@@ -326,19 +326,27 @@ export function NetWorthView() {
                       currency: a.currency,
                       hint: "From Cash Flow → Accounts",
                     }))
-                  : cat === "debt"
+                  : cat === "investment"
                   ? state.accounts.filter((a) => a.type === "fd").map((a) => ({
                       isAccount: true as const,
                       id: a.id,
                       name: `${a.name}${a.last4 ? ` ····${a.last4}` : ""}`,
                       value: accountBalance(state, a.id),
                       currency: a.currency,
-                      hint: `Fixed Deposit${a.maturityDate ? ` · Matures ${a.maturityDate}` : ""}${a.interestRate ? ` · ${a.interestRate}% p.a.` : ""}`,
+                      hint: `Fixed Deposit · Cash Flow${a.maturityDate ? ` · Matures ${a.maturityDate}` : ""}${a.interestRate ? ` · ${a.interestRate}% p.a.` : ""}`,
                     }))
                   : [];
               const total =
                 manualItems.reduce((s, a) => s + convert(a.value, a.currency || base, base, fx), 0) +
                 accountItems.reduce((s, a) => s + convert(a.value, a.currency, base, fx), 0);
+
+              // For investments, group manual items by subtypeGroup for nicer display.
+              const groupedInvestments = cat === "investment"
+                ? (["Stocks & Equity", "Fixed Income", "Hybrid & Other"] as const).map((g) => ({
+                    group: g,
+                    items: manualItems.filter((a) => subtypeGroup(a.subtype) === g),
+                  })).filter((g) => g.items.length > 0)
+                : null;
 
               return (
                 <AccordionItem key={cat} value={cat}
@@ -359,7 +367,6 @@ export function NetWorthView() {
                         <div>
                           <div>{a.name}</div>
                           <div className="text-[11px] text-muted-foreground">{a.hint}</div>
-
                         </div>
                         <div className="tabular text-sm">
                           {formatMoney(a.value, a.currency)}
@@ -374,7 +381,19 @@ export function NetWorthView() {
                     {manualItems.length === 0 && accountItems.length === 0 && (
                       <p className="text-xs text-muted-foreground py-1">No entries yet.</p>
                     )}
-                    {manualItems.map((item) => {
+
+                    {/* Investments: grouped by subtype group, tap to edit */}
+                    {cat === "investment" && groupedInvestments?.map(({ group, items }) => (
+                      <div key={group} className="space-y-1.5">
+                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground pt-1">{group}</div>
+                        {items.map((item) => (
+                          <InvestmentRow key={item.id} item={item} base={base} fx={fx} onEdit={() => setEditInvestment(item)} />
+                        ))}
+                      </div>
+                    ))}
+
+                    {/* Non-investment categories: existing row layout */}
+                    {cat !== "investment" && manualItems.map((item) => {
                       const invested = item.invested || 0;
                       const gain = invested > 0 ? item.value - invested : 0;
                       const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
@@ -416,10 +435,18 @@ export function NetWorthView() {
                         </div>
                       </div>
                     );})}
-                    <Button variant="ghost" size="sm" className="gap-1"
-                      onClick={() => setOpenAdd({ kind: "asset", category: cat })}>
-                      <Plus className="h-3.5 w-3.5" /> Add asset
-                    </Button>
+
+                    {cat === "investment" ? (
+                      <Button variant="ghost" size="sm" className="gap-1"
+                        onClick={() => setAddInvestment(true)}>
+                        <Plus className="h-3.5 w-3.5" /> Add Investment
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" className="gap-1"
+                        onClick={() => setOpenAdd({ kind: "asset", category: cat })}>
+                        <Plus className="h-3.5 w-3.5" /> Add asset
+                      </Button>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               );
