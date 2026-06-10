@@ -81,6 +81,8 @@ import { MilestonesRow } from "./MilestonesRow";
 import { BrokerImportDialog } from "./BrokerImportDialog";
 import { generateNetWorthReport } from "@/lib/reports-pdf";
 import { useAuth } from "@/lib/auth-context";
+import { InvestmentEditModal } from "./InvestmentEditModal";
+import { subtypeGroup } from "@/lib/finance-context";
 
 // Equity & Debt merged into the unified "investment" category. Legacy keys
 // remain in the type only for backward-compat (migrated on load).
