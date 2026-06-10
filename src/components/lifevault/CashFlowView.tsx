@@ -671,16 +671,43 @@ function AccountFormDialog({ account, onClose, base }:
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <FieldLabel>{isCC ? "Opening Outstanding *" : "Opening Balance *"}</FieldLabel>
+              <FieldLabel>{isCC ? "Opening Outstanding *" : isFD ? "Invested Amount *" : "Opening Balance *"}</FieldLabel>
               <MoneyInput value={form.openingBalance}
                 onChange={(n) => setForm({ ...form, openingBalance: n })} />
               {isCC && <p className="text-[10px] text-muted-foreground mt-1">Current amount owed on this card</p>}
+              {isFD && <p className="text-[10px] text-muted-foreground mt-1">Principal you deposited into this FD</p>}
             </div>
             <div>
               <FieldLabel>Currency *</FieldLabel>
               <CurrencySelect value={form.currency} onChange={(c) => setForm({ ...form, currency: c })} />
             </div>
           </div>
+
+          {isFD && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>Interest Rate (% p.a.)</FieldLabel>
+                  <input type="number" step="0.01" min={0} className="underline-input"
+                    placeholder="e.g. 7.25"
+                    value={form.interestRate ?? ""}
+                    onChange={(e) => setForm({ ...form, interestRate: e.target.value === "" ? undefined : Number(e.target.value) })} />
+                </div>
+                <div>
+                  <FieldLabel>Maturity Date</FieldLabel>
+                  <input type="date" className="underline-input"
+                    value={form.maturityDate || ""}
+                    onChange={(e) => setForm({ ...form, maturityDate: e.target.value || undefined })} />
+                </div>
+              </div>
+              <div>
+                <FieldLabel>Maturity Amount (optional)</FieldLabel>
+                <MoneyInput value={form.maturityAmount || 0}
+                  onChange={(n) => setForm({ ...form, maturityAmount: n || undefined })} />
+                <p className="text-[10px] text-muted-foreground mt-1">Expected payout at maturity</p>
+              </div>
+            </>
+          )}
 
           {isCC && (
             <>
