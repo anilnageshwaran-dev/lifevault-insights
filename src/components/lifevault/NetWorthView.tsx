@@ -310,17 +310,28 @@ export function NetWorthView() {
               const manualItems = state.assets.filter((a) => a.category === cat);
               const accountItems =
                 cat === "cash"
-                  ? state.accounts.filter((a) => a.type !== "credit").map((a) => ({
+                  ? state.accounts.filter((a) => a.type !== "credit" && a.type !== "fd").map((a) => ({
                       isAccount: true as const,
                       id: a.id,
                       name: `${a.name}${a.last4 ? ` ····${a.last4}` : ""}`,
                       value: accountBalance(state, a.id),
                       currency: a.currency,
+                      hint: "From Cash Flow → Accounts",
+                    }))
+                  : cat === "debt"
+                  ? state.accounts.filter((a) => a.type === "fd").map((a) => ({
+                      isAccount: true as const,
+                      id: a.id,
+                      name: `${a.name}${a.last4 ? ` ····${a.last4}` : ""}`,
+                      value: accountBalance(state, a.id),
+                      currency: a.currency,
+                      hint: `Fixed Deposit${a.maturityDate ? ` · Matures ${a.maturityDate}` : ""}${a.interestRate ? ` · ${a.interestRate}% p.a.` : ""}`,
                     }))
                   : [];
               const total =
                 manualItems.reduce((s, a) => s + convert(a.value, a.currency || base, base, fx), 0) +
                 accountItems.reduce((s, a) => s + convert(a.value, a.currency, base, fx), 0);
+
               return (
                 <AccordionItem key={cat} value={cat}
                   className="border border-white/5 rounded-xl px-3 bg-white/[0.02]">
@@ -339,7 +350,8 @@ export function NetWorthView() {
                         className="flex items-center justify-between text-sm rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
                         <div>
                           <div>{a.name}</div>
-                          <div className="text-[11px] text-muted-foreground">From Cash Flow → Accounts</div>
+                          <div className="text-[11px] text-muted-foreground">{a.hint}</div>
+
                         </div>
                         <div className="tabular text-sm">
                           {formatMoney(a.value, a.currency)}
