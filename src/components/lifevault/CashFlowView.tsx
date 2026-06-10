@@ -522,8 +522,9 @@ function AccountFormDialog({ account, onClose, base }:
     setForm((f) => {
       if (kind === "credit") return { ...f, type: "credit" };
       if (kind === "debit") return { ...f, type: "bank", accountSubtype: "Debit Card" };
+      if (kind === "fd") return { ...f, type: "fd", accountSubtype: "Fixed Deposit" };
       if (kind === "bank") {
-        return { ...f, type: "bank", accountSubtype: f.accountSubtype === "Debit Card" ? "Savings" : (f.accountSubtype || "Savings") };
+        return { ...f, type: "bank", accountSubtype: f.accountSubtype === "Debit Card" || f.accountSubtype === "Fixed Deposit" ? "Savings" : (f.accountSubtype || "Savings") };
       }
       return { ...f, type: kind };
     });
