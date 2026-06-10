@@ -1116,6 +1116,7 @@ export function assetsByCategory(
 ): Record<AssetCategory, number> {
   const out: Record<AssetCategory, number> = {
     cash: 0,
+    investment: 0,
     equity: 0,
     debt: 0,
     gold: 0,
@@ -1123,13 +1124,16 @@ export function assetsByCategory(
     crypto: 0,
   };
   state.assets.forEach((a) => {
-    out[a.category] += convert(a.value || 0, a.currency || base, base, fx);
+    // Migrate legacy equity/debt categories into the unified investment bucket.
+    const cat: AssetCategory =
+      a.category === "equity" || a.category === "debt" ? "investment" : a.category;
+    out[cat] += convert(a.value || 0, a.currency || base, base, fx);
   });
-  // Bank/cash/wallet accounts → cash; FD accounts → debt
+  // Bank/cash/wallet accounts → cash; FD accounts → investment (fixed-income bucket)
   state.accounts
     .filter((a) => a.type !== "credit")
     .forEach((a) => {
-      const bucket: AssetCategory = a.type === "fd" ? "debt" : "cash";
+      const bucket: AssetCategory = a.type === "fd" ? "investment" : "cash";
       out[bucket] += convert(accountBalance(state, a.id), a.currency, base, fx);
     });
   return out;
