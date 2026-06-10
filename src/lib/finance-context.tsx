@@ -105,7 +105,7 @@ export interface VaultRecord {
   updatedAt: number;
 }
 
-export type AccountType = "bank" | "credit" | "cash" | "wallet" | "other";
+export type AccountType = "bank" | "credit" | "cash" | "wallet" | "fd" | "other";
 
 export interface Account {
   id: string;
@@ -125,6 +125,10 @@ export interface Account {
   paymentDueDay?: number; // 1-31, credit cards only
   statementDay?: number;  // 1-31, credit cards only (optional)
   linkedBillId?: string;  // auto-created payment bill id
+  // Fixed Deposit specifics (when type === "fd")
+  interestRate?: number;     // annual %, e.g. 7.2
+  maturityDate?: string;     // ISO date
+  maturityAmount?: number;   // expected amount at maturity
   // Login credentials (encrypted at rest with the rest of the vault)
   loginUrl?: string;
   loginUsername?: string;
