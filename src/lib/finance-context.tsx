@@ -995,6 +995,10 @@ export function accountBalance(state: FinanceState, accountId: string): number {
       .reduce((s, t) => s + t.amount, 0);
     return opening + exp - pay - transferIn;
   }
+  if (acc.type === "fd") {
+    // Fixed deposits hold the invested amount; transactions don't change it.
+    return opening;
+  }
   const inc = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const exp = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   return opening + inc - exp;
