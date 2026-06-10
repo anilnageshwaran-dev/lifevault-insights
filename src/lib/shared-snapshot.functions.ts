@@ -76,3 +76,85 @@ export const deleteMySharedSnapshot = createServerFn({ method: "POST" })
     if (error) { console.error("[server] db error:", error); throw new Error("An internal error occurred. Please try again."); }
     return { ok: true };
   });
+
+// Publishes a snapshot of the signed-in user's own finances for family viewers.
+// Creates / reuses a personal household so the snapshot satisfies the table FK.
+const MySnapshotSchema = z.object({
+  displayName: z.string().max(120).optional().nullable(),
+  baseCurrency: z.string().min(2).max(8),
+  netWorth: z.number().finite(),
+  totalAssets: z.number().finite(),
+  totalLiabilities: z.number().finite(),
+  monthlyIncome: z.number().finite(),
+  monthlyExpenses: z.number().finite(),
+  emergencyFund: z.number().finite(),
+  goalCount: z.number().int().nonnegative(),
+  accountCount: z.number().int().nonnegative(),
+  healthScore: z.number().int().min(0).max(100),
+});
+
+export const publishMySnapshot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: z.input<typeof MySnapshotSchema>) => MySnapshotSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1) Find or create a personal household owned by the user.
+    let householdId: string | null = null;
+    const { data: existing } = await supabaseAdmin
+      .from("households")
+      .select("id")
+      .eq("owner_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (existing?.id) {
+      householdId = existing.id;
+    } else {
+      const { data: created, error: cErr } = await supabaseAdmin
+        .from("households")
+        .insert({ owner_id: userId, name: "Personal" })
+        .select("id")
+        .single();
+      if (cErr || !created) {
+        console.error("[server] create personal household:", cErr);
+        throw new Error("An internal error occurred. Please try again.");
+      }
+      householdId = created.id;
+    }
+
+    // 2) Ensure membership row exists (snapshot RLS policy depends on it for app-side reads).
+    await supabaseAdmin
+      .from("household_members")
+      .upsert(
+        { household_id: householdId, user_id: userId, role: "owner" },
+        { onConflict: "household_id,user_id" },
+      );
+
+    // 3) Upsert snapshot row.
+    const row = {
+      household_id: householdId,
+      user_id: userId,
+      display_name: data.displayName ?? null,
+      base_currency: data.baseCurrency,
+      net_worth: data.netWorth,
+      total_assets: data.totalAssets,
+      total_liabilities: data.totalLiabilities,
+      monthly_income: data.monthlyIncome,
+      monthly_expenses: data.monthlyExpenses,
+      emergency_fund: data.emergencyFund,
+      goal_count: data.goalCount,
+      account_count: data.accountCount,
+      health_score: data.healthScore,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabaseAdmin
+      .from("household_shared_snapshots")
+      .upsert(row, { onConflict: "household_id,user_id" });
+    if (error) {
+      console.error("[server] publishMySnapshot:", error);
+      throw new Error("An internal error occurred. Please try again.");
+    }
+    return { ok: true };
+  });
