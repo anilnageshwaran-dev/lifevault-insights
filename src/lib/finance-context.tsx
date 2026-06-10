@@ -1052,11 +1052,12 @@ export function assetsByCategory(
   state.assets.forEach((a) => {
     out[a.category] += convert(a.value || 0, a.currency || base, base, fx);
   });
-  // Bank/cash/wallet accounts → cash
+  // Bank/cash/wallet accounts → cash; FD accounts → debt
   state.accounts
     .filter((a) => a.type !== "credit")
     .forEach((a) => {
-      out.cash += convert(accountBalance(state, a.id), a.currency, base, fx);
+      const bucket: AssetCategory = a.type === "fd" ? "debt" : "cash";
+      out[bucket] += convert(accountBalance(state, a.id), a.currency, base, fx);
     });
   return out;
 }
