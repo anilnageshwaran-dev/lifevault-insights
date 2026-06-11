@@ -18,6 +18,7 @@ export function CurrencyRatesCard() {
   const [to, setTo] = React.useState<string>(base === "USD" ? "INR" : "USD");
   const [amount, setAmount] = React.useState<string>("1");
   const [busy, setBusy] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
 
   const onRefresh = async () => {
     setBusy(true);
