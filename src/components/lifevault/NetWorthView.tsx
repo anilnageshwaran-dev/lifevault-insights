@@ -217,7 +217,7 @@ export function NetWorthView() {
         currency: a.currency || base,
       }));
     if (holdings.length === 0) {
-      toast.info("Add tickers and units to assets to enable price refresh");
+      toast.info("Edit an equity, mutual fund or crypto asset and set its Ticker (e.g. AAPL, RELIANCE.NS, BTC) and Units held to enable live price refresh.");
       return;
     }
     setRefreshingPrices(true);
