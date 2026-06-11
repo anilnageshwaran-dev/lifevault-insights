@@ -78,7 +78,6 @@ import { refreshInvestmentPrices } from "@/lib/investment-prices.functions";
 import { detectNewMilestones, type MilestoneAchieved } from "@/lib/milestones";
 import { MilestoneCelebration } from "./MilestoneCelebration";
 import { MilestonesRow } from "./MilestonesRow";
-import { CurrencyRatesCard } from "./CurrencyRatesCard";
 import { BrokerImportDialog } from "./BrokerImportDialog";
 import { generateNetWorthReport } from "@/lib/reports-pdf";
 import { useAuth } from "@/lib/auth-context";
@@ -311,7 +310,7 @@ export function NetWorthView() {
 
       <MilestonesRow achieved={achieved} netWorth={netWorth} />
 
-      <CurrencyRatesCard />
+
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <GlassCard>
