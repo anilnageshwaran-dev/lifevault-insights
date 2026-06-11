@@ -106,11 +106,12 @@ export function MarketsView() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <SectionTitle>Markets</SectionTitle>
+          <div className="font-display text-2xl">Markets</div>
           <p className="text-xs text-muted-foreground mt-1">
             Live indices, commodities, crypto and currency rates · AI-powered, for reference only.
           </p>
         </div>
+
         <Button onClick={() => doRefresh(true)} disabled={busy} variant="outline" size="sm" className="gap-2">
           <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
           Refresh

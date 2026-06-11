@@ -310,7 +310,7 @@ export function NetWorthView() {
 
       <MilestonesRow achieved={achieved} netWorth={netWorth} />
 
-      <CurrencyRatesCard />
+
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <GlassCard>
