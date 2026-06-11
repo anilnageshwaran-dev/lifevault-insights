@@ -1,5 +1,5 @@
 import * as React from "react";
-import { GlassCard, SectionTitle } from "./primitives";
+import { GlassCard } from "./primitives";
 import { CurrencyRatesCard } from "./CurrencyRatesCard";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, TrendingUp, TrendingDown, Minus, LineChart, Coins, Bitcoin } from "lucide-react";
