@@ -139,6 +139,7 @@ export function CurrencyRatesCard() {
           Rates from exchangerate-api · refreshed daily · for reference only.
         </div>
       </div>
+      </>)}
     </GlassCard>
   );
 }
