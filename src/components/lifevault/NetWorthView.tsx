@@ -78,7 +78,6 @@ import { refreshInvestmentPrices } from "@/lib/investment-prices.functions";
 import { detectNewMilestones, type MilestoneAchieved } from "@/lib/milestones";
 import { MilestoneCelebration } from "./MilestoneCelebration";
 import { MilestonesRow } from "./MilestonesRow";
-import { CurrencyRatesCard } from "./CurrencyRatesCard";
 import { BrokerImportDialog } from "./BrokerImportDialog";
 import { generateNetWorthReport } from "@/lib/reports-pdf";
 import { useAuth } from "@/lib/auth-context";
