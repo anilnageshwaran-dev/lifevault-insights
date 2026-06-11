@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock,
-  Settings as SettingsIcon, ChevronLeft, ChevronRight, LayoutDashboard, HelpCircle,
+  Settings as SettingsIcon, ChevronLeft, ChevronRight, LayoutDashboard, HelpCircle, CandlestickChart,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
@@ -12,6 +12,7 @@ import { NetWorthView } from "./NetWorthView";
 import { CashFlowView, QuickAddFab } from "./CashFlowView";
 import { GoalsView } from "./GoalsView";
 import { VaultView } from "./VaultView";
+import { MarketsView } from "./MarketsView";
 import { SettingsView } from "./SettingsView";
 import { InstallBanner } from "./InstallBanner";
 import { LifeVaultIcon } from "./LifeVaultIcon";
@@ -24,7 +25,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listRecentAcceptances } from "@/lib/family.functions";
 import { toast } from "sonner";
 
-type TabId = "home" | "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
+type TabId = "home" | "essentials" | "networth" | "cashflow" | "goals" | "markets" | "vault" | "settings";
 
 const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "home", label: "Home", icon: LayoutDashboard },
@@ -32,6 +33,7 @@ const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: 
   { id: "networth", label: "Net Worth", icon: BarChart3 },
   { id: "cashflow", label: "Cash Flow", icon: ArrowLeftRight },
   { id: "goals", label: "Goals", icon: Target },
+  { id: "markets", label: "Markets", icon: CandlestickChart },
   { id: "vault", label: "Vault", icon: Lock },
 ];
 
@@ -237,6 +239,7 @@ export function LifeVaultApp() {
           {tab === "networth" && <NetWorthView />}
           {tab === "cashflow" && <CashFlowView />}
           {tab === "goals" && <GoalsView />}
+          {tab === "markets" && <MarketsView />}
           {tab === "vault" && <VaultView />}
           {tab === "settings" && <SettingsView />}
         </div>
@@ -244,7 +247,7 @@ export function LifeVaultApp() {
 
       {/* Mobile bottom tab bar */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t border-border bg-background/95 backdrop-blur-md">
-        <div className="grid grid-cols-6">
+        <div className="grid grid-cols-7">
           {TABS.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
