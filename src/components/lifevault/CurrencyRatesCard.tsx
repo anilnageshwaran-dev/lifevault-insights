@@ -51,20 +51,34 @@ export function CurrencyRatesCard() {
   return (
     <GlassCard>
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Globe2 className="h-4 w-4 text-primary" />
-          <div>
-            <div className="font-display text-lg">Live Currency Rates</div>
-            <div className="text-xs text-muted-foreground">
-              {updated ? `Updated ${updated.toLocaleString()}` : "Rates not loaded yet"}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-2 text-left flex-1 min-w-0"
+          aria-expanded={open}
+        >
+          <Globe2 className="h-4 w-4 text-primary shrink-0" />
+          <div className="min-w-0">
+            <div className="font-display text-lg flex items-center gap-1.5">
+              Live Currency Rates
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+            </div>
+            <div className="text-xs text-muted-foreground truncate">
+              {open
+                ? (updated ? `Updated ${updated.toLocaleString()}` : "Rates not loaded yet")
+                : `1 ${base} = ${fx ? convert(1, base, base === "USD" ? "INR" : "USD", fx).toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"} ${base === "USD" ? "INR" : "USD"} · tap to expand`}
             </div>
           </div>
-        </div>
-        <Button onClick={onRefresh} disabled={busy} variant="outline" size="sm" className="gap-2">
-          <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        </button>
+        {open && (
+          <Button onClick={onRefresh} disabled={busy} variant="outline" size="sm" className="gap-2">
+            <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        )}
       </div>
+
+      {open && (<></>)}
 
       {/* Converter */}
       <div className="mt-4 rounded-xl border border-border bg-white/[0.02] p-3 space-y-3">
