@@ -78,8 +78,7 @@ export function CurrencyRatesCard() {
         )}
       </div>
 
-      {open && (<></>)}
-
+      {open && (<>
       {/* Converter */}
       <div className="mt-4 rounded-xl border border-border bg-white/[0.02] p-3 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-2 items-end">
