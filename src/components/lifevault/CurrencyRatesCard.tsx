@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, ArrowRightLeft, Globe2 } from "lucide-react";
+import { RefreshCw, ArrowRightLeft, Globe2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 const POPULAR = ["USD", "EUR", "GBP", "INR", "AED", "SGD", "AUD", "CAD", "JPY"];
