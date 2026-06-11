@@ -78,6 +78,7 @@ import { refreshInvestmentPrices } from "@/lib/investment-prices.functions";
 import { detectNewMilestones, type MilestoneAchieved } from "@/lib/milestones";
 import { MilestoneCelebration } from "./MilestoneCelebration";
 import { MilestonesRow } from "./MilestonesRow";
+import { CurrencyRatesCard } from "./CurrencyRatesCard";
 import { BrokerImportDialog } from "./BrokerImportDialog";
 import { generateNetWorthReport } from "@/lib/reports-pdf";
 import { useAuth } from "@/lib/auth-context";
@@ -216,7 +217,7 @@ export function NetWorthView() {
         currency: a.currency || base,
       }));
     if (holdings.length === 0) {
-      toast.info("Add tickers and units to assets to enable price refresh");
+      toast.info("Edit an equity, mutual fund or crypto asset and set its Ticker (e.g. AAPL, RELIANCE.NS, BTC) and Units held to enable live price refresh.");
       return;
     }
     setRefreshingPrices(true);
@@ -309,6 +310,8 @@ export function NetWorthView() {
       </GlassCard>
 
       <MilestonesRow achieved={achieved} netWorth={netWorth} />
+
+      <CurrencyRatesCard />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <GlassCard>
