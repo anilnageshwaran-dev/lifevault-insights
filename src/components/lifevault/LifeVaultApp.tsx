@@ -35,6 +35,12 @@ const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: 
 
 const COLLAPSE_KEY = "lifevault_sidebar_collapsed";
 
+type LegacyNav = "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
+function mapNav(t: LegacyNav): TabId {
+  if (t === "essentials" || t === "networth" || t === "goals") return "planner";
+  return t;
+}
+
 export function LifeVaultApp() {
   const [tab, setTab] = React.useState<TabId>("home");
   const [animKey, setAnimKey] = React.useState(0);
