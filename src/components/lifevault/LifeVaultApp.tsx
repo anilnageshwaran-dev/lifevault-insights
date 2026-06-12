@@ -23,14 +23,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { listRecentAcceptances } from "@/lib/family.functions";
 import { toast } from "sonner";
 
-type TabId = "home" | "essentials" | "networth" | "cashflow" | "goals" | "markets" | "vault" | "settings";
+type TabId = "home" | "planner" | "cashflow" | "markets" | "vault" | "settings";
 
 const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "home", label: "Home", icon: LayoutDashboard },
-  { id: "essentials", label: "Essentials", icon: ShieldCheck },
-  { id: "networth", label: "Net Worth", icon: BarChart3 },
+  { id: "planner", label: "Planner", icon: Wallet },
   { id: "cashflow", label: "Cash Flow", icon: ArrowLeftRight },
-  { id: "goals", label: "Goals", icon: Target },
   { id: "markets", label: "Markets", icon: CandlestickChart },
   { id: "vault", label: "Vault", icon: Lock },
 ];
