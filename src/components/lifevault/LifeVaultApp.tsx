@@ -1,16 +1,14 @@
 import * as React from "react";
 import {
-  ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock,
+  ArrowLeftRight, Lock, Wallet,
   Settings as SettingsIcon, ChevronLeft, ChevronRight, LayoutDashboard, HelpCircle, CandlestickChart,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
 import { useAuth } from "@/lib/auth-context";
 import { HomeView } from "./HomeView";
-import { EssentialsView } from "./EssentialsView";
-import { NetWorthView } from "./NetWorthView";
+import { PlannerView } from "./PlannerView";
 import { CashFlowView, QuickAddFab } from "./CashFlowView";
-import { GoalsView } from "./GoalsView";
 import { VaultView } from "./VaultView";
 import { MarketsView } from "./MarketsView";
 import { SettingsView } from "./SettingsView";
@@ -25,19 +23,23 @@ import { useServerFn } from "@tanstack/react-start";
 import { listRecentAcceptances } from "@/lib/family.functions";
 import { toast } from "sonner";
 
-type TabId = "home" | "essentials" | "networth" | "cashflow" | "goals" | "markets" | "vault" | "settings";
+type TabId = "home" | "planner" | "cashflow" | "markets" | "vault" | "settings";
 
 const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "home", label: "Home", icon: LayoutDashboard },
-  { id: "essentials", label: "Essentials", icon: ShieldCheck },
-  { id: "networth", label: "Net Worth", icon: BarChart3 },
+  { id: "planner", label: "Planner", icon: Wallet },
   { id: "cashflow", label: "Cash Flow", icon: ArrowLeftRight },
-  { id: "goals", label: "Goals", icon: Target },
   { id: "markets", label: "Markets", icon: CandlestickChart },
   { id: "vault", label: "Vault", icon: Lock },
 ];
 
 const COLLAPSE_KEY = "lifevault_sidebar_collapsed";
+
+type LegacyNav = "essentials" | "networth" | "cashflow" | "goals" | "vault" | "settings";
+function mapNav(t: LegacyNav): TabId {
+  if (t === "essentials" || t === "networth" || t === "goals") return "planner";
+  return t;
+}
 
 export function LifeVaultApp() {
   const [tab, setTab] = React.useState<TabId>("home");
@@ -234,11 +236,9 @@ export function LifeVaultApp() {
           key={animKey}
           className="px-3 sm:px-4 md:px-8 py-4 md:py-5 pb-28 md:pb-12 animate-[fadeUp_200ms_ease-out]"
         >
-          {tab === "home" && <HomeView onNavigate={(t) => setTabAnimated(t)} />}
-          {tab === "essentials" && <EssentialsView />}
-          {tab === "networth" && <NetWorthView />}
+          {tab === "home" && <HomeView onNavigate={(t) => setTabAnimated(mapNav(t))} />}
+          {tab === "planner" && <PlannerView />}
           {tab === "cashflow" && <CashFlowView />}
-          {tab === "goals" && <GoalsView />}
           {tab === "markets" && <MarketsView />}
           {tab === "vault" && <VaultView />}
           {tab === "settings" && <SettingsView />}
@@ -273,7 +273,7 @@ export function LifeVaultApp() {
         open={profileOpen}
         onOpenChange={setProfileOpen}
         onOpenSettings={() => setTabAnimated("settings")}
-        onNavigate={(t) => setTabAnimated(t)}
+        onNavigate={(t) => setTabAnimated(mapNav(t))}
       />
 
 
