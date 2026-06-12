@@ -1,16 +1,14 @@
 import * as React from "react";
 import {
-  ShieldCheck, BarChart3, ArrowLeftRight, Target, Lock,
+  ArrowLeftRight, Lock, Wallet,
   Settings as SettingsIcon, ChevronLeft, ChevronRight, LayoutDashboard, HelpCircle, CandlestickChart,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-context";
 import { useLock } from "@/lib/lock-context";
 import { useAuth } from "@/lib/auth-context";
 import { HomeView } from "./HomeView";
-import { EssentialsView } from "./EssentialsView";
-import { NetWorthView } from "./NetWorthView";
+import { PlannerView } from "./PlannerView";
 import { CashFlowView, QuickAddFab } from "./CashFlowView";
-import { GoalsView } from "./GoalsView";
 import { VaultView } from "./VaultView";
 import { MarketsView } from "./MarketsView";
 import { SettingsView } from "./SettingsView";
