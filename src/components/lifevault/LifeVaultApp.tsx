@@ -31,6 +31,7 @@ const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: 
   { id: "cashflow", label: "Cash Flow", icon: ArrowLeftRight },
   { id: "markets", label: "Markets", icon: CandlestickChart },
   { id: "vault", label: "Vault", icon: Lock },
+  { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
 const COLLAPSE_KEY = "lifevault_sidebar_collapsed";
@@ -127,7 +128,7 @@ export function LifeVaultApp() {
         </button>
 
         <nav className="flex-1 space-y-1">
-          {TABS.map((t) => {
+          {TABS.filter((t) => t.id !== "settings").map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
@@ -247,7 +248,7 @@ export function LifeVaultApp() {
 
       {/* Mobile bottom tab bar */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t border-border bg-background/95 backdrop-blur-md">
-        <div className="grid grid-cols-7">
+        <div className="grid grid-cols-6">
           {TABS.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;

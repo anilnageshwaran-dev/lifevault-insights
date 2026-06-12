@@ -105,7 +105,7 @@ export function ProfileDrawer({ open, onOpenChange, onOpenSettings, onNavigate }
     if (needed > 0 && g.currentSavings < future * 0.1 && yrs <= 5) {
       agenda.push({
         icon: <Target className="h-3.5 w-3.5" />,
-        text: `${g.name} goal needs ${formatMoney(needed, base)}/mo`,
+        text: `${g.name} goal needs ${formatMoney(needed, g.currency || base)}/mo`,
         tone: "warning",
       });
     }
