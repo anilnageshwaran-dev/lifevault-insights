@@ -273,7 +273,7 @@ export function LifeVaultApp() {
         open={profileOpen}
         onOpenChange={setProfileOpen}
         onOpenSettings={() => setTabAnimated("settings")}
-        onNavigate={(t) => setTabAnimated(t)}
+        onNavigate={(t) => setTabAnimated(mapNav(t))}
       />
 
 
