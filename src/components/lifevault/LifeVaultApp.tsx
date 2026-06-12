@@ -230,11 +230,9 @@ export function LifeVaultApp() {
           key={animKey}
           className="px-3 sm:px-4 md:px-8 py-4 md:py-5 pb-28 md:pb-12 animate-[fadeUp_200ms_ease-out]"
         >
-          {tab === "home" && <HomeView onNavigate={(t) => setTabAnimated(t)} />}
-          {tab === "essentials" && <EssentialsView />}
-          {tab === "networth" && <NetWorthView />}
+          {tab === "home" && <HomeView onNavigate={(t) => setTabAnimated(mapNav(t))} />}
+          {tab === "planner" && <PlannerView />}
           {tab === "cashflow" && <CashFlowView />}
-          {tab === "goals" && <GoalsView />}
           {tab === "markets" && <MarketsView />}
           {tab === "vault" && <VaultView />}
           {tab === "settings" && <SettingsView />}
