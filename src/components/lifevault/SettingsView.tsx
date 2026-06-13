@@ -561,7 +561,11 @@ function DataTab() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
             <Download className="h-4 w-4" /> Export JSON
           </button>
-          <button onClick={exportCsvZip}
+          <button onClick={doXlsx}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
+            <Download className="h-4 w-4" /> Export Excel (.xlsx)
+          </button>
+          <button onClick={doCsvZip}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
             <Download className="h-4 w-4" /> Export CSVs (zip)
           </button>
