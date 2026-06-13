@@ -19,7 +19,7 @@ import { CurrencySelect } from "./CurrencySelect";
 import { FamilyTab } from "./FamilyTab";
 import { convert } from "@/lib/currency";
 import { toast } from "sonner";
-import JSZip from "jszip";
+import { exportXlsx, exportCsvZip } from "@/lib/data-export";
 import { useServerFn } from "@tanstack/react-start";
 import { submitFeedback } from "@/lib/feedback.functions";
 import { deleteAccount } from "@/lib/account.functions";
@@ -542,91 +542,8 @@ function DataTab() {
   };
 
 
-  const exportCsvZip = async () => {
-    const base = state.baseCurrency || "INR";
-    const zip = new JSZip();
-    const csvEscape = (v: string | number | undefined | null) => {
-      const s = v == null ? "" : String(v);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const join = (rows: (string | number | undefined | null)[][]) =>
-      rows.map((r) => r.map(csvEscape).join(",")).join("\n");
-
-    const accById = Object.fromEntries(state.accounts.map((a) => [a.id, a]));
-
-    // transactions
-    const txRows: (string | number | undefined)[][] = [
-      ["date", "account", "type", "category", "description", "amount", "currency", "amount_in_base_currency", "base_currency"],
-    ];
-    state.transactions.forEach((t) => {
-      const acc = t.accountId ? accById[t.accountId] : undefined;
-      const ccy = t.currency || acc?.currency || base;
-      txRows.push([
-        t.date, acc?.name || "", t.type, t.category, t.description, t.amount, ccy,
-        Math.round(convert(t.amount, ccy, base, fx)), base,
-      ]);
-    });
-    zip.file("transactions.csv", join(txRows));
-
-    // accounts
-    const accRows: (string | number | undefined)[][] = [
-      ["name", "type", "current_balance", "currency", "balance_in_base_currency", "base_currency"],
-    ];
-    state.accounts.forEach((a) => {
-      const bal = accountBalance(state, a.id);
-      accRows.push([a.name, a.type, bal, a.currency, Math.round(convert(bal, a.currency, base, fx)), base]);
-    });
-    zip.file("accounts.csv", join(accRows));
-
-    // assets
-    const aRows: (string | number | undefined)[][] = [
-      ["name", "type", "subtype", "current_value", "currency", "value_in_base_currency", "base_currency", "total_invested", "invested_currency"],
-    ];
-    state.assets.forEach((a) => {
-      const ccy = a.currency || base;
-      aRows.push([
-        a.name, a.category, a.subtype || "", a.value, ccy,
-        Math.round(convert(a.value, ccy, base, fx)), base, a.invested || 0, ccy,
-      ]);
-    });
-    zip.file("assets.csv", join(aRows));
-
-    // liabilities
-    const lRows: (string | number | undefined)[][] = [
-      ["name", "type", "outstanding", "currency", "outstanding_in_base_currency", "base_currency", "interest_rate", "emi", "emi_currency"],
-    ];
-    state.liabilities.forEach((l) => {
-      const ccy = l.currency || base;
-      lRows.push([
-        l.name, l.category, l.principal, ccy,
-        Math.round(convert(l.principal, ccy, base, fx)), base, l.rate, l.emi, ccy,
-      ]);
-    });
-    zip.file("liabilities.csv", join(lRows));
-
-    // goals
-    const gRows: (string | number | undefined)[][] = [
-      ["name", "target_amount", "currency", "target_date", "current_progress", "progress_currency", "monthly_sip_required"],
-    ];
-    state.goals.forEach((g) => {
-      const years = Math.max(0, g.targetYear - new Date().getFullYear());
-      const future = g.currentCost * Math.pow(1 + g.inflation / 100, years);
-      const sip = years > 0 ? (future - g.currentSavings) / (years * 12) : 0;
-      gRows.push([g.name, Math.round(future), g.currency || base, g.targetYear, g.currentSavings, g.currency || base, Math.round(Math.max(0, sip))]);
-    });
-    zip.file("goals.csv", join(gRows));
-
-    const blob = await zip.generateAsync({ type: "blob" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `lifevault_csvs_${new Date().toISOString().slice(0, 10)}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    toast.success("CSVs exported");
-  };
+  const doCsvZip = () => exportCsvZip(state, fx).then(() => toast.success("CSVs exported"));
+  const doXlsx = () => { exportXlsx(state, fx); toast.success("Excel exported"); };
 
   return (
     <div className="space-y-5">
@@ -644,7 +561,11 @@ function DataTab() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
             <Download className="h-4 w-4" /> Export JSON
           </button>
-          <button onClick={exportCsvZip}
+          <button onClick={doXlsx}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
+            <Download className="h-4 w-4" /> Export Excel (.xlsx)
+          </button>
+          <button onClick={doCsvZip}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
             <Download className="h-4 w-4" /> Export CSVs (zip)
           </button>
