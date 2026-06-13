@@ -19,7 +19,7 @@ import { CurrencySelect } from "./CurrencySelect";
 import { FamilyTab } from "./FamilyTab";
 import { convert } from "@/lib/currency";
 import { toast } from "sonner";
-import JSZip from "jszip";
+import { exportXlsx, exportCsvZip } from "@/lib/data-export";
 import { useServerFn } from "@tanstack/react-start";
 import { submitFeedback } from "@/lib/feedback.functions";
 import { deleteAccount } from "@/lib/account.functions";
