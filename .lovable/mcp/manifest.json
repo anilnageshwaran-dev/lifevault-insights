@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "lifevault-mcp",
+      "version": "0.1.0",
+      "title": "LifeVault"
+    },
+    "tools": [
+      {
+        "name": "market_quotes",
+        "title": "Market quotes",
+        "description": "Latest known values for stock indices (e.g. NIFTY 50, S&P 500), commodities (Gold, Silver per troy ounce), and cryptocurrencies. Best-effort via AI; may be delayed.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "instruments": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "minItems": 1,
+              "maxItems": 20,
+              "description": "Instrument labels to look up, e.g. ['NIFTY 50', 'S&P 500', 'Gold (USD/oz)', 'Bitcoin']"
+            }
+          },
+          "required": [
+            "instruments"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "currency_convert",
+        "title": "Currency converter",
+        "description": "Convert an amount from one ISO 4217 currency to another using current mid-market rates.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "amount": {
+              "type": "number",
+              "description": "Amount in the source currency."
+            },
+            "from": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 3,
+              "description": "Source ISO 4217 code, e.g. USD, INR, EUR."
+            },
+            "to": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 3,
+              "description": "Target ISO 4217 code, e.g. USD, INR, EUR."
+            }
+          },
+          "required": [
+            "amount",
+            "from",
+            "to"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "sip_calculator",
+        "title": "SIP calculator",
+        "description": "Project the future value of a monthly SIP given monthly contribution, expected annual return, and duration in years.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "monthly": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Monthly SIP contribution."
+            },
+            "annualReturnPct": {
+              "type": "number",
+              "description": "Expected annual return, e.g. 12 for 12%."
+            },
+            "years": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Investment horizon in years."
+            }
+          },
+          "required": [
+            "monthly",
+            "annualReturnPct",
+            "years"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "emi_calculator",
+        "title": "EMI calculator",
+        "description": "Compute the monthly EMI, total interest and total payment for a loan on reducing-balance basis.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "principal": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Loan principal amount."
+            },
+            "annualRatePct": {
+              "type": "number",
+              "description": "Annual interest rate percent, e.g. 8.5 for 8.5%."
+            },
+            "years": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Loan tenure in years."
+            }
+          },
+          "required": [
+            "principal",
+            "annualRatePct",
+            "years"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
